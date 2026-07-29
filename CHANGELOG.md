@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created SQL schema documentation (docs/sql_schema.md)
 - Created executable SQL database file (sql/database_schema.sql)
 - Created SQL documentation README (sql/README.md)
+- Created SQL implementation guide (docs/sql_implementation_guide.md)
 - Updated documentation to include SQL schema references (SUMMARY.md, README.md, docs/README.md, root README.md)
 - Fixed Mermaid diagram syntax errors in technical_architecture.md (multiple sections)
 
