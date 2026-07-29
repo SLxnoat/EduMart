@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom'; // expect(...).toBeInTheDocument() වැඩ කිරීමට මෙය අවශ්‍ය වේ
 import App from '../App';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,7 +11,6 @@ jest.mock('../context/AuthContext', () => ({
 
 describe('App Component', () => {
   beforeEach(() => {
-    // Standard logged in state by default
     useAuth.mockReturnValue({
       user: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
       loading: false,
@@ -20,13 +20,11 @@ describe('App Component', () => {
   test('renders header and footer', async () => {
     render(<App />);
 
-    // Header සහ Footer එකේ තිබෙන EduMart text සොයා ගැනීම
     const elements = await screen.findAllByText(/EduMart/i);
     expect(elements.length).toBeGreaterThan(0);
   });
 
   test('shows loading state when auth is loading', async () => {
-    // Auth loading state එක mock කිරීම
     useAuth.mockReturnValue({
       user: null,
       loading: true,
