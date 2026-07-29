@@ -48,8 +48,6 @@ This documentation repository contains the following key documents:
 - **Weeks 3-4**: Sprint 1 - User Authentication (all roles), Basic Catalog Setup, Initial Search
 - **Weeks 5-6**: Sprint 2 - Enhanced Search/Filtering, Shopping Cart Basics, Payment Gateway Initiation
 - **Weeks 7-8**: Sprint 3 - Payment & Order Management, Admin Dashboard & Notifications, Initial AI Chatbot Setup
-- **Weeks 9-10**: Sprint 4 - Seller Dashboard & Reviews, Enhanced Catalog Features, Shopping Cart Enhancements, AI Chatbot Enhancement
-- **Weeks 11-12**: Integration, Testing, Deployment & Presentation - Full system integration, QA, UAT, production deployment, final presentation
 
 ## Key Features
 
