@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 require('dotenv').config();
-const sequelize = require('./src/config/database');
+const sequelize = require('./src/models').sequelize;
 
 const app = express();
 
