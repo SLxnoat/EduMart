@@ -1,80 +1,97 @@
-# EduMart Server
+# EduMart Express API Server
 
-This is the backend of the EduMart e-commerce platform, built with Node.js and Express.
+The backend service for the EduMart platform built with Node.js, Express.js, Sequelize ORM, and MySQL 8.0.
 
-## Getting Started
+---
 
-### Prerequisites
+## 🛠️ Prerequisites
 
-- Node.js (v14 or higher)
-- MySQL 8.0+ (as specified in project documentation)
-- npm or yarn
+- **Node.js**: v20 LTS or v22 LTS
+- **Database**: MySQL 8.0+ (or Docker Compose)
+- **Package Manager**: npm v9+
 
-### Installation
+---
 
-1. Clone the repository
-2. Navigate to the server directory: `cd server`
-3. Install dependencies: `npm install`
+## ⚡ Quick Start Options
 
-### Environment Variables
-
-Create a `.env` file in the server directory with the following variables:
-
-```
-PORT=5000
-DB_NAME=edumart
-DB_USER=root
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=3306
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRES_IN=24h
+### Option A: Via Docker Compose (Recommended)
+From the project root:
+```bash
+docker compose up --build -d db backend
 ```
 
-For production, you might also want to add:
+### Option B: Local Node.js Execution
+1. Ensure MySQL is running locally and database `edumart` exists.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set environment variables in `.env` (or set env variables directly):
+   ```env
+   PORT=5000
+   DB_NAME=edumart
+   DB_USER=root
+   DB_PASSWORD=rootpassword
+   DB_HOST=localhost
+   DB_PORT=3306
+   JWT_SECRET=your_super_secret_jwt_key_here
+   JWT_EXPIRES_IN=24h
+   FRONTEND_URL=http://localhost:3000
+   ```
+4. Start development server:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 🧪 Testing
+
+The server includes automated unit and integration tests using **Jest** and **SuperTest**. Tests run against an isolated **SQLite in-memory database** so no live MySQL instance is required to run tests.
+
+```bash
+# Run test suite once
+npm test
+
+# Run tests in watch mode
+npm run dev:test
+```
+
+### Verified Test Suite
+- `authController.test.js`: User registration, payload validation, duplicate email prevention, login credential verification.
+- `server.test.js`: Root welcome route `/`, `/health` endpoint, `404` route handler.
+
+---
+
+## 📁 Directory Structure
 
 ```
-NODE_ENV=production
+server/
+├── __tests__/              # Jest integration & unit test cases
+│   ├── authController.test.js
+│   └── server.test.js
+├── src/
+│   ├── config/             # Sequelize database connection configuration
+│   ├── controllers/        # Request handling logic (authController)
+│   ├── middleware/         # Auth verification (protect, admin, seller)
+│   ├── models/             # Sequelize ORM models (User)
+│   ├── routes/             # Express routing (authRoutes, userRoutes)
+│   ├── services/           # Reusable business logic services
+│   ├── utils/              # Helper utilities
+│   └── validators/         # Joi request body validation schemas
+├── Dockerfile              # Production Node 20/22 Alpine container file
+├── jest.config.js          # Jest test runner configuration
+├── jest.setup.js           # Test environment database mocking (SQLite memory)
+├── server.js               # Application entry point & server listener
+└── package.json            # Dependencies & scripts
 ```
 
-### Database Setup
+---
 
-1. Install and start MySQL Server
-2. Create a database named 'edumart'
-3. Execute the schema using the provided SQL file: `sql/database_schema.sql`
-4. The server will automatically synchronize models on startup in development mode.
+## 🌐 API Routes Overview
 
-### Available Scripts
-
-Scren-shots:
-- `npm start` - Starts the server in production mode
-- `npm run dev` - Starts the server in development mode with nodemon
-- `npm test` - Runs the test suite
-
-### Project Structure
-
-```
-src/
-├── controllers/    # Request handlers
-├── services/       # Business logic
-├── modelsS/         # Database models (Sequelize)
-├── routes/         # API route definitions
-├── middleware/     # Custom Express middleware
-├── utils/          # Utility functions
-├── config/         # Configuration files
-└── validators/     # Request validation schemas
-```
-
-### API Documentation
-
-API endpoints are documented in the `docs/API_ENDPOINTS.md` file in the main documentation directory.
-
-### Deployment
-
-For production deployment, consider using:
-- Heroku
-- AWS Elastic Beanstalk
-- DigitalOcean App Platform
-- Docker/Kubernetes
-
-See the DevOps section in `technical_architecture.md` for more details.
+- `POST /api/auth/register`: Public — Register new user (`student`, `tutor`, `institute`, `admin`)
+- `POST /api/auth/login`: Public — Authenticate user and receive JWT token
+- `GET /api/users/profile`: Private — Fetch authenticated user profile details
+- `PUT /api/users/profile`: Private — Update user profile details
+- `GET /health`: Public — Healthcheck status endpoint

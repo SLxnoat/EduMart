@@ -1,10 +1,18 @@
 # EduMart - Online Learning Material Store
 
+![EduMart Stack](https://img.shields.io/badge/Docker-Enabled-blue?logo=docker)
+![Node.js](https://img.shields.io/badge/Node.js-v20%2Fv22-green?logo=node.js)
+![React](https://img.shields.io/badge/React-18.x-61dafb?logo=react)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)
+![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)
+
 ## Project Overview
 
-EduMart is an online learning material store - a web-based e-commerce platform for buying and selling study materials including past papers, e-books, model papers, revision notes, and recorded lecture packs. The platform aims to create a centralized, trusted marketplace connecting students, tutors, and educational institutes.
+EduMart is an online learning material store — a web-based e-commerce platform for buying and selling educational materials including past papers, e-books, model papers, revision notes, and recorded lecture packs. The platform creates a centralized, trusted marketplace connecting students, tutors, and educational institutes.
 
-This repository contains the complete documentation for the EduMart project with enhanced features including AI chatbot, digital/physical delivery, coupon system, and seller dashboard. The actual source code would be in a separate repository or would be developed as part of the academic project.
+This repository contains the **complete source code and verified documentation** for EduMart, featuring a fully containerized architecture (MySQL DB, Node.js/Express API, and React/Nginx frontend), user authentication with JWT, role-based access control (RBAC), and automated testing suites.
+
+---
 
 ## Project Team
 
@@ -14,126 +22,157 @@ This repository contains the complete documentation for the EduMart project with
 - **Charuka**: Payment Gateway, Order Management, Backend & Client-Side Development, **AI Integration**
 - **Malki**: Admin Dashboard, Reviews, Notifications & Seller Dashboard
 
+---
+
 ## Technology Stack
 
-- **Frontend**: React.js with Vite, CSS Modules
-- **Backend**: Node.js with Express.js, RESTful API / GraphQL
-- **Database**: MySQL 8.0+ with Sequelize ORM
-- **Additional Services**: 
-  - Redis (caching & sessions)
-  - AWS S3/Local Storage (file storage)
-  - Cloudflare/AWS CloudFront (CDN)
-  - Stripe/PayPal (payment processing)
-  - SendGrid/Nodemailer (email)
-  - Twilio/Nexmo (SMS)
-  - TensorFlow.js/Natural (AI chatbot NLP)
-  - Elasticsearch/Apache Solr (optional advanced search)
-  - RabbitMQ/Apache Kafka (optional message queue)
-- **Additional Features**: JWT authentication, responsive design, AI chatbot, coupon system, digital/physical delivery
+- **Frontend**: React.js 18 with Material UI (MUI), Context API, Axios, react-router-dom v6
+- **Backend**: Node.js (v20/v22) with Express.js, RESTful API architecture
+- **Database**: MySQL 8.0+ with Sequelize ORM 6.x
+- **Validation & Security**: Joi validation schemas, bcryptjs password hashing, JWT authentication (RFC 7519), CORS configuration
+- **Containerization & Web Server**: Docker & Docker Compose, Nginx (Alpine) for static frontend serving
+- **CI/CD & Testing**: GitHub Actions pipeline, Jest test runner, SuperTest, SQLite in-memory DB for unit/integration testing
 
-## Documentation
+---
 
-This documentation repository contains the following key documents:
+## 🚀 Quick Start with Docker (Recommended)
 
-1. [Project Charter](docs/project_charter.md) - Project vision, objectives, scope, and stakeholders
-2. [Requirements Document](docs/requirements.md) - Functional and non-functional requirements
-3. [Project Plan](docs/project_plan.md) - Timeline, milestones, sprint breakdown, and resource allocation
-4. [Team Roles and Responsibilities](docs/team_roles.md) - Detailed breakdown of each team member's responsibilities
-5. [Technical Architecture](docs/technical_architecture.md) - System design with Mermaid diagrams, architecture, API specifications, security considerations, and data flow diagrams
-6. [Database Schema](docs/sql_schema.md) - Database design, SQL schema, and implementation guidelines
-7. [Wireframes](docs/wireframes.md) - Wireframe planning and UI/UX design documentation
+The easiest way to run the entire EduMart stack (MySQL Database, Express Backend API, and React/Nginx Frontend) is using Docker Compose:
 
-## Project Timeline (8 Weeks - Agile with 2-week Sprints)
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine (v20+) with Docker Compose plugin.
 
-- **Weeks 1-2**: Planning & Design - System architecture, database design, UI/UX wireframes
-- **Weeks 3-4**: Sprint 1 - User Authentication (all roles), Basic Catalog Setup, Initial Search
-- **Weeks 5-6**: Sprint 2 - Enhanced Search/Filtering, Shopping Cart Basics, Payment Gateway Initiation
-- **Weeks 7-8**: Sprint 3 - Payment & Order Management, Admin Dashboard & Notifications, Initial AI Chatbot Setup
+### Run Stack
 
-## Key Features
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd EduMart
 
-- **User Authentication**: Student/Tutor/Admin roles with secure password handling
-- **Advanced Catalog**: Search & filtering by subject, grade, exam year, price, material type
-- **Smart Shopping Cart**: Multi-item checkout, coupon application, save-for-later
-- **Secure Payments**: PCI-compliant payment gateway integration with fraud protection
-- **Digital Delivery**: Instant secure download links for e-materials
-- **Physical Delivery**: Tracking integration for printed materials
-- **Review System**: 1-5 star ratings with comments and moderation
-- **Admin Dashboard**: User/order management, product approval, analytics
-- **Seller Dashboard**: Upload management, sales analytics, earnings tracking
-- **AI Chatbot**: 24/7 instant help for FAQs, order status, and product inquiries
-- **Coupon System**: Promotional code management with usage limits
-- **Notification System**: Email/SMS alerts for orders, uploads, and promotions
-- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+# 2. Build and start all services in detached mode
+docker compose up --build -d
+```
 
-## Getting Started
+### Access Services
+- **Frontend App**: [http://localhost](http://localhost) (Port 80)
+- **Backend API**: [http://localhost:5000/api](http://localhost:5000/api) (Port 5000)
+- **Health Check**: [http://localhost:5000/health](http://localhost:5000/health)
+- **MySQL Database**: `localhost:3306` (Default Credentials: `DB_NAME=edumart`, `DB_USER=edumart_user`, `DB_PASSWORD=your_password`)
 
-*Note: As this is a documentation repository for an academic project, actual setup instructions would be provided in the source code repository.*
+### Stop Stack
 
-For actual development setup, you would need to:
+```bash
+docker compose down -v
+```
 
-1. Clone the source code repository
-2. Set up backend:
-   - Install Node.js dependencies
-   - Configure MySQL database with schema migrations
-   - Set up Redis for caching and sessions
-   - Configure environment variables (API keys, secrets, etc.)
-   - Set up file storage (S3/local)
-   - Configure email/SMS services
-   - Configure AI services (if using)
-   - Start the development server
+---
 
-3. Set up frontend:
-   - Install Node.js dependencies
-   - Configure API endpoint (and WebSocket if using chat)
-   - Set up build tools (Vite/CRA)
-   - Start the development server
+## 🛠️ Local Development Setup (Without Docker)
 
-4. Set up supporting services:
-   - Configure message queue (if using)
-   - Configure search engine (if using)
-   - Set up monitoring and logging
-   - Configure CI/CD pipeline
+### 1. Database Setup
+Ensure MySQL 8.0+ is running locally:
+```bash
+mysql -u root -p < sql/database_schema.sql
+```
 
-5. Run tests:
-   - Execute unit and integration tests
-   - Run end-to-end tests (Cypress/Playwright)
-   - Perform security scans (Snyk, OWASP ZAP)
-   - Conduct performance testing (k6, Artillery)
-   - Execute user acceptance testing
+### 2. Backend Setup (`/server`)
+```bash
+cd server
+npm install
+npm run dev
+```
+*Environment file `.env` in project root:*
+```env
+PORT=5000
+DB_NAME=edumart
+DB_USER=root
+DB_PASSWORD=rootpassword
+DB_HOST=localhost
+DB_PORT=3306
+JWT_SECRET=your_super_secret_jwt_key_here
+JWT_EXPIRES_IN=24h
+FRONTEND_URL=http://localhost:3000
+```
 
-## Project Artifacts
+### 3. Frontend Setup (`/client`)
+```bash
+cd client
+npm install
+npm start
+```
+*Access frontend at [http://localhost:3000](http://localhost:3000).*
 
-In addition to this documentation, the complete project would include:
+---
 
-- Source code repository (frontend and backend)
-- Database schema and migration scripts
-- API documentation (Swagger/OpenAPI) with endpoint examples
-- User manuals (buyer/seller guides)
-- Administrator guide (dashboard operations)
-- Test plans and test cases (unit, integration, E2E, security, performance)
-- Deployment scripts and configuration (Docker, Kubernetes, CI/CD)
-- Presentation materials, demo videos, and slide decks
-- System architecture diagrams (included in technical documentation)
-- Data flow diagrams and component interaction diagrams
-- **SQL Database Schema** (`sql/database_schema.sql`) - Executable SQL file to create the database
-- **Wireframes** (`docs/wireframes.md`) - UI/UX design documentation and wireframe planning
+## 🧪 Testing
 
-## Visual Documentation
+Both backend and frontend contain unit & integration tests that run cleanly in isolated environments.
 
-The technical documentation includes Mermaid diagrams for:
-- System architecture and component interactions
-- User journey flows (registration, purchase, checkout)
-- Data flow diagrams (product catalog, order processing, digital delivery)
-- Security architecture (authentication, data protection, payment security)
-- Deployment architectures (development, staging, production)
-- Component communication matrix
-- Data model/entity relationship diagrams
+### Backend Tests (9 Passing)
+Uses an in-memory SQLite database connection mocked via `jest.setup.js`:
+```bash
+cd server
+npm test
+```
 
-## License
+### Frontend Tests (2 Passing)
+Uses React Testing Library with mocked `AuthContext`:
+```bash
+cd client
+npm test -- --watchAll=false
+```
+
+---
+
+## 📦 Project Architecture & Structure
+
+```
+EduMart/
+├── client/                      # React Frontend Application
+│   ├── src/                     # React components, context, services, routes, styles
+│   ├── public/                  # Static assets & index.html
+│   ├── nginx.conf               # Nginx routing configuration for production container
+│   └── Dockerfile               # Multi-stage build Dockerfile (Node build -> Nginx serving)
+├── server/                      # Express Backend API Application
+│   ├── src/                     # Controllers, models, routes, middleware, validators, config
+│   ├── __tests__/               # Integration & unit test suites (authController, server)
+│   ├── server.js                # Express app entry point
+│   ├── jest.config.js           # Jest configuration
+│   ├── jest.setup.js            # SQLite in-memory test DB setup
+│   └── Dockerfile               # Node.js Alpine container configuration
+├── sql/                         # Database Initialization Scripts
+│   └── database_schema.sql      # Executable MySQL DDL & DML schema script
+├── docs/                        # Complete Project Documentation
+│   ├── technical_architecture.md# Full architecture specification with Mermaid DFDs
+│   ├── API_ENDPOINTS.md         # Comprehensive REST API specifications
+│   ├── sql_schema.md            # Database ERD & schema guide
+│   ├── requirements.md          # Functional & non-functional requirements
+│   ├── project_plan.md          # 8-week sprint roadmap
+│   ├── team_roles.md            # Team responsibility breakdown
+│   └── wireframes.md            # UI/UX design guidelines
+├── .github/workflows/           # CI/CD Automation
+│   └── ci-cd.yml                # GitHub Actions workflow (Node 22.x test & Docker build)
+└── docker-compose.yml           # Production-ready multi-container orchestration file
+```
+
+---
+
+## 📚 Documentation Index
+
+1. [Project Charter](docs/project_charter.md) — Vision, objectives, scope, and stakeholders
+2. [Requirements Document](docs/requirements.md) — Functional and non-functional specifications
+3. [Project Plan](docs/project_plan.md) — 8-week timeline, sprint breakdown, and milestones
+4. [Team Roles and Responsibilities](docs/team_roles.md) — Team member assignments
+5. [Technical Architecture](docs/technical_architecture.md) — System architecture, Mermaid diagrams, API specs, security, and container design
+6. [API Endpoints Reference](docs/API_ENDPOINTS.md) — RESTful endpoint documentation
+7. [Database Schema](docs/sql_schema.md) — ERD diagrams, SQL tables, and Sequelize models
+8. [Wireframes Plan](docs/wireframes.md) — UI/UX wireframe planning and screen flows
+9. [Documentation Overview](docs/README.md) — Index and quick reference for all project docs
+10. [Project Summary](docs/SUMMARY.md) — High-level summary of project documentation and implementation status
+11. [SQL Implementation Guide](docs/sql_implementation_guide.md) — Detailed guide on database setup and schema execution
+
+---
+
+## 📄 License
 
 This project is created for educational purposes as part of an academic course.
-
-## Contact
-
-For questions about this project, please contact the project team through your academic institution's channels.

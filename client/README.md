@@ -1,52 +1,78 @@
-# EduMart Client
+# EduMart React Client
 
-This is the frontend of the EduMart e-commerce platform, built with React.
+The frontend application for the EduMart platform, built with React 18, Material UI (MUI), React Router v6, and Axios.
 
-## Getting Started
+---
 
-### Prerequisites
+## ⚡ Quick Start Options
 
-- Node.js (v14 or higher)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository
-2. Navigate to the client directory: `cd client`
-3. Install dependencies: `npm install`
-
-### Available Scripts
-
-In the project directory, you can run:
-
-- `npm start` - Runs the app in development mode
-- `npm test` - Launches the test runner
-- `npm run build` - Builds the app for production
-- `npm run eject` - Removes the build tool and copies configuration files
-
-### Environment Variables
-
-Create a `.env` file in the client directory with the following variables:
-
+### Option A: Via Docker Compose (Production Build via Nginx)
+From the project root:
+```bash
+docker compose up --build -d client
 ```
-REACT_APP_API_URL=http://localhost:5000/api
-```
+- Access application at: **[http://localhost](http://localhost)** (Port 80)
 
-### Project Structure
+### Option B: Local Development Server
+1. Navigate to client directory:
+   ```bash
+   cd client
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Set environment variable (optional, defaults to `http://localhost:5000/api`):
+   ```env
+   REACT_APP_API_URL=http://localhost:5000/api
+   ```
+4. Start development server:
+   ```bash
+   npm start
+   ```
+- Access application at: **[http://localhost:3000](http://localhost:3000)**
 
-```
-src/
-├── components/     # Reusable UI components
-├── pages/          # Page components
-├── services/       # API service calls
-├── hooks/          # Custom React hooks
-├── utils/          # Utility functions
-├── context/        # React Context providers
-├── assets/         # Static assets (images, icons)
-├── styles/         # CSS and styling files
-└── routes/         # Route definitions
+---
+
+## 🧪 Testing
+
+Frontend unit testing is built with **React Testing Library** and **Jest**.
+
+```bash
+# Run test suite once
+npm test -- --watchAll=false
 ```
 
-### Learn More
+### Verified Test Suite
+- `App.test.js`: Verifies full application rendering, header/footer mounting, and `AuthContext` loading state rendering.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+---
+
+## 🐳 Docker Deployment Details
+
+The client image uses a **multi-stage build**:
+1. **Stage 1 (Build)**: `node:20-alpine` installs dependencies and executes `npm run build`.
+2. **Stage 2 (Production)**: `nginx:alpine` copies compiled production assets into `/usr/share/nginx/html` and uses `nginx.conf` to handle client-side Single Page Application (SPA) routing.
+
+---
+
+## 📁 Directory Structure
+
+```
+client/
+├── src/
+│   ├── __tests__/          # React component test suites (App.test.js)
+│   ├── components/         # UI layout & navigation (Header, Footer, PrivateRoute)
+│   ├── context/            # React Context providers (AuthContext)
+│   ├── pages/              # View pages (Home, About, Auth, Products, Cart, Profile, Admin)
+│   ├── services/           # Axios HTTP client configuration (api.js)
+│   ├── styles/             # Global CSS & MUI Theme definitions
+│   ├── App.js              # Root Application router component
+│   ├── index.js            # React DOM root entry point
+│   ├── routes.js           # Route declarations & PrivateRoute guards
+│   └── theme.js            # Custom Material UI theme tokens
+├── public/                 # Static assets & index.html template
+├── Dockerfile              # Multi-stage Docker build configuration
+├── nginx.conf              # Nginx web server configuration for SPA routing
+└── package.json            # Client dependencies & scripts
+```

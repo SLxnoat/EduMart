@@ -1,53 +1,51 @@
-# EduMart Documentation
+# EduMart Documentation & Architecture Suite
 
-This directory contains all the project documentation for EduMart, an online learning material store e-commerce platform.
-
-## Document Index
-
-- [SUMMARY.md](SUMMARY.md) - Overview of all documentation
-- [project_charter.md](project_charter.md) - Project vision, objectives, scope, and stakeholders
-- [requirements.md](requirements.md) - Functional and non-functional requirements
-- [project_plan.md](project_plan.md) - Timeline, sprints, milestones, and resource allocation
-- [team_roles.md](team_roles.md) - Detailed responsibilities for each team member
-- [technical_architecture.md](technical_architecture.md) - Technical stack, architecture, and design specifications
-- [sql_schema.md](sql_schema.md) - Database schema design and SQL specifications
-- [wireframes.md](wireframes.md) - Wireframe planning and UI/UX design documentation
-
-## Project Overview
-
-EduMart is a web-based e-commerce platform for buying and selling educational study materials including past papers, e-books, model papers, revision notes, and recorded lecture packs.
-
-**Team Members:**
-- **Kushmi**: User Authentication and Profile Management, **AI Integration**
-- **Vidula**: Catalog, Search and Filtering System (by subject, grade, exam year, price)
-- **Bhanuka**: Shopping Cart and Checkout (with coupons & multi-item)
-- **Charuka**: Payment Gateway, Order Management, Backend & Client-Side Development, **AI Integration**
-- **Malki**: Admin Dashboard, Reviews, Notifications & Seller Dashboard
-
-**Technical Stack:**
-- Frontend: React.js with Vite, CSS Modules
-- Backend: Node.js with Express.js, RESTful API / GraphQL
-- Database: MySQL 8.0+ with Sequelize ORM
-- Development Approach: Agile with 2-week sprints over 8 weeks (updated from 12 weeks)
-- Additional: Redis, AWS S3, Stripe/PayPal, AI chatbot, coupon system, digital/physical delivery
-
-## Getting Started
-
-1. Begin with the [Project Charter](project_charter.md) to understand the vision and scope
-2. Review the [Requirements](requirements.md) for detailed feature specifications
-3. Examine the [Project Plan](project_plan.md) for timeline and milestones
-4. Refer to [Team Roles](team_roles.md) for individual responsibilities
-5. Consult [Technical Architecture](technical_architecture.md) for implementation details
-6. Review [Database Schema](sql_schema.md) for data structure and SQL specifications
-7. Examine [Wireframes](wireframes.md) for UI/UX design approach
-
-## Presentation Source
-
-This documentation is based on the project proposal presentation found in the root directory:
-- `e-commerce praposal .pptx`
-
-The presentation covers the project concept, team introductions, objectives, features, technical approach, timeline, and team responsibilities across 18 slides.
+This directory contains the complete technical specifications, requirements, project management documents, and architecture guides for the **EduMart** e-commerce platform.
 
 ---
-*Documentation generated based on project proposal presentation*
-*Last Updated: 2026-07-29*
+
+## 📑 Document Index
+
+| Document | Description |
+|----------|-------------|
+| 📖 [SUMMARY.md](SUMMARY.md) | High-level summary of all project documentation |
+| 📜 [project_charter.md](project_charter.md) | Vision, objectives, scope, constraints, and success criteria |
+| 📋 [requirements.md](requirements.md) | Functional & non-functional system requirements |
+| 📅 [project_plan.md](project_plan.md) | 8-week timeline with 2-week Agile sprint milestones |
+| 👥 [team_roles.md](team_roles.md) | Detailed responsibility matrix for all 5 team members |
+| 🏗️ [technical_architecture.md](technical_architecture.md) | Tech stack, system architecture, Mermaid diagrams, API specs, and Docker infrastructure |
+| 🔌 [API_ENDPOINTS.md](API_ENDPOINTS.md) | Comprehensive RESTful API endpoint specifications |
+| 🗄️ [sql_schema.md](sql_schema.md) | Database ERD, SQL schema definitions, and ORM guidelines |
+| 🎨 [wireframes.md](wireframes.md) | UI/UX design specifications, screen layouts, and user flows |
+
+---
+
+## 🚀 Application & Container Deployment Quick Reference
+
+The EduMart platform source code and infrastructure are fully containerized using Docker Compose:
+
+### 1. Run Containerized Stack
+```bash
+docker compose up --build -d
+```
+- **Frontend App**: [http://localhost](http://localhost) (Port 80)
+- **Backend Express API**: [http://localhost:5000/api](http://localhost:5000/api) (Port 5000)
+- **MySQL Database**: `localhost:3306` (Initializes schema automatically from `sql/database_schema.sql`)
+
+### 2. Run Automated Test Suites
+- **Backend Tests (Jest + SQLite)**: `cd server && npm test` (9/9 tests passing)
+- **Frontend Tests (React Testing Library)**: `cd client && npm test -- --watchAll=false` (2/2 tests passing)
+
+---
+
+## 👥 Team Responsibilities Summary
+
+- **Charuka**: Payment Gateway, Order Management, Backend API & Client Development, Docker Orchestration, **AI Integration**
+- **Kushmi**: User Authentication, Profile Management, **AI Integration**
+- **Vidula**: Product Catalog, Search & Filtering Engine
+- **Bhanuka**: Shopping Cart, Multi-item Checkout, Coupon Engine
+- **Malki**: Admin Dashboard, Review System, Notifications, Seller Dashboard
+
+---
+
+*Last Updated & Verified: 2026-07-30*

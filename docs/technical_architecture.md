@@ -54,7 +54,7 @@ graph TD
 | | Axios/Fetch | Latest | HTTP client for API calls |
 | | CSS Modules/Styled Components | Latest | Component-scoped styling |
 | | Vite/Create React App | Latest | Build tool & dev server |
-| **Backend** | Node.js | 18.x LTS | JavaScript runtime |
+| **Backend** | Node.js | 20.x LTS | JavaScript runtime |
 | | Express.js | 4.x | Web framework & API routing |
 | | GraphQL Yoga/Apollo Server | Optional | GraphQL API layer |
 | | Sequelize | 6.x | ORM for MySQL |
@@ -1200,7 +1200,7 @@ flowchart LR
 | | Axios/Fetch | Latest | HTTP client for API calls |
 | | CSS Modules/Styled Components | Latest | Component-scoped styling |
 | | Vite/Create React App | Latest | Build tool & dev server |
-| **Backend** | Node.js | 18.x LTS | JavaScript runtime |
+| **Backend** | Node.js | 20.x LTS | JavaScript runtime |
 | | Express.js | 4.x | Web framework & API routing |
 | | GraphQL Yoga/Apollo Server | Optional | GraphQL API layer |
 | | Sequelize | 6.x | ORM for MySQL |
@@ -1862,70 +1862,85 @@ sequenceDiagram
     * Analytics/event processing
     * File processing for digital downloads
 
-## 9. DevOps and Deployment
+## 9. DevOps and Containerized Deployment
 
-### 9.1 Development Environment
-- **Local Development**:
-  - Docker Compose for consistent environments (optional)
-  - Node.js version management (nvm)
-  - MySQL local instance or Docker container
-  - Environment variable management (.env files)
-  - Hot module replacement for frontend
-- **Version Control**:
-  - Git flow or trunk-based development
-  - Feature branching strategy
-  - Pull request workflow with required reviews
-  - Semantic versioning for releases
-- **Code Quality**:
-  - ESLint and Prettier configuration
-  - Pre-commit hooks (husky/lint-staged)
-  - Automated code reviews in CI
-  - Dependency security scanning (npm audit, Snyk)
+### 9.1 Docker Containerization Architecture
 
-### 9.2 Testing Strategy
-- **Unit Testing**:
-  - Jest for backend and frontend unit tests
-  - Test coverage targets: 80%+ for critical paths
-  - Mocking external dependencies
-- **Integration Testing**:
-  - SuperTest for API endpoint testing
-  - React Testing Library for component integration
-  - Database transaction rollback for test isolation
-- **End-to-End Testing**:
-  - Cypress or Playwright for critical user journeys
-  - Test data management and cleanup
-  - Cross-browser testing (Chrome, Firefox, Safari)
-- **Performance Testing**:
-  - Load testing with k6 or Artillery
-  - Stress testing for peak load scenarios
-  - Performance benchmarking in CI
-- **Security Testing**:
-  - Dependency vulnerability scanning
-  - Static application security testing (SAST)
-  - Dynamic application security testing (DAST) in staging
-  - Manual penetration testing prior to production
+EduMart implements a fully containerized, production-ready architecture managed via **Docker Compose**:
 
-### 9.3 CI/CD Pipeline
-- **Continuous Integration**:
-  - Triggered on push to main/develop branches
-  - Parallel job execution for faster feedback
-  - Artifact storage for build outputs
-  - Deployment to staging environment on success
-- **Continuous Delivery**:
-  - Staging environment mirroring production
-  - Automated smoke tests post-deployment
-  - Manual approval gate for production deployment
-- **Deployment Process**:
-  - Database migration scripts (Sequelize CLI)
-  - Asset optimization and bundling
-  - Server restart or container recreation
-  - Health checks and smoke tests
-  - Rollback procedures for failed deployments
-- **Environment Strategy**:
-  - Development: Individual developer environments
-  - Testing: Shared integration testing environment
-  - Staging: Pre-production mirror of production
-  - Production: Live customer-facing environment
+```mermaid
+graph TD
+    subgraph Host ["Host Network"]
+        Port80["Port 80 (HTTP)"]
+        Port5000["Port 5000 (API)"]
+        Port3306["Port 3306 (MySQL)"]
+    end
+
+    subgraph DockerNet ["Docker Network (edumart_network)"]
+        subgraph ClientCont ["Client Container (edumart_client)"]
+            Nginx["Nginx Alpine"]
+            StaticFiles["React Static Build"]
+        end
+
+        subgraph ServerCont ["Server Container (edumart_server)"]
+            NodeRuntime["Node.js 20/22 Alpine"]
+            ExpressAPI["Express API Server"]
+        end
+
+        subgraph DBCont ["DB Container (edumart_db)"]
+            MySQLDB["MySQL 8.0 Engine"]
+            AutoInit["/docker-entrypoint-initdb.d<br>(database_schema.sql)"]
+        end
+    end
+
+    Port80 --> Nginx
+    Port5000 --> ExpressAPI
+    Port3306 --> MySQLDB
+
+    Nginx -->|Reverse Proxy / Direct API| ExpressAPI
+    ExpressAPI -->|Sequelize ORM| MySQLDB
+```
+
+#### Service Components Specifications
+
+1. **Database Service (`db`)**:
+   - **Base Image**: `mysql:8.0`
+   - **Persistence**: Named Docker volume `db_data` mounted to `/var/lib/mysql`.
+   - **Auto-Initialization**: `./sql` directory mounted to `/docker-entrypoint-initdb.d/` so `./sql/database_schema.sql` automatically populates the schema on initial boot.
+   - **Healthcheck**: Uses `mysqladmin ping` with a 20-second start period and 5 retries to guarantee availability before backend boot.
+
+2. **Backend API Service (`backend`)**:
+   - **Base Image**: `node:20-alpine` (multi-stage build support).
+   - **Port**: `5000:5000`.
+   - **Startup Dependency**: Explicit `depends_on` with `condition: service_healthy` waiting for `db`.
+
+3. **Frontend Client Service (`client`)**:
+   - **Build Process**: Multi-stage build — Stage 1 (`node:20-alpine`) compiles production static assets with `npm run build`; Stage 2 (`nginx:alpine`) serves built assets using custom `nginx.conf`.
+   - **Port**: `80:80`.
+   - **Startup Dependency**: Depends on `server`.
+
+---
+
+### 9.2 Automated Testing Architecture
+
+- **Backend Test Suite (Jest + SuperTest)**:
+  - Executes unit & integration tests for routes and controllers.
+  - Isolated test execution powered by an in-memory **SQLite database** mocked via `jest.setup.js` to ensure zero side-effects on live MySQL databases.
+  - 9/9 backend test cases verified passing.
+- **Frontend Test Suite (React Testing Library + Jest)**:
+  - Executes React component tests with mocked `AuthContext` state.
+  - 2/2 frontend test cases verified passing.
+
+---
+
+### 9.3 CI/CD Automation Pipeline
+
+The repository integrates an automated **GitHub Actions** workflow (`.github/workflows/ci-cd.yml`):
+
+- **Environment**: Runner uses `node-version: [22.x]` with automated package caching (`cache: 'npm'`).
+- **Test Phase**: Runs `npm ci` and `npm test` across both `client` and `server` subdirectories.
+- **Build & Push Phase**: Triggers automatically on push to `main` branch. Uses `docker/setup-buildx-action@v3`, `docker/login-action@v3`, and `docker/build-push-action@v6` with secret conditional guards to build and optionally push container images to Docker Hub.
+
 
 ### 9.4 Monitoring and Observability
 - **Application Metrics**:
