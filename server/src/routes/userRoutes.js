@@ -1,13 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const {
-  registerUser,
-  loginUser
+  getUserProfile,
+  updateUserProfile
 } = require('../controllers/authController');
-const {
-  registerUserSchema,
-  loginUserSchema
-} = require('../validators/userValidator');
+const { protect } = require('../middleware/authMiddleware');
+const { updateUserProfileSchema } = require('../validators/userValidator');
 
 // Reusable Joi validation middleware factory
 const validate = (schema) => (req, res, next) => {
@@ -21,8 +19,11 @@ const validate = (schema) => (req, res, next) => {
   next();
 };
 
-// Public routes
-router.post('/register', validate(registerUserSchema), registerUser);
-router.post('/login', validate(loginUserSchema), loginUser);
+// GET  /api/users/profile  — Private
+// PUT  /api/users/profile  — Private
+router
+  .route('/profile')
+  .get(protect, getUserProfile)
+  .put(protect, validate(updateUserProfileSchema), updateUserProfile);
 
 module.exports = router;

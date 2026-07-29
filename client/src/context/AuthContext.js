@@ -30,10 +30,10 @@ export const AuthProvider = ({ children }) => {
   const login = async (userData) => {
     try {
       const response = await axios.post('/api/auth/login', userData);
-      const { token, user } = response.data;
+      const { token, ...userInfo } = response.data;
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
+      localStorage.setItem('user', JSON.stringify(userInfo));
+      setUser(userInfo);
       navigate('/');
     } catch (error) {
       throw error;
@@ -44,10 +44,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await axios.post('/api/auth/register', userData);
-      const { token, user } = response.data;
+      const { token, ...userInfo } = response.data;
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setUser(user);
+      localStorage.setItem('user', JSON.stringify(userInfo));
+      setUser(userInfo);
       navigate('/');
     } catch (error) {
       throw error;
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.put('/api/users/profile', userData, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      const updatedUser = response.data.user;
+      const { token, ...updatedUser } = response.data;
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       return updatedUser;

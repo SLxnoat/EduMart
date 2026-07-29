@@ -1,41 +1,23 @@
 const request = require('supertest');
-const { Sequelize } = require('sequelize');
 const app = require('../server');
 const User = require('../src/models/User');
 
-let testDb;
+// jest.setup.js already mocks config/database with a SQLite in-memory Sequelize instance
+// and sets JWT_SECRET / JWT_EXPIRES_IN env vars.
 
 beforeAll(async () => {
-  // Create a separate SQLite in-memory database for testing
-  testDb = new Sequelize('sqlite::memory:', {
-    logging: false
-  });
-
-  // We need to override the User model to use this test DB instance
-  // In a real production app, we would use a dependency injection
-  // or a separate test configuration for the Sequelize instance.
-
-  // For the sake of this test, we'll redefine the User model on the testDb
-  // to ensure it uses the in-memory SQLite instance.
-
-  // Instead of rewriting the whole model, we can use a manual sync if
-  // the model was defined using the shared sequelize instance.
-  // But for total isolation, we'll use a a simple sync here.
+  // Sync (create) all tables in the in-memory SQLite DB
+  await User.sync({ force: true });
 });
 
 afterAll(async () => {
-  if (testDb) {
-    await testDb.close();
-  }
+  // Drop all tables
+  await User.drop();
 });
 
 beforeEach(async () => {
-  // Sync database before each test to ensure clean state
-  // Using the actual model definition but syncing to in-memory DB if possible
-  // Note: For this project, we'll use the shared User model but ensure
-  // it's synced with the database defined in config/database.js
-  // If we use a real MySQL DB for tests, we should clean it.
-  await User.destroy({ truncate: true });
+  // Wipe users between each test for isolation
+  await User.destroy({ truncate: true, cascade: false });
 });
 
 describe('Auth Controller', () => {
@@ -84,6 +66,15 @@ describe('Auth Controller', () => {
 
       expect(res.statusCode).toEqual(400);
       expect(res.body).toHaveProperty('message');
+    });
+
+    it('should return 400 for missing required fields', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ email: 'bad@example.com' }); // missing firstName, lastName, password
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body).toHaveProperty('errors');
     });
   });
 
@@ -137,6 +128,15 @@ describe('Auth Controller', () => {
 
       expect(res.statusCode).toEqual(401);
       expect(res.body).toHaveProperty('message');
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      const res = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'not-an-email', password: 'password123' });
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body).toHaveProperty('errors');
     });
   });
 });

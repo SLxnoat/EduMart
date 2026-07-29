@@ -13,14 +13,12 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import NotFound from './pages/NotFound';
 import { useAuth } from './context/AuthContext';
 
-// Private route component
-const PrivateRoute = ({ children }) => {
+// Children-based private route guard (compatible with direct JSX element passing)
+const Guard = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  if (loading) return <div>Loading...</div>;
 
   return user ? (
     <>{children}</>
@@ -30,17 +28,17 @@ const PrivateRoute = ({ children }) => {
 };
 
 const routes = [
-  { path: '/', element: <Home /> },
-  { path: '/about', element: <About /> },
-  { path: '/login', element: <Login /> },
-  { path: '/register', element: <Register /> },
-  { path: '/products', element: <ProductList /> },
+  { path: '/',           element: <Home /> },
+  { path: '/about',      element: <About /> },
+  { path: '/login',      element: <Login /> },
+  { path: '/register',   element: <Register /> },
+  { path: '/products',   element: <ProductList /> },
   { path: '/products/:id', element: <ProductDetail /> },
-  { path: '/cart', element: <Cart /> },
-  { path: '/checkout', element: <Checkout /> },
-  { path: '/profile', element: <PrivateRoute><Profile /></PrivateRoute> },
-  { path: '/admin', element: <PrivateRoute><AdminDashboard /></PrivateRoute> },
-  { path: '*', element: <NotFound /> }
+  { path: '/cart',       element: <Cart /> },
+  { path: '/checkout',   element: <Checkout /> },
+  { path: '/profile',    element: <Guard><Profile /></Guard> },
+  { path: '/admin',      element: <Guard><AdminDashboard /></Guard> },
+  { path: '*',           element: <NotFound /> }
 ];
 
 export default routes;

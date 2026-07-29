@@ -42,18 +42,18 @@ const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
   } else {
-    res.status(401);
-    throw new Error('Not authorized as an admin');
+    res.status(403);
+    throw new Error('Forbidden: admin access required');
   }
 };
 
-// Seller/Tutor middleware
+// Seller/Tutor middleware (roles: 'tutor', 'institute', 'admin' — matches User model ENUM)
 const seller = (req, res, next) => {
-  if (req.user && (req.user.role === 'tutor' || req.user.role === 'instructor' || req.user.role === 'admin')) {
+  if (req.user && (req.user.role === 'tutor' || req.user.role === 'institute' || req.user.role === 'admin')) {
     next();
   } else {
-    res.status(401);
-    throw new Error('Not authorized as a seller');
+    res.status(403);
+    throw new Error('Forbidden: seller/tutor access required');
   }
 };
 
