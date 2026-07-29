@@ -23,8 +23,8 @@ services:
       retries: 5
       start_period: 20s
 
-  # Backend Express API Service
-  server:
+  # Backend Express API Service (Name changed to backend)
+  backend:
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -59,7 +59,7 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - server
+      - backend
     networks:
       - edumart_network
 
