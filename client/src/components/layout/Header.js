@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { AppBar, Toolbar, Typography, Button, Menu, MenuItem } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import PersonIcon from '@mui/icons-person';
-import ShoppingCartIcon from '@mui/icons-shopping-cart';
-import NotificationsIcon from '@mui/icons-notifications';
+import PersonIcon from '@mui/icons-material/Person';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 const Header = () => {
   const { user, logout } = useAuth();
