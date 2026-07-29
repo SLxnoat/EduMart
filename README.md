@@ -46,7 +46,7 @@ The easiest way to run the entire EduMart stack (MySQL Database, Express Backend
 
 ```bash
 # 1. Clone the repository
-git clone <repository-url>
+git clone https://github.com/SLxnoat/EduMart
 cd EduMart
 
 # 2. Build and start all services in detached mode
