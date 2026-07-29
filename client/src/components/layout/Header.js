@@ -1,5 +1,5 @@
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Avatar, Menu, MenuItem } from '@mui/material';
+import React, { useState } from 'react';
+import { AppBar, Toolbar, Typography, Button, Menu, MenuItem } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PersonIcon from '@mui/icons-person';
@@ -8,55 +8,90 @@ import NotificationsIcon from '@mui/icons-notifications';
 
 const Header = () => {
   const { user, logout } = useAuth();
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
   const handleLogout = async () => {
+    handleMenuClose();
     await logout();
   };
 
   return (
     <AppBar position="fixed">
       <Toolbar>
-        <Typography variant="h6" component={Link} to="/" sx={{ flexGrow: 1, textDecoration: 'none' }}>
+        <Typography 
+          variant="h6" 
+          component={Link} 
+          to="/" 
+          sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
+        >
           EduMart
         </Typography>
+
         <div>
-          <Button component={Link} to="/login" color="inherit">
-            Login
-          </Button>
-          <Button component={Link} to="/register" color="inherit" sx={{ ml: 2 }}>
-            Register
-          </Button>
-          {user ? (
+          {!user ? (
+            <>
+              <Button component={Link} to="/login" color="inherit">
+                Login
+              </Button>
+              <Button component={Link} to="/register" color="inherit" sx={{ ml: 2 }}>
+                Register
+              </Button>
+            </>
+          ) : (
             <>
               <Button
                 color="inherit"
                 aria-label="cart"
-                sx={{ position: 'relative', ml: 3 }}
+                sx={{ ml: 2 }}
                 component={Link}
                 to="/cart"
               >
                 <ShoppingCartIcon />
               </Button>
+
               <Button
                 color="inherit"
                 aria-label="notifications"
-                sx={{ position: 'relative', ml: 2 }}
+                sx={{ ml: 1 }}
                 component={Link}
                 to="/notifications"
               >
                 <NotificationsIcon />
               </Button>
+
               <Button
                 color="inherit"
                 aria-label="account of current user"
-                sx={{ position: 'relative', ml: 2 }}
+                sx={{ ml: 1 }}
                 endIcon={<PersonIcon />}
-                onClick handleClick
+                onClick={handleMenuOpen}
               >
-                {user.firstName}
+                {user?.firstName || 'User'}
               </Button>
+
+              {/* User Menu Dropdown */}
+              <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleMenuClose}
+              >
+                <MenuItem component={Link} to="/profile" onClick={handleMenuClose}>
+                  Profile
+                </MenuItem>
+                <MenuItem onClick={handleLogout}>
+                  Logout
+                </MenuItem>
+              </Menu>
             </>
-          } : null}
+          )}
         </div>
       </Toolbar>
     </AppBar>
