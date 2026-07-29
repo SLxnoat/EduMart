@@ -1,17 +1,22 @@
 version: '3.8'
 
 services:
-  # MongoDB Service
-  mongodb:
-    image: mongo:5.0
-    container_name: edumart_mongodb
+  # MySQL Service
+  mysql:
+    image: mysql:8.0
+    container_name: edumart_mysql
     restart: unless-stopped
     env_file:
       - .env
     volumes:
-      - mongo_data:/data/db
+      - mysql_data:/var/lib/mysql
     ports:
-      - "27017:27017"
+      - "3306:3306"
+    environment:
+      - MYSQL_DATABASE=edumart
+      - MYSQL_ROOT_PASSWORD=your_password
+      - MYSQL_USER=edumart_user
+      - MYSQL_PASSWORD=your_password
 
   # Backend Service
   backend:
@@ -26,7 +31,7 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - mongodb
+      - mysql
     environment:
       - NODE_ENV=development
 
@@ -41,4 +46,4 @@ services:
       - backend
 
 volumes:
-  mongo_data:
+  mysql_data:
