@@ -399,3 +399,12 @@ Each team member's individual contribution will be assessed based on:
 *Document Version: 1.0*
 *Last Updated: $(date +%Y-%m-%d)*
 *Prepared for: EduMart Project Team*
+
+## References
+
+- Project Charter: project_charter.md
+- Requirements Document: requirements.md
+- Project Plan: project_plan.md
+- Technical Architecture: technical_architecture.md
+- Database Schema: sql_schema.md
+- Wireframes: wireframes.md

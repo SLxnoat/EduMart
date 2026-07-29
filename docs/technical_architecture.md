@@ -1996,3 +1996,12 @@ Regular architecture reviews and updates will ensure the system continues to mee
 *Document Version: 1.0*
 *Last Updated: 2026-07-28*
 *Architecture Review Date: [To be scheduled]*
+
+## References
+
+- Project Charter: project_charter.md
+- Requirements Document: requirements.md
+- Project Plan: project_plan.md
+- Team Roles and Responsibilities: team_roles.md
+- Database Schema: sql_schema.md
+- Wireframes: wireframes.md

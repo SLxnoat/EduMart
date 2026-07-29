@@ -246,3 +246,10 @@ After implementation, verify:
 - MySQL 8.0 Reference Manual: https://dev.mysql.com/doc/refman/8.0/en/
 - MySQL Installation Guide: https://dev.mysql.com/doc/refman/8.0/en/installing.html
 - Character Set Support: https://dev.mysql.com/doc/refman/8.0/en/charset.html
+
+## Related Documentation
+
+- [Database Schema Documentation](../sql_schema.md) - Detailed database schema design
+- [Technical Architecture](../technical_architecture.md) - System architecture and components
+- [Project Plan](../project_plan.md) - Timeline and milestones
+- [Wireframes](../wireframes.md) - UI/UX design documentation and wireframe planning

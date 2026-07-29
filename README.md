@@ -41,6 +41,7 @@ This documentation repository contains the following key documents:
 4. [Team Roles and Responsibilities](docs/team_roles.md) - Detailed breakdown of each team member's responsibilities
 5. [Technical Architecture](docs/technical_architecture.md) - System design with Mermaid diagrams, architecture, API specifications, security considerations, and data flow diagrams
 6. [Database Schema](docs/sql_schema.md) - Database design, SQL schema, and implementation guidelines
+7. [Wireframes](docs/wireframes.md) - Wireframe planning and UI/UX design documentation
 
 ## Project Timeline (8 Weeks - Agile with 2-week Sprints)
 
@@ -116,6 +117,7 @@ In addition to this documentation, the complete project would include:
 - System architecture diagrams (included in technical documentation)
 - Data flow diagrams and component interaction diagrams
 - **SQL Database Schema** (`sql/database_schema.sql`) - Executable SQL file to create the database
+- **Wireframes** (`docs/wireframes.md`) - UI/UX design documentation and wireframe planning
 
 ## Visual Documentation
 

@@ -11,6 +11,7 @@ This directory contains all the project documentation for EduMart, an online lea
 - [team_roles.md](team_roles.md) - Detailed responsibilities for each team member
 - [technical_architecture.md](technical_architecture.md) - Technical stack, architecture, and design specifications
 - [sql_schema.md](sql_schema.md) - Database schema design and SQL specifications
+- [wireframes.md](wireframes.md) - Wireframe planning and UI/UX design documentation
 
 ## Project Overview
 
@@ -38,6 +39,7 @@ EduMart is a web-based e-commerce platform for buying and selling educational st
 4. Refer to [Team Roles](team_roles.md) for individual responsibilities
 5. Consult [Technical Architecture](technical_architecture.md) for implementation details
 6. Review [Database Schema](sql_schema.md) for data structure and SQL specifications
+7. Examine [Wireframes](wireframes.md) for UI/UX design approach
 
 ## Presentation Source
 
@@ -48,4 +50,4 @@ The presentation covers the project concept, team introductions, objectives, fea
 
 ---
 *Documentation generated based on project proposal presentation*
-*Last Updated: 2026-07-28*
+*Last Updated: 2026-07-29*

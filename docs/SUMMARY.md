@@ -65,14 +65,20 @@ This directory contains all the professional documentation created for the EduMa
    - Contains indexes, constraints, and sample data setup instructions
    - Compatible with MySQL 8.0+
 
-6. **README** (`README.md`)
+8. **Wireframes Plan** (`wireframes.md`)
+   - Wireframe planning approach for UI/UX design
+   - Key screens and user flows for each user type
+   - Wireframe documentation standards and conventions
+   - Tools and process recommendations
+   - Integration with existing documentation (user journeys, component interactions)
+   - Accessibility and performance considerations
+   - Deliverables and timeline alignment
+
+9. **README** (`README.md`)
    - Project overview and team information
    - Documentation index and getting started instructions
    - Updated to reflect 8-week timeline and enhanced feature set
    - Includes diagram legend and visualization guide
-
-7. **This Summary** (`SUMMARY.md`)
-   - Overview of all documentation created
 
 ## Key Project Information
 
@@ -111,5 +117,5 @@ Each document can be used independently or as part of the complete project docum
 
 ---
 *Document Version: 1.0*
-*Last Updated: 2026-07-28*
+*Last Updated: 2026-07-29*
 *Prepared for: EduMart Project Team*

@@ -142,3 +142,12 @@
 **Malki - Admin Dashboard, Reviews, Notifications & Seller Dashboard**
 - Primary: Weeks 1-2 (Planning), 7-8 (Admin Dashboard, Notifications)
 - Support: Weeks 3-6 (Requirements input, testing, feedback)
+
+## 5. References
+
+- Project Charter: project_charter.md
+- Requirements Document: requirements.md
+- Team Roles and Responsibilities: team_roles.md
+- Technical Architecture: technical_architecture.md
+- Database Schema: sql_schema.md
+- Wireframes: wireframes.md

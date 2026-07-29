@@ -81,3 +81,12 @@
 5. Performance benchmarks met (page load < 3 seconds)
 6. All team members completed their assigned modules
 7. Project completed within 8-week timeline
+
+## References
+
+- [Requirements Document](requirements.md) - Detailed functional and non-functional requirements
+- [Project Plan](project_plan.md) - Timeline, milestones, and resource allocation
+- [Team Roles and Responsibilities](team_roles.md) - Detailed responsibilities for each team member
+- [Technical Architecture](technical_architecture.md) - System design with Mermaid diagrams
+- [Database Schema](sql_schema.md) - Complete database design and SQL specifications
+- [Wireframes](wireframes.md) - UI/UX design documentation and wireframe planning

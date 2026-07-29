@@ -315,6 +315,12 @@ EduMart is a standalone web application that integrates frontend, backend, and d
 - Node.js Documentation: https://nodejs.org/
 - Express.js Documentation: https://expressjs.com/
 - MySQL Documentation: https://dev.mysql.com/doc/
+- Project Charter: project_charter.md
+- Project Plan: project_plan.md
+- Team Roles and Responsibilities: team_roles.md
+- Technical Architecture: technical_architecture.md
+- Database Schema: sql_schema.md
+- Wireframes: wireframes.md
 
 ---
 *Document Version: 1.0*
