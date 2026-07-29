@@ -1,19 +1,12 @@
 // Jest setup file
 process.env.NODE_ENV = 'test';
 
-// Mock MongoDB connection
-jest.mock('mongoose', () => {
-  const actualMongoose = jest.requireActual('mongoose');
+// Mock database connection for unit tests
+// We use a real MySQL connection in integration tests, but can mock it here for units
+jest.mock('../src/config/database', () => {
   return {
-    ...actualMongoose,
-    connect: jest.fn(),
-    connection: {
-      readyState: 1
-    }
+    authenticate: jest.fn().mockResolvedValue(true),
+    sync: jest.fn().mockResolvedValue(true),
+    close: jest.fn().mockResolvedValue(true)
   };
 });
-
-// Mock dotenv
-jest.mock('dotenv', () => ({
-  config: jest.fn()
-}));

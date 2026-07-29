@@ -1,94 +1,80 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema(
-  {
-    firstName: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    lastName: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      lowercase: true
-    },
-    password: {
-      type: String,
-      required: true,
-      minlength: 6
-    },
-    phone: {
-      type: String,
-      trim: true
-    },
-    role: {
-      type: String,
-      enum: ['student', 'tutor', 'institute', 'admin'],
-      default: 'student'
-    },
-    status: {
-      type: String,
-      enum: ['active', 'suspended', 'pending'],
-      default: 'active'
-    },
-    lastLoginAt: {
-      type: Date
-    },
-    // Profile fields
-    dateOfBirth: {
-      type: Date
-    },
-    gender: {
-      type: String,
-      enum: ['male', 'female', 'other', 'prefer_not_to_say']
-    },
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      postalCode: String,
-      country: String
-    },
-    // Preferences
-    notifications: {
-      email: { type: Boolean, default: true },
-      sms: { type: Boolean, default: false },
-      push: { type: Boolean, default: true }
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    unique: true,
+    validate: {
+      isEmail: true
     }
   },
-  {
-    timestamps: true
+  password_hash: {
+    type: DataTypes.STRING(255),
+    allowNull: false
+  },
+  first_name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  last_name: {
+    type: DataTypes.STRING(100),
+    allowNull: false
+  },
+  phone: {
+    type: DataTypes.STRING(20)
+  },
+  role: {
+    type: DataTypes.ENUM('student', 'tutor', 'admin', 'institute'),
+    allowNull: false,
+    defaultValue: 'student'
+  },
+  is_verified: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  },
+  verification_token: {
+    type: DataTypes.STRING(255)
+  },
+  reset_token: {
+    type: DataTypes.STRING(255)
+  },
+  reset_expires: {
+    type: DataTypes.DATE
+  },
+  last_login: {
+    type: DataTypes.DATE
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true
   }
-);
-
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
+}, {
+  timestamps: true,
+  tableName: 'users',
+  underscored: true,
+  hooks: {
+    beforeSave: async (user) => {
+      if (user.changed('password_hash')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password_hash = await bcrypt.hash(user.password_hash, salt);
+      }
+    }
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
-// Compare password method
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+// Password verification method
+User.prototype.matchPassword = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password_hash);
 };
 
-// Generate JWT token
-userSchema.methods.getSignedJwtToken = function () {
-  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN
-  });
-};
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

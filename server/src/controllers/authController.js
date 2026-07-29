@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
+const bcrypt = require('bcryptjs');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -9,32 +10,32 @@ const registerUser = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, password, phone, role } = req.body;
 
   // Check if user already exists
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ where: { email } });
 
   if (userExists) {
     res.status(400);
     throw new Error('User already exists with this email');
   }
 
-  // Create user
+  // Create user - hashing is handled by the model hook
   const user = await User.create({
-    firstName,
-    lastName,
+    first_name: firstName,
+    last_name: lastName,
     email,
-    password,
+    password_hash: password, // Hook will hash this
     phone,
     role: role || 'student'
   });
 
   if (user) {
     res.status(201).json({
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      _id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
       email: user.email,
       phone: user.phone,
       role: user.role,
-      token: generateToken(user._id)
+      token: generateToken(user.id)
     });
   } else {
     res.status(400);
@@ -49,21 +50,21 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   // Check for user email
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ where: { email } });
 
   if (user && (await user.matchPassword(password))) {
     // Update last login
-    user.lastLoginAt = Date.now();
+    user.last_login = new Date();
     await user.save();
 
     res.json({
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
+      _id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
       email: user.email,
       phone: user.phone,
       role: user.role,
-      token: generateToken(user._id)
+      token: generateToken(user.id)
     });
   } else {
     res.status(401);
@@ -75,10 +76,19 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).select('-password');
+  const user = await User.findByPk(req.user.id, {
+    attributes: { exclude: ['password_hash'] }
+  });
 
   if (user) {
-    res.json(user);
+    res.json({
+      _id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    });
   } else {
     res.status(404);
     throw new Error('User not found');
@@ -89,20 +99,19 @@ const getUserProfile = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/profile
 // @access  Private
 const updateUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
+  const user = await User.findByPk(req.user.id);
 
   if (user) {
-    user.firstName = req.body.firstName || user.firstName;
-    user.lastName = req.body.lastName || user.lastName;
+    user.first_name = req.body.firstName || user.first_name;
+    user.last_name = req.body.lastName || user.last_name;
     user.email = req.body.email || user.email;
     user.phone = req.body.phone || user.phone;
-    // Add other fields as needed
 
     const updatedUser = await user.save();
     res.json({
-      _id: updatedUser._id,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
+      _id: updatedUser.id,
+      firstName: updatedUser.first_name,
+      lastName: updatedUser.last_name,
       email: updatedUser.email,
       phone: updatedUser.phone,
       role: updatedUser.role

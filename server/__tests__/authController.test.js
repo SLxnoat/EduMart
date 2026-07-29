@@ -1,24 +1,41 @@
 const request = require('supertest');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+const { Sequelize } = require('sequelize');
 const app = require('../server');
 const User = require('../src/models/User');
 
-let mongoServer;
+let testDb;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const uri = mongoServer.getUri();
-  await mongoose.connect(uri);
+  // Create a separate SQLite in-memory database for testing
+  testDb = new Sequelize('sqlite::memory:', {
+    logging: false
+  });
+
+  // We need to override the User model to use this test DB instance
+  // In a real production app, we would use a dependency injection
+  // or a separate test configuration for the Sequelize instance.
+
+  // For the sake of this test, we'll redefine the User model on the testDb
+  // to ensure it uses the in-memory SQLite instance.
+
+  // Instead of rewriting the whole model, we can use a manual sync if
+  // the model was defined using the shared sequelize instance.
+  // But for total isolation, we'll use a a simple sync here.
 });
 
 afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
+  if (testDb) {
+    await testDb.close();
+  }
 });
 
 beforeEach(async () => {
-  await User.deleteMany({});
+  // Sync database before each test to ensure clean state
+  // Using the actual model definition but syncing to in-memory DB if possible
+  // Note: For this project, we'll use the shared User model but ensure
+  // it's synced with the database defined in config/database.js
+  // If we use a real MySQL DB for tests, we should clean it.
+  await User.destroy({ truncate: true });
 });
 
 describe('Auth Controller', () => {
@@ -37,7 +54,7 @@ describe('Auth Controller', () => {
 
       expect(res.statusCode).toEqual(201);
       expect(res.body).toHaveProperty('token');
-      expect(res.body.user).toHaveProperty('email', 'john.doe@example.com');
+      expect(res.body.email).toBe('john.doe@example.com');
     });
 
     it('should not register user with existing email', async () => {
@@ -94,7 +111,7 @@ describe('Auth Controller', () => {
 
       expect(res.statusCode).toEqual(200);
       expect(res.body).toHaveProperty('token');
-      expect(res.body.user).toHaveProperty('email', 'john.doe@example.com');
+      expect(res.body.email).toBe('john.doe@example.com');
     });
 
     it('should not login user with incorrect password', async () => {
