@@ -6,7 +6,9 @@ import { useAuth } from '../context/AuthContext';
 
 // AuthContext එක mock කිරීම
 jest.mock('../context/AuthContext', () => ({
+  ...jest.requireActual('../context/AuthContext'),
   useAuth: jest.fn(),
+  AuthProvider: ({ children }) => <>{children}</>,
 }));
 
 describe('App Component', () => {
