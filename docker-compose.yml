@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # MongoDB Service
+  mongodb:
+    image: mongo:5.0
+    container_name: edumart_mongodb
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  # Backend Service
+  backend:
+    build: ./server
+    container_name: edumart_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=development
+
+  # Frontend Service
+  frontend:
+    build: ./client
+    container_name: edumart_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

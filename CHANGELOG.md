@@ -6,16 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
 ### Added
-- Created SQL schema documentation (docs/sql_schema.md)
-- Created executable SQL database file (sql/database_schema.sql)
-- Created SQL documentation README (sql/README.md)
-- Created SQL database implementation guide (docs/sql_implementation_guide.md)
-- Updated documentation to include SQL schema references (SUMMARY.md, README.md, docs/README.md, root README.md)
-- Fixed Mermaid diagram syntax errors in technical_architecture.md (multiple sections)
-- Created .gitignore file to exclude unnecessary files from version control
+- Full project structure for EduMart e-commerce platform
+- Frontend React application with:
+  - Component-based architecture
+  - Authentication context
+  - Protected routes
+  - Material-UI styling
+  - API service layer
+- Backend Node.js/Express application with:
+  - RESTful API structure
+  - MongoDB/Mongoose models
+  - Authentication middleware
+  - Controller layer
+  - Validation schemas
+  - Test suite
+- Database schema documentation and SQL files
+- Docker configuration for development and production
+- CI/CD pipeline with GitHub Actions
+- Comprehensive API documentation
+- Environment configuration templates
+- Development scripts and tools
+
 ### Changed
-- Updated team roles to include client-side development and AI integration for Charuka (in team_roles.md)
-- Updated project timeline to 8 weeks with 2-week sprints (in multiple docs)
-- Fixed project_plan.md to correctly reflect 8-week timeline (removed references to weeks 9-12)
-- Added all core features to requirements and other documentation
+- Updated README files with project structure information
+- Enhanced documentation with API endpoint reference
+- Improved project organization and separation of concerns
+
+### Fixed
+- Fixed syntax error in server package.json
+- Standardized file paths and imports
+
+## [0.1.0] - 2026-07-29
+
+### Added
+- Initial project setup with documentation
+- Core documentation files:
+  - Project charter
+  - Requirements document
+  - Project plan
+  - Team roles and responsibilities
+  - Technical architecture with Mermaid diagrams
+  - Database schema documentation
+  - SQL implementation guide
+  - Wireframes plan
+- Basic project structure for frontend and backend
+- Initial GitHub repository setup
