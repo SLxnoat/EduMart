@@ -29,9 +29,9 @@ jobs:
     - name: Install dependencies
       run: |
         cd client
-        npm ci
+        npm install
         cd ../server
-        npm ci
+        npm install
 
     - name: Run tests
       run: |
