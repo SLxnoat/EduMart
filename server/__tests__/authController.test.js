@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../server');
-const User = require('../src/models/User');
+const { User } = require('../src/models');
 
 // jest.setup.js already mocks config/database with a SQLite in-memory Sequelize instance
 // and sets JWT_SECRET / JWT_EXPIRES_IN env vars.
