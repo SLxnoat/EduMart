@@ -11,6 +11,10 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
+
+// Stripe Webhook handler needs the raw body
+app.post('/api/payments/webhook', express.raw({type: 'application/json'}), require('./src/routes/paymentRoutes').webhookHandler);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -32,6 +36,7 @@ app.get('/health', (req, res) => {
 // Import routes
 app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
+app.use('/api/payments', require('./src/routes/paymentRoutes'));
 
 // 404 handler
 app.use('*', (req, res) => {
