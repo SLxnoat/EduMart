@@ -5,6 +5,9 @@ const models = {
   User: require('./User')(sequelize),
   Category: require('./Category')(sequelize),
   Product: require('./Product')(sequelize),
+  Order: require('./Order')(sequelize),
+  OrderItem: require('./OrderItem')(sequelize),
+  Payment: require('./Payment')(sequelize),
 };
 
 // Initialize associations
