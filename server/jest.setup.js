@@ -8,5 +8,9 @@ process.env.JWT_EXPIRES_IN = '1h';
 // Everything must be instantiated with require() inside the factory.
 jest.mock('./src/config/database', () => {
   const { Sequelize } = require('sequelize');
-  return new Sequelize('sqlite::memory:', { logging: false });
+  return new Sequelize({
+    dialect: 'sqlite',
+    storage: ':memory:',
+    logging: false
+  });
 });

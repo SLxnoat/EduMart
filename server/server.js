@@ -41,7 +41,9 @@ app.use('*', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
-  console.error(err.stack);
+  if (process.env.NODE_ENV !== 'test') {
+    console.error(err.stack);
+  }
   res.status(statusCode).json({
     message: err.message || 'Something went wrong!',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
