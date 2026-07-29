@@ -1,43 +1,39 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import React from 'react';
+import { render, screen } from '@testing-library/react';
 import App from '../App';
+import { useAuth } from '../context/AuthContext';
 
-// Mock the AuthContext
+// AuthContext එක mock කිරීම
 jest.mock('../context/AuthContext', () => ({
-  ...jest.requireActual('../context/AuthContext'),
-  useAuth: () => ({
-    user: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
-    loading: false
-  })
+  useAuth: jest.fn(),
 }));
 
-describe('App', () => {
+describe('App Component', () => {
+  beforeEach(() => {
+    // Standard logged in state by default
+    useAuth.mockReturnValue({
+      user: { firstName: 'Test', lastName: 'User', email: 'test@example.com' },
+      loading: false,
+    });
+  });
+
   test('renders header and footer', async () => {
     render(<App />);
 
-    // Check for header
-    const headerElement = await screen.findByText(/EduMart/i);
-    expect(headerElement).toBeInTheDocument();
-
-    // Check for footer
-    const footerElement = await screen.findByText(/EduMart/i);
-    expect(footerElement).toBeInTheDocument();
+    // Header සහ Footer එකේ තිබෙන EduMart text සොයා ගැනීම
+    const elements = await screen.findAllByText(/EduMart/i);
+    expect(elements.length).toBeGreaterThan(0);
   });
 
   test('shows loading state when auth is loading', async () => {
-    // Mock the AuthContext to return loading state
-    jest.mock('../context/AuthContext', () => ({
-      ...jest.requireActual('../context/AuthContext'),
-      useAuth: () => ({
-        user: null,
-        loading: true
-      })
-    }));
+    // Auth loading state එක mock කිරීම
+    useAuth.mockReturnValue({
+      user: null,
+      loading: true,
+    });
 
-    // Re-render with updated mock
-    rerender(<App />);
+    render(<App />);
 
-    // Check for loading text
     const loadingElement = await screen.findByText(/loading/i);
     expect(loadingElement).toBeInTheDocument();
   });
