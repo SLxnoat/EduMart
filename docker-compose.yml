@@ -1,49 +1,74 @@
 version: '3.8'
 
 services:
-  # MySQL Service
-  mysql:
+  # MySQL Database Service
+  db:
     image: mysql:8.0
-    container_name: edumart_mysql
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - mysql_data:/var/lib/mysql
+    container_name: edumart_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-edumart}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      MYSQL_USER: ${DB_USER:-edumart_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-rootpassword}
     ports:
       - "3306:3306"
-    environment:
-      - MYSQL_DATABASE=edumart
-      - MYSQL_ROOT_PASSWORD=your_password
-      - MYSQL_USER=edumart_user
-      - MYSQL_PASSWORD=your_password
-
-  # Backend Service
-  backend:
-    build: ./server
-    container_name: edumart_backend
-    restart: unless-stopped
-    env_file:
-      - .env
     volumes:
-      - ./server:/app
-      - /app/node_modules
+      - db_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    networks:
+      - edumart_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Backend Express API Service
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: edumart_server
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-edumart}
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_here_change_in_production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
+      FRONTEND_URL: http://localhost
     ports:
       - "5000:5000"
     depends_on:
-      - mysql
-    environment:
-      - NODE_ENV=development
+      db:
+        condition: service_healthy
+    networks:
+      - edumart_network
 
-  # Frontend Service
-  frontend:
-    build: ./client
-    container_name: edumart_frontend
-    restart: unless-stopped
+  # Frontend React/Nginx Service
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: edumart_client
+    restart: always
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
-      - backend
+      - server
+    networks:
+      - edumart_network
+
+networks:
+  edumart_network:
+    driver: bridge
 
 volumes:
-  mysql_data:
+  db_data:
+    driver: local
