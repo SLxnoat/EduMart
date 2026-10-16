@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import authService from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -17,24 +17,49 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Load user from localStorage on init
+  // Helper to persist user in active storage
+  const persistUserStorage = (userObj, token, rememberMe = true) => {
+    const storage = rememberMe === false ? sessionStorage : localStorage;
+    const otherStorage = rememberMe === false ? localStorage : sessionStorage;
+    otherStorage.removeItem('token');
+    otherStorage.removeItem('user');
+    if (token) {
+      storage.setItem('token', token);
+    }
+    storage.setItem('user', JSON.stringify(userObj));
+  };
+
+  const updateStoredUser = (userObj) => {
+    if (sessionStorage.getItem('user') && !localStorage.getItem('user')) {
+      sessionStorage.setItem('user', JSON.stringify(userObj));
+    } else {
+      localStorage.setItem('user', JSON.stringify(userObj));
+    }
+  };
+
+  // Load user from localStorage or sessionStorage on init
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
+    const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
 
   // Login function
-  const login = async (userData) => {
+  const login = async (credentials) => {
     try {
-      const response = await axios.post('/api/auth/login', userData);
-      const { token, ...userInfo } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userInfo));
+      const { rememberMe = true, ...apiCredentials } = credentials || {};
+      const data = await authService.login({ ...apiCredentials, rememberMe });
+      const { token, ...userInfo } = data;
+      persistUserStorage(userInfo, token, rememberMe);
       setUser(userInfo);
-      navigate('/');
+      return userInfo;
     } catch (error) {
       throw error;
     }
@@ -43,33 +68,37 @@ export const AuthProvider = ({ children }) => {
   // Register function
   const register = async (userData) => {
     try {
-      const response = await axios.post('/api/auth/register', userData);
-      const { token, ...userInfo } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userInfo));
+      const data = await authService.register(userData);
+      const { token, ...userInfo } = data;
+      persistUserStorage(userInfo, token, true);
       setUser(userInfo);
-      navigate('/');
+      return userInfo;
     } catch (error) {
       throw error;
     }
   };
 
   // Logout function
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.warn('Logout API error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      setUser(null);
+      navigate('/login');
+    }
   };
 
   // Update user profile
-  const updateProfile = async (userData) => {
+  const updateProfile = async (profileData) => {
     try {
-      const response = await axios.put('/api/users/profile', userData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      const { token, ...updatedUser } = response.data;
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      const updatedUser = await authService.updateProfile(profileData);
+      updateStoredUser(updatedUser);
       setUser(updatedUser);
       return updatedUser;
     } catch (error) {
@@ -77,13 +106,62 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Verify email
+  const verifyEmail = async (token) => {
+    const res = await authService.verifyEmail(token);
+    if (user) {
+      const updated = { ...user, isVerified: true };
+      setUser(updated);
+      updateStoredUser(updated);
+    }
+    return res;
+  };
+
+  // Resend verification email
+  const resendVerification = async (email) => {
+    return await authService.resendVerification(email);
+  };
+
+  // Forgot password
+  const forgotPassword = async (email) => {
+    return await authService.forgotPassword(email);
+  };
+
+  // Reset password
+  const resetPassword = async (token, newPassword) => {
+    return await authService.resetPassword(token, newPassword);
+  };
+
+  // Change password
+  const changePassword = async (passwords) => {
+    return await authService.changePassword(passwords);
+  };
+
+  // Refresh profile data from backend
+  const refreshProfile = async () => {
+    try {
+      const profile = await authService.getProfile();
+      setUser(profile);
+      updateStoredUser(profile);
+      return profile;
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
+
   const value = {
     user,
+    loading,
     login,
     register,
     logout,
     updateProfile,
-    loading
+    verifyEmail,
+    resendVerification,
+    forgotPassword,
+    resetPassword,
+    changePassword,
+    refreshProfile
   };
 
   return (

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Button, Menu, MenuItem } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Menu, MenuItem, Chip, Divider } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import PersonIcon from '@mui/icons-material/Person';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -36,9 +37,12 @@ const Header = () => {
         </Typography>
 
         <div>
+          <Button component={Link} to="/products" color="inherit">
+            Catalog
+          </Button>
           {!user ? (
             <>
-              <Button component={Link} to="/login" color="inherit">
+              <Button component={Link} to="/login" color="inherit" sx={{ ml: 1 }}>
                 Login
               </Button>
               <Button component={Link} to="/register" color="inherit" sx={{ ml: 2 }}>
@@ -47,10 +51,22 @@ const Header = () => {
             </>
           ) : (
             <>
+              {user.role === 'admin' && (
+                <Button
+                  component={Link}
+                  to="/admin"
+                  color="inherit"
+                  startIcon={<AdminPanelSettingsIcon />}
+                  sx={{ ml: 1 }}
+                >
+                  Admin
+                </Button>
+              )}
+
               <Button
                 color="inherit"
                 aria-label="cart"
-                sx={{ ml: 2 }}
+                sx={{ ml: 1 }}
                 component={Link}
                 to="/cart"
               >
@@ -83,9 +99,24 @@ const Header = () => {
                 open={Boolean(anchorEl)}
                 onClose={handleMenuClose}
               >
+                <MenuItem disabled sx={{ opacity: '1 !important', py: 0.5 }}>
+                  <Chip
+                    label={(user?.role || 'student').toUpperCase()}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}
+                  />
+                </MenuItem>
+                <Divider />
                 <MenuItem component={Link} to="/profile" onClick={handleMenuClose}>
                   Profile
                 </MenuItem>
+                {user.role === 'admin' && (
+                  <MenuItem component={Link} to="/admin" onClick={handleMenuClose}>
+                    Admin Dashboard
+                  </MenuItem>
+                )}
                 <MenuItem onClick={handleLogout}>
                   Logout
                 </MenuItem>

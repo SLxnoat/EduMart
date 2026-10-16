@@ -10,15 +10,44 @@ const authService = {
     return response.data;
   },
   logout: async () => {
-    const response = await api.post('/auth/logout');
+    try {
+      const response = await api.post('/auth/logout');
+      return response.data;
+    } catch (err) {
+      // Return gracefully even if token was already cleared
+      return { message: 'Logged out' };
+    }
+  },
+  verifyEmail: async (token) => {
+    const response = await api.post('/auth/verify-email', { token });
+    return response.data;
+  },
+  resendVerification: async (email) => {
+    const response = await api.post('/auth/resend-verification', email ? { email } : {});
+    return response.data;
+  },
+  forgotPassword: async (email) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+  resetPassword: async (token, newPassword) => {
+    const response = await api.post('/auth/reset-password', { token, newPassword });
     return response.data;
   },
   getProfile: async () => {
     const response = await api.get('/users/profile');
     return response.data;
   },
+  getUserById: async (id) => {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
   updateProfile: async (profileData) => {
     const response = await api.put('/users/profile', profileData);
+    return response.data;
+  },
+  changePassword: async (passwords) => {
+    const response = await api.put('/users/change-password', passwords);
     return response.data;
   }
 };

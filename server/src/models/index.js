@@ -8,6 +8,8 @@ const models = {
   Order: require('./Order')(sequelize),
   OrderItem: require('./OrderItem')(sequelize),
   Payment: require('./Payment')(sequelize),
+  AiInteraction: require('./AiInteraction')(sequelize),
+  Session: require('./Session')(sequelize),
 };
 
 // Initialize associations

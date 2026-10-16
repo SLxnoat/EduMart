@@ -31,6 +31,10 @@ module.exports = (sequelize) => {
     phone: {
       type: DataTypes.STRING(20)
     },
+    institution: {
+      type: DataTypes.STRING(150),
+      allowNull: true
+    },
     role: {
       type: DataTypes.ENUM('student', 'tutor', 'admin', 'institute'),
       allowNull: false,
@@ -65,7 +69,7 @@ module.exports = (sequelize) => {
     hooks: {
       beforeSave: async (user) => {
         if (user.changed('password_hash')) {
-          const salt = await bcrypt.genSalt(10);
+          const salt = await bcrypt.genSalt(12);
           user.password_hash = await bcrypt.hash(user.password_hash, salt);
         }
       }
@@ -77,5 +81,16 @@ module.exports = (sequelize) => {
     return await bcrypt.compare(enteredPassword, this.password_hash);
   };
 
+  User.associate = (models) => {
+    User.hasMany(models.Order, { foreignKey: 'user_id', as: 'orders' });
+    if (models.AiInteraction) {
+      User.hasMany(models.AiInteraction, { foreignKey: 'user_id', as: 'aiInteractions' });
+    }
+    if (models.Session) {
+      User.hasMany(models.Session, { foreignKey: 'user_id', as: 'sessions' });
+    }
+  };
+
   return User;
 };
+

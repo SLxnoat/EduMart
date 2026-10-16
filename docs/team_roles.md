@@ -1,4 +1,4 @@
-# EduMart Team Roles and Responsibilities
+tasks # EduMart Team Roles and Responsibilities
 
 ## Project Team Overview
 EduMart is being developed by a team of 5 members, each owning major components as part of their individual contribution. Charuka and Malki are presenting the project, with Charuka also leading client-side development and AI integration alongside Kushmi.

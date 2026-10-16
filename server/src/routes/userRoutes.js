@@ -2,10 +2,15 @@ const express = require('express');
 const router = express.Router();
 const {
   getUserProfile,
-  updateUserProfile
+  getUserById,
+  updateUserProfile,
+  changePassword
 } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
-const { updateUserProfileSchema } = require('../validators/userValidator');
+const { protect, adminOrSelf } = require('../middleware/authMiddleware');
+const {
+  updateUserProfileSchema,
+  changePasswordSchema
+} = require('../validators/userValidator');
 
 // Reusable Joi validation middleware factory
 const validate = (schema) => (req, res, next) => {
@@ -26,4 +31,16 @@ router
   .get(protect, getUserProfile)
   .put(protect, validate(updateUserProfileSchema), updateUserProfile);
 
+// PUT  /api/users/change-password — Private
+router.put(
+  '/change-password',
+  protect,
+  validate(changePasswordSchema),
+  changePassword
+);
+
+// GET  /api/users/:id — Private (Admin or Self)
+router.get('/:id', protect, adminOrSelf, getUserById);
+
 module.exports = router;
+

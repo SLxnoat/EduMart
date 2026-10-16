@@ -1,11 +1,12 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
 import customTheme from './theme';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import ChatWidget from './components/chat/ChatWidget';
 import routes from './routes';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
@@ -37,6 +38,7 @@ const AppContent = () => {
         </Routes>
       </main>
       <Footer />
+      <ChatWidget />
     </div>
   );
 };
