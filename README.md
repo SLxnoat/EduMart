@@ -20,7 +20,7 @@ This repository contains the **complete source code and verified documentation**
 - **Multi-Role Registration & Login**: Role-specific onboarding for **Students**, **Tutors**, **Institutes**, and **Admins** with live password strength meter and "Remember Me" storage persistence (`localStorage` vs `sessionStorage`).
 - **Email Verification & Recovery (`emailService.js`)**:
   - Tokenized email verification (`POST /api/auth/verify-email`), Resend Verification Email (`POST /api/auth/resend-verification`), Forgot Password (`POST /api/auth/forgot-password`), and Reset Password (`POST /api/auth/reset-password`).
-  - **Dual-Mode Email Dispatch**: Sends styled HTML verification & password-reset emails via native TLS/TCP SMTP when `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are configured, and automatically provides one-click **"Verify Email Now"** / **"Reset Password Now"** actions in the UI (plus console URL logs) when running locally in Docker without an external SMTP server.
+  - **Strict Inbox Verification via SMTP**: Sends styled HTML verification & password-reset emails via TLS/STARTTLS SMTP (`465`/`587`) directly to the user's registered email address. The account is marked verified only after the email holder clicks the verification link (`http://localhost:3000/verify-email?token=...`) in their email.
 - **Session Tracking & Token Revocation**: Active JWT sessions recorded in the `sessions` table (`Session` model) and invalidated immediately upon logout (`POST /api/auth/logout`).
 - **OWASP Security Hardening**: 12-round `bcryptjs` password hashing, `validator.escape()` XSS input sanitization, 8+ character password complexity enforcement, and IP-based rate limiting (`authRateLimiter` & `apiRateLimiter`).
 
@@ -77,18 +77,21 @@ The easiest way to run the entire EduMart stack (MySQL 8.0 Database with all 15 
 git clone https://github.com/SLxnoat/EduMart
 cd EduMart
 
-# 2. Build and start all services in detached mode
+# 2. Configure your SMTP email credentials in .env (see below)
+cp .env.example .env
+
+# 3. Build and start all services in detached mode
 docker compose up --build -d
 ```
 
 ### Access Services
-- **Frontend App**: [http://localhost](http://localhost) (Port 80)
+- **Frontend App**: [http://localhost:3000](http://localhost:3000) (Port 3000)
 - **Backend API**: [http://localhost:5000/api](http://localhost:5000/api) (Port 5000)
 - **Health Check**: [http://localhost:5000/health](http://localhost:5000/health)
 - **MySQL Database**: `localhost:3306` (Default Credentials: `DB_NAME=edumart`, `DB_USER=edumart_user`, `DB_PASSWORD=your_password`)
 
-### Optional: Configure Real SMTP Email Delivery
-By default in local/Docker mode, account verification and password reset links are logged to `docker compose logs backend` and surfaced via a one-click **"Verify Email Now"** button on the Profile banner (`http://localhost/profile`). To send real HTML emails to user inboxes (e.g., via Gmail App Password), create a `.env` file in the root directory:
+### Configure Outbound SMTP Email Delivery (`.env`)
+To send real verification and password-reset emails to users' inboxes (e.g., via a Gmail App Password), open `.env` in the project root and set:
 ```env
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
@@ -96,6 +99,7 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_16_char_app_password
 SMTP_FROM=your_email@gmail.com
 ```
+Then apply the configuration with `docker compose up -d`.
 
 ### Stop & Reset Stack
 
@@ -218,15 +222,17 @@ EduMart/
 ├── sql/                         # Database Initialization Scripts
 │   └── database_schema.sql      # Executable MySQL DDL & DML schema script
 ├── docs/                        # Complete Project Documentation
-│   ├── kushmi_step_by_step_plan.md # 40-Step Implementation & Verification Guide (Kushmi)
-│   ├── kushmi_task_plan.md      # Master Architectural & Sprint Specification (Kushmi)
+│   ├── project_summary.md       # Comprehensive Project Summary & Architectural Report
 │   ├── technical_architecture.md# Full architecture specification with Mermaid DFDs
 │   ├── API_ENDPOINTS.md         # Comprehensive REST API specifications
 │   ├── sql_schema.md            # Database ERD & schema guide
+│   ├── sql_implementation_guide.md # Detailed SQL setup and migration guide
 │   ├── requirements.md          # Functional & non-functional requirements
 │   ├── project_plan.md          # 8-week sprint roadmap
+│   ├── project_charter.md       # Vision, objectives, and scope
 │   ├── team_roles.md            # Team responsibility breakdown
-│   └── wireframes.md            # UI/UX design guidelines
+│   ├── wireframes.md            # UI/UX design guidelines
+│   └── SUMMARY.md               # High-level documentation overview
 ├── .github/workflows/           # CI/CD Automation
 │   └── ci-cd.yml                # GitHub Actions workflow (Node 22.x test & Docker build)
 └── docker-compose.yml           # Production-ready multi-container orchestration file
@@ -236,19 +242,17 @@ EduMart/
 
 ## 📚 Documentation Index
 
-1. [Project Charter](docs/project_charter.md) — Vision, objectives, scope, and stakeholders
-2. [Requirements Document](docs/requirements.md) — Functional and non-functional specifications
-3. [Project Plan](docs/project_plan.md) — 8-week timeline, sprint breakdown, and milestones
-4. [Team Roles and Responsibilities](docs/team_roles.md) — Team member assignments
-5. [Technical Architecture](docs/technical_architecture.md) — System architecture, Mermaid diagrams, API specs, security, and container design
-6. [API Endpoints Reference](docs/API_ENDPOINTS.md) — RESTful endpoint documentation
-7. [Database Schema](docs/sql_schema.md) — ERD diagrams, SQL tables, and Sequelize models
-8. [Wireframes Plan](docs/wireframes.md) — UI/UX wireframe planning and screen flows
-9. [Kushmi's Master Task Plan](docs/kushmi_task_plan.md) — Architecture & sprint plan for Auth, Profile, RBAC & AI Chatbot
-10. [Kushmi's 40-Step Implementation Guide](docs/kushmi_step_by_step_plan.md) — Step-by-step developer guide and completion tracker (Steps 1–40)
-11. [Documentation Overview](docs/README.md) — Index and quick reference for all project docs
-12. [Project Summary](docs/SUMMARY.md) — High-level summary of project documentation and implementation status
-13. [SQL Implementation Guide](docs/sql_implementation_guide.md) — Detailed guide on database setup and schema execution
+1. [Project Summary Report](docs/project_summary.md) — Comprehensive platform summary, architecture analysis, and implementation report
+2. [Project Charter](docs/project_charter.md) — Vision, objectives, scope, and stakeholders
+3. [Requirements Document](docs/requirements.md) — Functional and non-functional specifications
+4. [Project Plan](docs/project_plan.md) — 8-week timeline, sprint breakdown, and milestones
+5. [Team Roles and Responsibilities](docs/team_roles.md) — Team member assignments and module matrix
+6. [Technical Architecture](docs/technical_architecture.md) — System architecture, Mermaid diagrams, API specs, security, and container design
+7. [API Endpoints Reference](docs/API_ENDPOINTS.md) — RESTful endpoint documentation
+8. [Database Schema](docs/sql_schema.md) — ERD diagrams, SQL tables, and Sequelize models
+9. [SQL Implementation Guide](docs/sql_implementation_guide.md) — Detailed guide on database setup and schema execution
+10. [Wireframes Plan](docs/wireframes.md) — UI/UX wireframe planning and screen flows
+11. [Documentation Overview](docs/SUMMARY.md) — High-level summary of project documentation suite
 
 ---
 
