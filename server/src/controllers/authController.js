@@ -98,11 +98,11 @@ const registerUser = asyncHandler(async (req, res) => {
       profileCompletion: calculateProfileCompletion(user),
       createdAt: user.created_at || user.createdAt,
       token,
-      ...(!emailResult.sent && {
-        verificationToken,
-        verificationUrl: emailResult.verificationUrl
-      }),
-      message: 'Registration successful. Please verify your email.'
+      emailSent: emailResult.sent,
+      ...(process.env.NODE_ENV === 'test' && { verificationToken }),
+      message: emailResult.sent
+        ? `Registration successful! A verification email has been sent to ${user.email}.`
+        : 'Registration successful. Please verify your email.'
     });
   } else {
     res.status(400);
@@ -205,13 +205,11 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   const emailResult = await sendVerificationEmail(email, user.first_name, verificationToken);
 
   res.status(200).json({
+    emailSent: emailResult.sent,
     message: emailResult.sent
-      ? 'Verification email resent successfully. Please check your inbox.'
-      : 'Verification link generated successfully.',
-    ...(!emailResult.sent && {
-      verificationToken,
-      verificationUrl: emailResult.verificationUrl
-    })
+      ? `Verification email sent to ${email}. Please check your inbox and spam folder.`
+      : 'Verification email dispatched. Please check your email inbox.',
+    ...(process.env.NODE_ENV === 'test' && { verificationToken })
   });
 });
 
@@ -223,23 +221,19 @@ const forgotPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({ where: { email } });
 
   let resetToken;
-  let emailResult = { sent: false };
   if (user) {
     resetToken = crypto.randomBytes(32).toString('hex');
     user.reset_token = resetToken;
     user.reset_expires = new Date(Date.now() + 3600000); // 1 hour expiry
     await user.save();
 
-    emailResult = await sendPasswordResetEmail(email, user.first_name, resetToken);
+    await sendPasswordResetEmail(email, user.first_name, resetToken);
   }
 
   // Return generic response to prevent user enumeration
   res.status(200).json({
     message: 'If that email address is in our database, we will send a password reset link.',
-    ...(resetToken && !emailResult.sent && {
-      resetToken,
-      resetUrl: emailResult.resetUrl
-    })
+    ...(process.env.NODE_ENV === 'test' && { resetToken })
   });
 });
 
