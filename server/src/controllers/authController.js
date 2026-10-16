@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const validator = require('validator');
 const { Op } = require('sequelize');
 const { revokeToken } = require('../middleware/authMiddleware');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
 // Sanitize input string against XSS
 const sanitizeText = (str) => (typeof str === 'string' ? validator.escape(str.trim()) : str);
@@ -79,9 +80,7 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
-      console.log(`[AUTH] Verification token for ${normalizedEmail}: ${verificationToken}`);
-    }
+    const emailResult = await sendVerificationEmail(normalizedEmail, user.first_name, verificationToken);
 
     const token = generateToken(user.id);
     await recordSession(user.id, token, req);
@@ -99,6 +98,10 @@ const registerUser = asyncHandler(async (req, res) => {
       profileCompletion: calculateProfileCompletion(user),
       createdAt: user.created_at || user.createdAt,
       token,
+      ...(!emailResult.sent && {
+        verificationToken,
+        verificationUrl: emailResult.verificationUrl
+      }),
       message: 'Registration successful. Please verify your email.'
     });
   } else {
@@ -199,13 +202,16 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   user.verification_token = verificationToken;
   await user.save();
 
-  if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
-    console.log(`[AUTH] Resent verification token for ${email}: ${verificationToken}`);
-  }
+  const emailResult = await sendVerificationEmail(email, user.first_name, verificationToken);
 
   res.status(200).json({
-    message: 'Verification email resent successfully.',
-    ...(process.env.NODE_ENV === 'test' && { verificationToken })
+    message: emailResult.sent
+      ? 'Verification email resent successfully. Please check your inbox.'
+      : 'Verification link generated successfully.',
+    ...(!emailResult.sent && {
+      verificationToken,
+      verificationUrl: emailResult.verificationUrl
+    })
   });
 });
 
@@ -217,21 +223,23 @@ const forgotPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({ where: { email } });
 
   let resetToken;
+  let emailResult = { sent: false };
   if (user) {
     resetToken = crypto.randomBytes(32).toString('hex');
     user.reset_token = resetToken;
     user.reset_expires = new Date(Date.now() + 3600000); // 1 hour expiry
     await user.save();
 
-    if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
-      console.log(`[AUTH] Password reset token for ${email}: ${resetToken}`);
-    }
+    emailResult = await sendPasswordResetEmail(email, user.first_name, resetToken);
   }
 
   // Return generic response to prevent user enumeration
   res.status(200).json({
     message: 'If that email address is in our database, we will send a password reset link.',
-    ...(process.env.NODE_ENV === 'test' && { resetToken })
+    ...(resetToken && !emailResult.sent && {
+      resetToken,
+      resetUrl: emailResult.resetUrl
+    })
   });
 });
 
