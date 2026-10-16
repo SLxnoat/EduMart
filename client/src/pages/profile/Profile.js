@@ -21,7 +21,6 @@ import SecurityIcon from '@mui/icons-material/Security';
 import InfoIcon from '@mui/icons-material/Info';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
 
@@ -38,7 +37,6 @@ const Profile = () => {
   const [institution, setInstitution] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
-  const [verificationToken, setVerificationToken] = useState('');
 
   // Security Form State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -53,9 +51,6 @@ const Profile = () => {
       setLastName(user.lastName || '');
       setPhone(user.phone || '');
       setInstitution(user.institution || '');
-      if (user.verificationToken) {
-        setVerificationToken(user.verificationToken);
-      }
     }
   }, [user]);
 
@@ -64,9 +59,6 @@ const Profile = () => {
     try {
       setResendingEmail(true);
       const res = await resendVerification(user?.email);
-      if (res?.verificationToken) {
-        setVerificationToken(res.verificationToken);
-      }
       enqueueSnackbar(res.message || 'Verification email sent! Please check your inbox.', { variant: 'success' });
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to resend verification email.';
@@ -140,37 +132,24 @@ const Profile = () => {
 
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
-      {/* Unverified Email Banner with Resend & Instant Verify Action */}
+      {/* Unverified Email Banner with Resend Action */}
       {user && !user.isVerified && (
         <Alert
           severity="warning"
           sx={{ mb: 3, alignItems: 'center' }}
           action={
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {verificationToken && (
-                <Button
-                  component={Link}
-                  to={`/verify-email?token=${verificationToken}`}
-                  color="success"
-                  size="small"
-                  variant="contained"
-                >
-                  Verify Email Now
-                </Button>
-              )}
-              <Button
-                color="inherit"
-                size="small"
-                variant="outlined"
-                disabled={resendingEmail}
-                onClick={handleResendVerification}
-              >
-                {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
-              </Button>
-            </Box>
+            <Button
+              color="inherit"
+              size="small"
+              variant="outlined"
+              disabled={resendingEmail}
+              onClick={handleResendVerification}
+            >
+              {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
+            </Button>
           }
         >
-          Your email address ({user.email}) is not verified yet. Verify your email to unlock full account features and boost your profile score.
+          Your email address ({user.email}) is not verified yet. Please check your email inbox and click the verification link we sent you.
         </Alert>
       )}
 

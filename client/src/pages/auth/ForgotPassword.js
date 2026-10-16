@@ -20,7 +20,6 @@ const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [resetToken, setResetToken] = useState('');
   const [error, setError] = useState('');
 
   const { forgotPassword } = useAuth();
@@ -37,10 +36,7 @@ const ForgotPassword = () => {
 
     try {
       setLoading(true);
-      const res = await forgotPassword(email);
-      if (res?.resetToken) {
-        setResetToken(res.resetToken);
-      }
+      await forgotPassword(email);
       setSuccess(true);
       enqueueSnackbar('Password reset instructions dispatched!', { variant: 'info' });
     } catch (err) {
@@ -88,22 +84,10 @@ const ForgotPassword = () => {
               <Alert severity="success" sx={{ mb: 3 }}>
                 If that email address is in our database, we have sent a password reset link to it. Please check your inbox.
               </Alert>
-              {resetToken && (
-                <Button
-                  component={Link}
-                  to={`/reset-password?token=${resetToken}`}
-                  variant="contained"
-                  color="success"
-                  fullWidth
-                  sx={{ mb: 1.5 }}
-                >
-                  Reset Password Now
-                </Button>
-              )}
               <Button
                 component={Link}
                 to="/login"
-                variant={resetToken ? 'outlined' : 'contained'}
+                variant="contained"
                 fullWidth
               >
                 Back to Sign In
