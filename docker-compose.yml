@@ -40,7 +40,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-your_password}
       JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_here_change_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-465}
       SMTP_USER: ${SMTP_USER:-}
@@ -62,7 +62,7 @@ services:
     container_name: edumart_client
     restart: always
     ports:
-      - "80:80"
+      - "3000:80"
     depends_on:
       - backend
     networks:

@@ -106,9 +106,15 @@ const VerifyEmail = () => {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                 Your email address has been successfully verified. You now have full access to study materials, uploads, and purchases.
               </Typography>
-              <Button component={Link} to="/profile" variant="contained" fullWidth size="large">
-                Go to My Profile
-              </Button>
+              {user ? (
+                <Button component={Link} to="/profile" variant="contained" fullWidth size="large">
+                  Go to My Profile
+                </Button>
+              ) : (
+                <Button component={Link} to="/login" variant="contained" fullWidth size="large">
+                  Sign In to Your Account
+                </Button>
+              )}
             </Box>
           )}
 
