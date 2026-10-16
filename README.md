@@ -4,19 +4,45 @@
 ![Node.js](https://img.shields.io/badge/Node.js-v20%2Fv22-green?logo=node.js)
 ![React](https://img.shields.io/badge/React-18.x-61dafb?logo=react)
 ![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql)
-![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-30%20Passing-brightgreen)
 
 ## Project Overview
 
 EduMart is an online learning material store — a web-based e-commerce platform for buying and selling educational materials including past papers, e-books, model papers, revision notes, and recorded lecture packs. The platform creates a centralized, trusted marketplace connecting students, tutors, and educational institutes.
 
-This repository contains the **complete source code and verified documentation** for EduMart, featuring a fully containerized architecture (MySQL DB, Node.js/Express API, and React/Nginx frontend), user authentication with JWT, role-based access control (RBAC), and automated testing suites.
+This repository contains the **complete source code and verified documentation** for EduMart, featuring a fully containerized architecture (MySQL DB, Node.js/Express API, and React/Nginx frontend), user authentication with JWT & session revocation, role-based access control (RBAC), a 24/7 AI-powered customer support chatbot, and automated testing suites.
+
+---
+
+## ✨ Key Implemented Features
+
+### 1. User Authentication, Session Management & Security
+- **Multi-Role Registration & Login**: Role-specific onboarding for **Students**, **Tutors**, **Institutes**, and **Admins** with live password strength meter and "Remember Me" storage persistence (`localStorage` vs `sessionStorage`).
+- **Email Verification & Recovery**: Tokenized email verification (`POST /api/auth/verify-email`), Resend Verification Email (`POST /api/auth/resend-verification`), Forgot Password (`POST /api/auth/forgot-password`), and Reset Password (`POST /api/auth/reset-password`).
+- **Session Tracking & Token Revocation**: Active JWT sessions recorded in the `sessions` table (`Session` model) and invalidated immediately upon logout (`POST /api/auth/logout`).
+- **OWASP Security Hardening**: 12-round `bcryptjs` password hashing, `validator.escape()` XSS input sanitization, 8+ character password complexity enforcement, and IP-based rate limiting (`authRateLimiter` & `apiRateLimiter`).
+
+### 2. Profile Management & Role-Based Access Control (RBAC)
+- **Dynamic Profile Completeness Engine**: Real-time profile completion score (`0–100%`) with actionable next-step tips (email verification, phone number, school/institution).
+- **3-Tab Material-UI Profile Dashboard**:
+  - **Personal Details**: Update first name, last name, phone number, and school/university/institute.
+  - **Security & Password**: Self-service password change (`PUT /api/users/change-password`).
+  - **Account Information**: Verification status badge, role badge, User ID, Joined Date, and Last Login timestamp.
+- **End-to-End RBAC**: Backend middleware (`protect`, `admin`, `seller`, `institute`, `adminOrSelf`, `authorize`) and frontend route guards (`<Guard roles={['admin']}>` & `PrivateRoute`) with role-aware navigation in `Header.js`.
+
+### 3. 24/7 AI Chatbot Assistant
+- **Collapsible Floating Chat Widget**: Built with Material-UI (`ChatWidget.js`, `MessageItem.js`, `QuickReplies.js`), persistently accessible across all public and private pages.
+- **NLP Intent Classification & Knowledge Base**: Instant answers for digital downloads, tutor registration, commission rates, payment help, shipping/delivery, refund policy, and account/password self-service.
+- **Live Order Tracking & Catalog Search Bridges**:
+  - Queries the `Order` model in real time when users ask about an order (e.g., `ORD-2026-0001` or *"Track My Order"*).
+  - Queries the `Product` catalog when users search for subjects or study materials (e.g., *"Find Mathematics past papers"*).
+- **Conversation Persistence & Feedback**: Saves chat history in `sessionStorage` and hydrates from `GET /api/chatbot/history`, with in-chat Thumbs Up/Down and 1–5 Star ratings (`POST /api/chatbot/feedback`).
 
 ---
 
 ## Project Team
 
-- **Kushmi**: User Authentication and Profile Management, **AI Integration**
+- **Kushmi (Kaushini Ekanayake)**: User Authentication, Profile Management, Role-Based Access Control (RBAC), and **AI Chatbot Integration**
 - **Vidula**: Catalog, Search and Filtering System (by subject, grade, exam year, price)
 - **Bhanuka**: Shopping Cart and Checkout (with coupons & multi-item)
 - **Charuka**: Payment Gateway, Order Management, Backend & Client-Side Development, **AI Integration**
@@ -26,12 +52,12 @@ This repository contains the **complete source code and verified documentation**
 
 ## Technology Stack
 
-- **Frontend**: React.js 18 with Material UI (MUI), Context API, Axios, react-router-dom v6
+- **Frontend**: React.js 18 with Material UI (MUI), Notistack, Context API, Axios, react-router-dom v6
 - **Backend**: Node.js (v20/v22) with Express.js, RESTful API architecture
-- **Database**: MySQL 8.0+ with Sequelize ORM 6.x
-- **Validation & Security**: Joi validation schemas, bcryptjs password hashing, JWT authentication (RFC 7519), CORS configuration
+- **Database**: MySQL 8.0+ (with SQLite local dev & test support) via Sequelize ORM 6.x
+- **Validation & Security**: Joi validation schemas, `validator` XSS sanitization, `bcryptjs` (12 salt rounds), JWT authentication (RFC 7519), IP rate limiting, CORS configuration
 - **Containerization & Web Server**: Docker & Docker Compose, Nginx (Alpine) for static frontend serving
-- **CI/CD & Testing**: GitHub Actions pipeline, Jest test runner, SuperTest, SQLite in-memory DB for unit/integration testing
+- **CI/CD & Testing**: GitHub Actions pipeline, Jest test runner, SuperTest, React Testing Library
 
 ---
 
@@ -69,54 +95,67 @@ docker compose down -v
 
 ## 🛠️ Local Development Setup (Without Docker)
 
-### 1. Database Setup
-Ensure MySQL 8.0+ is running locally:
-```bash
-mysql -u root -p < sql/database_schema.sql
-```
-
-### 2. Backend Setup (`/server`)
-```bash
+### Option A: Zero-Config Local Run with SQLite (No MySQL Required)
+If you do not have MySQL running locally, you can run the backend immediately using SQLite:
+```powershell
+# Terminal 1 - Start Backend API on http://localhost:5000
 cd server
 npm install
-npm run dev
-```
-*Environment file `.env` in project root:*
-```env
-PORT=5000
-DB_NAME=edumart
-DB_USER=root
-DB_PASSWORD=rootpassword
-DB_HOST=localhost
-DB_PORT=3306
-JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRES_IN=24h
-FRONTEND_URL=http://localhost:3000
-```
+$env:DB_DIALECT='sqlite'; node server.js
 
-### 3. Frontend Setup (`/client`)
-```bash
+# Terminal 2 - Start React Frontend on http://localhost:3000
 cd client
 npm install
 npm start
 ```
-*Access frontend at [http://localhost:3000](http://localhost:3000).*
+
+### Option B: Local Run with MySQL 8.0+
+1. **Initialize MySQL Schema**:
+   ```bash
+   mysql -u root -p < sql/database_schema.sql
+   ```
+2. **Backend Setup (`/server`)**:
+   ```bash
+   cd server
+   npm install
+   npm run dev
+   ```
+   *Environment variables (`.env` in `/server` or project root):*
+   ```env
+   PORT=5000
+   DB_DIALECT=mysql
+   DB_NAME=edumart
+   DB_USER=root
+   DB_PASSWORD=rootpassword
+   DB_HOST=localhost
+   DB_PORT=3306
+   JWT_SECRET=your_super_secret_jwt_key_here
+   JWT_EXPIRES_IN=24h
+   FRONTEND_URL=http://localhost:3000
+   ```
+3. **Frontend Setup (`/client`)**:
+   ```bash
+   cd client
+   npm install
+   npm start
+   ```
+   *Access frontend at [http://localhost:3000](http://localhost:3000).*
 
 ---
 
 ## 🧪 Testing
 
-Both backend and frontend contain unit & integration tests that run cleanly in isolated environments.
+Both backend and frontend contain automated unit and integration test suites that run in isolated environments.
 
-### Backend Tests (9 Passing)
-Uses an in-memory SQLite database connection mocked via `jest.setup.js`:
+### Backend Tests (3 Suites, 25 Passing Tests)
+Uses an in-memory SQLite database connection mocked via `jest.setup.js` covering authentication, XSS sanitization, session revocation on logout, rate limiting (`429`), email verification/resend, password reset, profile completeness, RBAC (`GET /api/users/:id`), and AI Chatbot (`faq.*`, `product.search`, `order.status`, feedback, and history):
 ```bash
 cd server
 npm test
 ```
 
-### Frontend Tests (2 Passing)
-Uses React Testing Library with mocked `AuthContext`:
+### Frontend Tests (5 Passing Tests)
+Uses Jest and React Testing Library (`App.test.js`) covering app rendering, loading states, RBAC `<Guard roles={['admin']}>` redirection, `Profile` unverified banner & completion tips, and `ChatWidget` interactions:
 ```bash
 cd client
 npm test -- --watchAll=false
@@ -128,14 +167,34 @@ npm test -- --watchAll=false
 
 ```
 EduMart/
-├── client/                      # React Frontend Application
-│   ├── src/                     # React components, context, services, routes, styles
+├── client/                      # React 18 Frontend Application
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── chat/            # ChatWidget.js, MessageItem.js, QuickReplies.js
+│   │   │   ├── layout/          # Header.js (role-aware), Footer.js
+│   │   │   └── routing/         # PrivateRoute.js (RBAC guard)
+│   │   ├── context/             # AuthContext.js (JWT, Remember Me, Profile sync)
+│   │   ├── pages/
+│   │   │   ├── auth/            # Login, Register, ForgotPassword, ResetPassword, VerifyEmail
+│   │   │   ├── profile/         # Profile.js (3-tab dashboard & completion meter)
+│   │   │   ├── products/        # ProductList, ProductDetail
+│   │   │   ├── cart/ & checkout/# Cart, Checkout
+│   │   │   └── admin/           # AdminDashboard
+│   │   ├── services/            # api.js (Axios interceptors), authService.js
+│   │   └── __tests__/           # App.test.js (Frontend test suite)
 │   ├── public/                  # Static assets & index.html
 │   ├── nginx.conf               # Nginx routing configuration for production container
 │   └── Dockerfile               # Multi-stage build Dockerfile (Node build -> Nginx serving)
 ├── server/                      # Express Backend API Application
-│   ├── src/                     # Controllers, models, routes, middleware, validators, config
-│   ├── __tests__/               # Integration & unit test suites (authController, server)
+│   ├── src/
+│   │   ├── config/              # database.js (MySQL + SQLite fallback)
+│   │   ├── controllers/         # authController.js, chatbotController.js, paymentController.js
+│   │   ├── middleware/          # authMiddleware.js (protect, RBAC, revocation), rateLimiter.js
+│   │   ├── models/              # User, Session, AiInteraction, Product, Category, Order, Payment
+│   │   ├── routes/              # authRoutes, userRoutes, chatbotRoutes, paymentRoutes
+│   │   ├── services/            # chatbotService.js (NLP + Order & Product bridges), paymentService.js
+│   │   └── validators/          # userValidator.js (8 Joi validation schemas)
+│   ├── __tests__/               # authController.test.js, chatbotController.test.js, server.test.js
 │   ├── server.js                # Express app entry point
 │   ├── jest.config.js           # Jest configuration
 │   ├── jest.setup.js            # SQLite in-memory test DB setup
@@ -143,6 +202,8 @@ EduMart/
 ├── sql/                         # Database Initialization Scripts
 │   └── database_schema.sql      # Executable MySQL DDL & DML schema script
 ├── docs/                        # Complete Project Documentation
+│   ├── kushmi_step_by_step_plan.md # 40-Step Implementation & Verification Guide (Kushmi)
+│   ├── kushmi_task_plan.md      # Master Architectural & Sprint Specification (Kushmi)
 │   ├── technical_architecture.md# Full architecture specification with Mermaid DFDs
 │   ├── API_ENDPOINTS.md         # Comprehensive REST API specifications
 │   ├── sql_schema.md            # Database ERD & schema guide
@@ -167,9 +228,11 @@ EduMart/
 6. [API Endpoints Reference](docs/API_ENDPOINTS.md) — RESTful endpoint documentation
 7. [Database Schema](docs/sql_schema.md) — ERD diagrams, SQL tables, and Sequelize models
 8. [Wireframes Plan](docs/wireframes.md) — UI/UX wireframe planning and screen flows
-9. [Documentation Overview](docs/README.md) — Index and quick reference for all project docs
-10. [Project Summary](docs/SUMMARY.md) — High-level summary of project documentation and implementation status
-11. [SQL Implementation Guide](docs/sql_implementation_guide.md) — Detailed guide on database setup and schema execution
+9. [Kushmi's Master Task Plan](docs/kushmi_task_plan.md) — Architecture & sprint plan for Auth, Profile, RBAC & AI Chatbot
+10. [Kushmi's 40-Step Implementation Guide](docs/kushmi_step_by_step_plan.md) — Step-by-step developer guide and completion tracker (Steps 1–40)
+11. [Documentation Overview](docs/README.md) — Index and quick reference for all project docs
+12. [Project Summary](docs/SUMMARY.md) — High-level summary of project documentation and implementation status
+13. [SQL Implementation Guide](docs/sql_implementation_guide.md) — Detailed guide on database setup and schema execution
 
 ---
 
