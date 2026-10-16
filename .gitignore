@@ -69,3 +69,6 @@ uploads/
 .cache/
 .parcel-cache/
 .gemini/
+/package-lock.json
+docker-compose.override.yml
+

@@ -18,7 +18,7 @@ SET NAMES utf8mb4;
 
 -- Users table - stores all user accounts
 CREATE TABLE users (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
@@ -58,8 +58,8 @@ CREATE TABLE product_categories (
 
 -- Products - core product/listing information
 CREATE TABLE products (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    seller_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    seller_id CHAR(36) BINARY NOT NULL,
     category_id INT NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE products (
     isbn VARCHAR(20),
     publisher VARCHAR(255),
     publication_date DATE,
-    condition ENUM('new', 'like_new', 'good', 'fair', 'poor') NULL,
+    `condition` ENUM('new', 'like_new', 'good', 'fair', 'poor') NULL,
     stock_quantity INT NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
     reserve_stock INT NOT NULL DEFAULT 0 CHECK (reserve_stock >= 0),
     rating_average DECIMAL(3, 2) DEFAULT 0.00 CHECK (rating_average BETWEEN 0 AND 5),
@@ -89,7 +89,7 @@ CREATE TABLE products (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     is_approved BOOLEAN NOT NULL DEFAULT FALSE,
     approved_at TIMESTAMP NULL,
-    approved_by CHAR(36) NULL,
+    approved_by CHAR(36) BINARY NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     published_at TIMESTAMP NULL,
@@ -111,8 +111,8 @@ CREATE TABLE products (
 
 -- Digital Assets - files associated with digital products
 CREATE TABLE digital_assets (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    product_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    product_id CHAR(36) BINARY NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(512) NOT NULL,
     file_size INT NOT NULL, -- in KB
@@ -129,8 +129,8 @@ CREATE TABLE digital_assets (
 
 -- Orders - customer purchase records
 CREATE TABLE orders (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) BINARY NOT NULL,
     order_number VARCHAR(50) NOT NULL UNIQUE,
     status ENUM('pending', 'processing', 'paid', 'shipped', 'delivered', 'cancelled', 'refunded', 'failed') NOT NULL DEFAULT 'pending',
     subtotal DECIMAL(10, 2) NOT NULL CHECK (subtotal >= 0),
@@ -157,9 +157,9 @@ CREATE TABLE orders (
 
 -- Order Items - line items within orders
 CREATE TABLE order_items (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    order_id CHAR(36) NOT NULL,
-    product_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    order_id CHAR(36) BINARY NOT NULL,
+    product_id CHAR(36) BINARY NOT NULL,
     quantity INT NOT NULL CHECK (quantity > 0),
     unit_price DECIMAL(10, 2) NOT NULL CHECK (unit_price >= 0),
     total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0),
@@ -178,9 +178,9 @@ CREATE TABLE order_items (
 
 -- Payments - transaction records for order payments
 CREATE TABLE payments (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    order_id CHAR(36) NOT NULL,
-    user_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    order_id CHAR(36) BINARY NOT NULL,
+    user_id CHAR(36) BINARY NOT NULL,
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
     payment_method ENUM('credit_card', 'paypal', 'bank_transfer', 'digital_wallet') NOT NULL,
@@ -204,10 +204,10 @@ CREATE TABLE payments (
 
 -- Reviews and Ratings - product feedback from users
 CREATE TABLE reviews (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    product_id CHAR(36) NOT NULL,
-    user_id CHAR(36) NOT NULL,
-    order_id CHAR(36) NULL, -- optional link to verifying purchase
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    product_id CHAR(36) BINARY NOT NULL,
+    user_id CHAR(36) BINARY NOT NULL,
+    order_id CHAR(36) BINARY NULL, -- optional link to verifying purchase
     rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
     title VARCHAR(255),
     comment TEXT,
@@ -216,7 +216,7 @@ CREATE TABLE reviews (
     total_votes INT NOT NULL DEFAULT 0 CHECK (total_votes >= 0),
     is_approved BOOLEAN NOT NULL DEFAULT FALSE,
     approved_at TIMESTAMP NULL,
-    approved_by CHAR(36) NULL,
+    approved_by CHAR(36) BINARY NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
@@ -234,14 +234,14 @@ CREATE TABLE reviews (
 
 -- Notifications - system notifications for users
 CREATE TABLE notifications (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) BINARY NOT NULL,
     type ENUM('order_status', 'payment_status', 'shipping_update', 'new_product', 'promotion', 'review_reply', 'system_announcement', 'password_change', 'security_alert') NOT NULL,
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     is_read BOOLEAN NOT NULL DEFAULT FALSE,
     read_at TIMESTAMP NULL,
-    related_id CHAR(36) NULL, -- polymorphic reference to order_id, product_id, etc.
+    related_id CHAR(36) BINARY NULL, -- polymorphic reference to order_id, product_id, etc.
     related_type VARCHAR(50) NULL, -- e.g., 'order', 'product'
     priority ENUM('low', 'normal', 'high', 'urgent') NOT NULL DEFAULT 'normal',
     expires_at TIMESTAMP NULL,
@@ -257,26 +257,27 @@ CREATE TABLE notifications (
 
 -- Coupons and Discounts - promotional code management
 CREATE TABLE coupons (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
     code VARCHAR(50) NOT NULL UNIQUE,
     description VARCHAR(255),
     discount_type ENUM('percentage', 'fixed_amount', 'free_shipping') NOT NULL,
-    discount_value DECIMAL(10, 2) NOT NULL CHECK (
-        (discount_type = 'percentage' AND discount_value BETWEEN 0 AND 100) OR
-        (discount_type = 'fixed_amount' AND discount_value >= 0) OR
-        (discount_type = 'free_shipping')
-    ),
+    discount_value DECIMAL(10, 2) NOT NULL,
     minimum_purchase DECIMAL(10, 2) DEFAULT 0 CHECK (minimum_purchase >= 0),
     maximum_discount DECIMAL(10, 2) NULL CHECK (maximum_discount >= 0),
     usage_limit INT NULL CHECK (usage_limit >= 0),
     usage_count INT NOT NULL DEFAULT 0 CHECK (usage_count >= 0),
     per_user_limit INT NULL CHECK (per_user_limit >= 0),
-    starts_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
+    starts_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     applicable_to ENUM('all', 'specific_products', 'specific_categories') NOT NULL DEFAULT 'all',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_coupon_discount CHECK (
+        (discount_type = 'percentage' AND discount_value BETWEEN 0 AND 100) OR
+        (discount_type = 'fixed_amount' AND discount_value >= 0) OR
+        (discount_type = 'free_shipping')
+    ),
     INDEX idx_code (code),
     INDEX idx_is_active (is_active),
     INDEX idx_starts_at (starts_at),
@@ -286,10 +287,10 @@ CREATE TABLE coupons (
 
 -- Coupon Usage - tracking coupon usage by users
 CREATE TABLE coupon_usage (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    coupon_id CHAR(36) NOT NULL,
-    user_id CHAR(36) NOT NULL,
-    order_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    coupon_id CHAR(36) BINARY NOT NULL,
+    user_id CHAR(36) BINARY NOT NULL,
+    order_id CHAR(36) BINARY NOT NULL,
     discount_amount DECIMAL(10, 2) NOT NULL CHECK (discount_amount >= 0),
     used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE,
@@ -304,10 +305,10 @@ CREATE TABLE coupon_usage (
 
 -- Seller Earnings - tracking revenue and payouts for sellers
 CREATE TABLE seller_earnings (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    seller_id CHAR(36) NOT NULL,
-    order_id CHAR(36) NOT NULL,
-    product_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    seller_id CHAR(36) BINARY NOT NULL,
+    order_id CHAR(36) BINARY NOT NULL,
+    product_id CHAR(36) BINARY NOT NULL,
     quantity INT NOT NULL CHECK (quantity > 0),
     sale_amount DECIMAL(10, 2) NOT NULL CHECK (sale_amount >= 0),
     platform_fee DECIMAL(10, 2) NOT NULL CHECK (platform_fee >= 0),
@@ -332,8 +333,8 @@ CREATE TABLE seller_earnings (
 
 -- Shipments - tracking physical product deliveries
 CREATE TABLE shipments (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    order_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    order_id CHAR(36) BINARY NOT NULL,
     tracking_number VARCHAR(100) UNIQUE,
     carrier VARCHAR(100) NOT NULL,
     service_type VARCHAR(100),
@@ -358,8 +359,8 @@ CREATE TABLE shipments (
 
 -- AI Interactions - logging chatbot interactions for improvement and analytics
 CREATE TABLE ai_interactions (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36) NULL, -- nullable for anonymous users
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) BINARY NULL, -- nullable for anonymous users
     session_id VARCHAR(255) NOT NULL,
     message_text TEXT NOT NULL,
     response_text TEXT NOT NULL,
@@ -381,8 +382,8 @@ CREATE TABLE ai_interactions (
 
 -- Sessions (Alternative to JWT) - if using server-side sessions
 CREATE TABLE sessions (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    user_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    user_id CHAR(36) BINARY NOT NULL,
     token VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     ip_address VARCHAR(45) NULL,
@@ -397,10 +398,10 @@ CREATE TABLE sessions (
 
 -- Admin Actions - audit trail for administrative activities
 CREATE TABLE admin_actions (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    admin_id CHAR(36) NOT NULL,
+    id CHAR(36) BINARY PRIMARY KEY DEFAULT (UUID()),
+    admin_id CHAR(36) BINARY NOT NULL,
     action_type ENUM('product_approval', 'product_rejection', 'user_ban', 'user_activation', 'order_modification', 'refund_approval', 'coupon_creation', 'system_setting_change') NOT NULL,
-    target_id CHAR(36) NULL, -- references product_id, user_id, order_id, etc.
+    target_id CHAR(36) BINARY NULL, -- references product_id, user_id, order_id, etc.
     target_type VARCHAR(50) NULL,
     description TEXT NOT NULL,
     metadata JSON,

@@ -18,7 +18,9 @@ This repository contains the **complete source code and verified documentation**
 
 ### 1. User Authentication, Session Management & Security
 - **Multi-Role Registration & Login**: Role-specific onboarding for **Students**, **Tutors**, **Institutes**, and **Admins** with live password strength meter and "Remember Me" storage persistence (`localStorage` vs `sessionStorage`).
-- **Email Verification & Recovery**: Tokenized email verification (`POST /api/auth/verify-email`), Resend Verification Email (`POST /api/auth/resend-verification`), Forgot Password (`POST /api/auth/forgot-password`), and Reset Password (`POST /api/auth/reset-password`).
+- **Email Verification & Recovery (`emailService.js`)**:
+  - Tokenized email verification (`POST /api/auth/verify-email`), Resend Verification Email (`POST /api/auth/resend-verification`), Forgot Password (`POST /api/auth/forgot-password`), and Reset Password (`POST /api/auth/reset-password`).
+  - **Dual-Mode Email Dispatch**: Sends styled HTML verification & password-reset emails via native TLS/TCP SMTP when `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are configured, and automatically provides one-click **"Verify Email Now"** / **"Reset Password Now"** actions in the UI (plus console URL logs) when running locally in Docker without an external SMTP server.
 - **Session Tracking & Token Revocation**: Active JWT sessions recorded in the `sessions` table (`Session` model) and invalidated immediately upon logout (`POST /api/auth/logout`).
 - **OWASP Security Hardening**: 12-round `bcryptjs` password hashing, `validator.escape()` XSS input sanitization, 8+ character password complexity enforcement, and IP-based rate limiting (`authRateLimiter` & `apiRateLimiter`).
 
@@ -52,18 +54,18 @@ This repository contains the **complete source code and verified documentation**
 
 ## Technology Stack
 
-- **Frontend**: React.js 18 with Material UI (MUI), Notistack, Context API, Axios, react-router-dom v6
+- **Frontend**: React.js 18 with Material UI (MUI), Tailwind CSS, Notistack, Context API, Axios, react-router-dom v6
 - **Backend**: Node.js (v20/v22) with Express.js, RESTful API architecture
 - **Database**: MySQL 8.0+ (with SQLite local dev & test support) via Sequelize ORM 6.x
 - **Validation & Security**: Joi validation schemas, `validator` XSS sanitization, `bcryptjs` (12 salt rounds), JWT authentication (RFC 7519), IP rate limiting, CORS configuration
-- **Containerization & Web Server**: Docker & Docker Compose, Nginx (Alpine) for static frontend serving
+- **Containerization & Web Server**: Docker & Docker Compose, Nginx (Alpine) for static frontend serving & `/api` reverse proxy
 - **CI/CD & Testing**: GitHub Actions pipeline, Jest test runner, SuperTest, React Testing Library
 
 ---
 
 ## 🚀 Quick Start with Docker (Recommended)
 
-The easiest way to run the entire EduMart stack (MySQL Database, Express Backend API, and React/Nginx Frontend) is using Docker Compose:
+The easiest way to run the entire EduMart stack (MySQL 8.0 Database with all 15 tables, Express Backend API, and React/Nginx Frontend) is using Docker Compose:
 
 ### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine (v20+) with Docker Compose plugin.
@@ -85,9 +87,20 @@ docker compose up --build -d
 - **Health Check**: [http://localhost:5000/health](http://localhost:5000/health)
 - **MySQL Database**: `localhost:3306` (Default Credentials: `DB_NAME=edumart`, `DB_USER=edumart_user`, `DB_PASSWORD=your_password`)
 
-### Stop Stack
+### Optional: Configure Real SMTP Email Delivery
+By default in local/Docker mode, account verification and password reset links are logged to `docker compose logs backend` and surfaced via a one-click **"Verify Email Now"** button on the Profile banner (`http://localhost/profile`). To send real HTML emails to user inboxes (e.g., via Gmail App Password), create a `.env` file in the root directory:
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_16_char_app_password
+SMTP_FROM=your_email@gmail.com
+```
+
+### Stop & Reset Stack
 
 ```bash
+# Stop containers and reset database volume
 docker compose down -v
 ```
 
@@ -183,6 +196,7 @@ EduMart/
 │   │   ├── services/            # api.js (Axios interceptors), authService.js
 │   │   └── __tests__/           # App.test.js (Frontend test suite)
 │   ├── public/                  # Static assets & index.html
+│   ├── .dockerignore            # Excludes local node_modules & build from Docker context
 │   ├── nginx.conf               # Nginx routing configuration for production container
 │   └── Dockerfile               # Multi-stage build Dockerfile (Node build -> Nginx serving)
 ├── server/                      # Express Backend API Application
@@ -193,8 +207,10 @@ EduMart/
 │   │   ├── models/              # User, Session, AiInteraction, Product, Category, Order, Payment
 │   │   ├── routes/              # authRoutes, userRoutes, chatbotRoutes, paymentRoutes
 │   │   ├── services/            # chatbotService.js (NLP + Order & Product bridges), paymentService.js
+│   │   ├── utils/               # emailService.js (SMTP email dispatcher & local link fallback)
 │   │   └── validators/          # userValidator.js (8 Joi validation schemas)
 │   ├── __tests__/               # authController.test.js, chatbotController.test.js, server.test.js
+│   ├── .dockerignore            # Excludes local node_modules & test artifacts from Docker context
 │   ├── server.js                # Express app entry point
 │   ├── jest.config.js           # Jest configuration
 │   ├── jest.setup.js            # SQLite in-memory test DB setup
