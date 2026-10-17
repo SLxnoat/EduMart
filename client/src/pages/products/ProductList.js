@@ -17,6 +17,7 @@ import {
   Box,
   Pagination,
   CircularProgress,
+  Skeleton,
   Alert,
   Slider,
   Paper,
@@ -670,14 +671,24 @@ const ProductList = () => {
             </Alert>
           )}
 
-          {/* Loading Indicator */}
+          {/* Loading Indicator with Skeletons */}
           {loading ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 10 }}>
-              <CircularProgress size={48} />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Loading educational materials...
-              </Typography>
-            </Box>
+            <Grid container spacing={3}>
+              {[1, 2, 3, 4, 5, 6].map((sk) => (
+                <Grid item xs={12} sm={6} lg={4} key={sk}>
+                  <Card sx={{ p: 2.5, height: 340, borderRadius: 2 }}>
+                    <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 1.5, mb: 2 }} />
+                    <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                      <Skeleton width="30%" height={24} sx={{ borderRadius: 1 }} />
+                      <Skeleton width="30%" height={24} sx={{ borderRadius: 1 }} />
+                    </Stack>
+                    <Skeleton width="90%" height={24} sx={{ mb: 0.5 }} />
+                    <Skeleton width="70%" height={20} sx={{ mb: 2 }} />
+                    <Skeleton width="40%" height={28} sx={{ mt: 'auto' }} />
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
           ) : products.length === 0 ? (
             /* Empty State */
             <Paper elevation={1} sx={{ p: 6, textAlign: 'center', borderRadius: 2 }}>
