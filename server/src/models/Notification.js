@@ -14,6 +14,7 @@ module.exports = (sequelize) => {
     type: {
       type: DataTypes.ENUM(
         'order_status',
+        'order_update',
         'payment_status',
         'shipping_update',
         'new_product',

@@ -45,7 +45,18 @@ const Header = () => {
       }
     };
     fetchUnread();
-    return () => { isMounted = false; };
+
+    const handleUpdate = () => {
+      fetchUnread();
+    };
+    window.addEventListener('edumart_notifications_changed', handleUpdate);
+    const interval = setInterval(fetchUnread, 30000);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('edumart_notifications_changed', handleUpdate);
+      clearInterval(interval);
+    };
   }, [user]);
 
   const handleMenuOpen = (event) => {

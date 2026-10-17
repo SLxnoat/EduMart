@@ -163,6 +163,17 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const createdItems = await OrderItem.bulkCreate(orderItemsData);
 
+  // Send notification to the customer
+  await createNotification({
+    userId: req.user.id,
+    type: 'order_status',
+    title: 'Order Placed Successfully',
+    message: `Your Order #${orderNumber} containing ${processedItems.length} item(s) has been placed and is currently pending payment.`,
+    relatedId: order.id,
+    relatedType: 'order',
+    priority: 'normal',
+  });
+
   res.status(201).json({
     success: true,
     data: {
@@ -285,6 +296,17 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   await order.update(updateFields);
 
+  // Send notification to customer
+  await createNotification({
+    userId: order.user_id,
+    type: 'order_status',
+    title: `Order Status: ${status.toUpperCase()}`,
+    message: `Order #${order.order_number} status has been updated to "${status}".`,
+    relatedId: order.id,
+    relatedType: 'order',
+    priority: status === 'delivered' ? 'normal' : 'high',
+  });
+
   res.status(200).json({
     success: true,
     message: `Order status updated to ${status}`,
@@ -320,6 +342,17 @@ const cancelOrder = asyncHandler(async (req, res) => {
   await order.update({
     status: 'cancelled',
     notes: order.notes ? `${order.notes}\n${cancelNote}` : cancelNote,
+  });
+
+  // Notify customer
+  await createNotification({
+    userId: order.user_id,
+    type: 'order_status',
+    title: 'Order Cancelled',
+    message: `Order #${order.order_number} has been cancelled.${reason ? ` Reason: ${reason}` : ''}`,
+    relatedId: order.id,
+    relatedType: 'order',
+    priority: 'normal',
   });
 
   res.status(200).json({

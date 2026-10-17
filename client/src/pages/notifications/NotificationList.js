@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -29,24 +30,52 @@ import {
   Payment,
   RateReview,
   Campaign,
-  FiberManualRecord
+  FiberManualRecord,
+  OpenInNew
 } from '@mui/icons-material';
 import notificationService from '../../services/notificationService';
 
 const getNotificationIcon = (type) => {
   switch (type) {
     case 'order_status':
+    case 'order_update':
+    case 'shipping_update':
       return <LocalShipping color="primary" />;
     case 'payment_status':
       return <Payment color="success" />;
     case 'review_reply':
       return <RateReview color="secondary" />;
     case 'security_alert':
+    case 'password_change':
       return <Warning color="error" />;
+    case 'new_product':
+      return <CheckCircle color="success" />;
     case 'system_announcement':
       return <Campaign color="primary" />;
     default:
       return <Info color="info" />;
+  }
+};
+
+const getTypeLabel = (type) => {
+  switch (type) {
+    case 'order_status':
+    case 'order_update':
+      return 'Order Update';
+    case 'shipping_update':
+      return 'Shipment Tracking';
+    case 'payment_status':
+      return 'Payment';
+    case 'review_reply':
+      return 'Student Review';
+    case 'security_alert':
+      return 'Security Alert';
+    case 'new_product':
+      return 'Material Moderation';
+    case 'system_announcement':
+      return 'Platform Alert';
+    default:
+      return 'Notification';
   }
 };
 
@@ -105,6 +134,7 @@ const NotificationList = () => {
         prev.map((n) => (n.id === id ? { ...n, is_read: true, read_at: new Date() } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
+      window.dispatchEvent(new Event('edumart_notifications_changed'));
     } catch (err) {
       setActionMsg('Failed to mark notification as read');
     }
@@ -116,6 +146,7 @@ const NotificationList = () => {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
       setActionMsg('All notifications marked as read');
+      window.dispatchEvent(new Event('edumart_notifications_changed'));
     } catch (err) {
       setActionMsg('Failed to mark all as read');
     }
@@ -126,6 +157,7 @@ const NotificationList = () => {
       await notificationService.deleteNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setActionMsg('Notification removed');
+      window.dispatchEvent(new Event('edumart_notifications_changed'));
     } catch (err) {
       setActionMsg('Failed to delete notification');
     }
@@ -239,6 +271,12 @@ const NotificationList = () => {
                         <Typography variant="subtitle1" fontWeight={item.is_read ? 'normal' : 'bold'}>
                           {item.title}
                         </Typography>
+                        <Chip
+                          size="small"
+                          label={getTypeLabel(item.type)}
+                          variant="outlined"
+                          sx={{ fontSize: '0.7rem', height: 20 }}
+                        />
                         {getPriorityChip(item.priority)}
                       </Box>
                     }
@@ -247,9 +285,47 @@ const NotificationList = () => {
                         <Typography variant="body2" color="text.primary" sx={{ mb: 0.5 }}>
                           {item.message}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" display="block">
                           {new Date(item.created_at).toLocaleString()}
                         </Typography>
+                        {item.related_id && (
+                          <Box sx={{ mt: 1 }}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              component={Link}
+                              to={
+                                item.related_type === 'order'
+                                  ? `/orders/${item.related_id}`
+                                  : item.related_type === 'product'
+                                  ? `/products/${item.related_id}`
+                                  : item.related_type === 'review'
+                                  ? `/seller/dashboard`
+                                  : '#'
+                              }
+                              onClick={() => {
+                                if (!item.is_read) handleMarkRead(item.id);
+                              }}
+                              endIcon={<OpenInNew sx={{ fontSize: '0.85rem !important' }} />}
+                              sx={{
+                                textTransform: 'none',
+                                py: 0.25,
+                                px: 1.2,
+                                fontSize: '0.75rem',
+                                borderRadius: 1,
+                              }}
+                            >
+                              {item.related_type === 'order'
+                                ? 'View Order Details'
+                                : item.related_type === 'product'
+                                ? 'View Educational Material'
+                                : item.related_type === 'review'
+                                ? 'View in Seller Hub'
+                                : 'View Details'}
+                            </Button>
+                          </Box>
+                        )}
                       </Box>
                     }
                   />

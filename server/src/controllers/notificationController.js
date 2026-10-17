@@ -22,6 +22,10 @@ const getNotifications = asyncHandler(async (req, res) => {
     whereClause.is_read = false;
   }
 
+  if (req.query.type && req.query.type !== 'all') {
+    whereClause.type = req.query.type;
+  }
+
   const { count, rows: notifications } = await Notification.findAndCountAll({
     where: whereClause,
     order: [['created_at', 'DESC']],
@@ -164,6 +168,11 @@ const deleteNotification = asyncHandler(async (req, res) => {
   if (!notification) {
     res.status(404);
     throw new Error('Notification not found');
+  }
+
+  if (!notification.user_id && req.user.role !== 'admin') {
+    res.status(403);
+    throw new Error('Not authorized to delete platform announcements');
   }
 
   if (notification.user_id && notification.user_id !== req.user.id && req.user.role !== 'admin') {

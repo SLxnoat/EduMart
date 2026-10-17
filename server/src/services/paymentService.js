@@ -1,5 +1,6 @@
 const { Payment, Order } = require('../models');
 const { Op } = require('sequelize');
+const { createNotification } = require('../utils/notificationHelper');
 
 let stripe = null;
 if (process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('placeholder')) {
@@ -101,6 +102,16 @@ const paymentService = {
           status: 'paid',
           payment_status: 'paid',
         });
+
+        await createNotification({
+          userId: order.user_id,
+          type: 'payment_status',
+          title: 'Payment Succeeded',
+          message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} has been received.`,
+          relatedId: order.id,
+          relatedType: 'order',
+          priority: 'high',
+        });
         break;
       }
 
@@ -136,6 +147,16 @@ const paymentService = {
         await order.update({
           status: 'failed',
           payment_status: 'failed',
+        });
+
+        await createNotification({
+          userId: order.user_id,
+          type: 'payment_status',
+          title: 'Payment Failed',
+          message: `Payment processing for Order #${order.order_number} was unsuccessful. Please check your card details and try again.`,
+          relatedId: order.id,
+          relatedType: 'order',
+          priority: 'urgent',
         });
         break;
       }
@@ -179,6 +200,17 @@ const paymentService = {
     await order.update({
       status: 'paid',
       payment_status: 'paid',
+    });
+
+    // Notify user of successful payment
+    await createNotification({
+      userId: order.user_id,
+      type: 'payment_status',
+      title: 'Payment Successful!',
+      message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} has been confirmed.`,
+      relatedId: order.id,
+      relatedType: 'order',
+      priority: 'high',
     });
 
     return {
