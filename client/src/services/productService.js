@@ -38,7 +38,8 @@ const productService = {
     return response.data;
   },
   getPreviewFileUrl: (id) => {
-    return `/api/products/${id}/preview-file`;
+    const base = api.defaults.baseURL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    return `${base}/products/${id}/preview-file`;
   },
   deleteProduct: async (id) => {
     const response = await api.delete(`/products/${id}`);

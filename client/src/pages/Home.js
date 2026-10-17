@@ -368,7 +368,7 @@ const Home = () => {
                       >
                         {product.title}
                       </Typography>
-                      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 1 }}>
+                      <Stack direction="row" spacing={0.5} sx={{ mt: 1, alignItems: 'center' }}>
                         <Rating value={Number(product.rating_average) || 5} precision={0.5} size="small" readOnly />
                         <Typography variant="caption" color="text.secondary">
                           ({product.rating_count || 1})

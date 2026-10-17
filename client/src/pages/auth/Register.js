@@ -373,7 +373,7 @@ const Register = () => {
                 mb: 3,
               }}
             >
-              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
                 <MarkEmailReadIcon color="success" sx={{ fontSize: 26, mt: 0.2 }} />
                 <Box sx={{ flexGrow: 1 }}>
                   <Typography variant="subtitle2" fontWeight={700} color="success.dark">
@@ -404,7 +404,7 @@ const Register = () => {
 
             {/* Live Auto-Redirect Countdown Bar */}
             <Box sx={{ p: 2, mb: 3, bgcolor: '#f8fafc', borderRadius: 2.5, border: '1px solid #e2e8f0' }}>
-              <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+              <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', alignItems: 'center' }}>
                 <TimerIcon color="primary" fontSize="small" />
                 <Typography variant="body2" color="text.secondary">
                   Redirecting to your <strong>{destinationLabel}</strong> in{' '}
@@ -479,7 +479,7 @@ const Register = () => {
               }}
             >
               <Box>
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+                <Stack direction="row" spacing={1.5} sx={{ mb: 3, alignItems: 'center' }}>
                   <Box
                     sx={{
                       width: 44,
@@ -513,7 +513,7 @@ const Register = () => {
                 </Typography>
                 <Stack spacing={2} sx={{ mb: 4 }}>
                   {currentRole.features.map((feat, idx) => (
-                    <Stack direction="row" spacing={1.5} alignItems="flex-start" key={idx}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }} key={idx}>
                       <CheckCircle sx={{ color: '#34d399', fontSize: 20, mt: 0.3 }} />
                       <Typography variant="body2" sx={{ color: '#e2e8f0', lineHeight: 1.5 }}>
                         {feat}
@@ -542,7 +542,7 @@ const Register = () => {
                   "EduMart made finding A/L Physics past papers and verified answers effortless. Instant download
                   right after paying with my card!"
                 </Typography>
-                <Stack direction="row" spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                   <Avatar sx={{ width: 32, height: 32, bgcolor: '#3b82f6', fontSize: '0.8rem', fontWeight: 700 }}>
                     K
                   </Avatar>
@@ -846,7 +846,7 @@ const Register = () => {
                             />
 
                             <Stack spacing={0.8}>
-                              <Stack direction="row" spacing={1} alignItems="center">
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                 {criteria.hasLength ? (
                                   <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
                                 ) : (
@@ -856,7 +856,7 @@ const Register = () => {
                                   Minimum 8 characters
                                 </Typography>
                               </Stack>
-                              <Stack direction="row" spacing={1} alignItems="center">
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                 {criteria.hasUpper ? (
                                   <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
                                 ) : (
@@ -866,7 +866,7 @@ const Register = () => {
                                   Contains at least one uppercase letter (A-Z)
                                 </Typography>
                               </Stack>
-                              <Stack direction="row" spacing={1} alignItems="center">
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                                 {criteria.hasNumber || criteria.hasSpecial ? (
                                   <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
                                 ) : (
@@ -1142,7 +1142,7 @@ const Register = () => {
 
                   {/* Section-Wise Navigation Controls (Next / Back / Submit) */}
                   <Box sx={{ mt: 4, pt: 2, borderTop: '1px solid #f1f5f9' }}>
-                    <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
                       {activeStep > 0 ? (
                         <Button
                           variant="outlined"

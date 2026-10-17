@@ -24,7 +24,7 @@ const Footer = () => {
         <Grid container spacing={4}>
           {/* Brand Info */}
           <Grid size={{ xs: 12, md: 4 }}>
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, color: '#ffffff' }}>
+            <Stack direction="row" spacing={1} sx={{ mb: 2, color: '#ffffff', alignItems: 'center' }}>
               <SchoolIcon sx={{ color: '#3b82f6', fontSize: 32 }} />
               <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
                 EduMart

@@ -593,7 +593,7 @@ const ProductCreate = () => {
             {/* Action Buttons */}
             <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
-              <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
+              <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'flex-end' }}>
                 <Button component={Link} to="/products" variant="outlined" sx={{ px: 3, fontWeight: 600 }}>
                   Cancel
                 </Button>

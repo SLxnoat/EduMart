@@ -129,7 +129,7 @@ const Header = () => {
           </Box>
 
           {/* Right Action Icons & Auth Controls */}
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             {/* Cart Button */}
             <IconButton
               component={Link}
