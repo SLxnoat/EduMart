@@ -67,6 +67,26 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    carrier: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    tracking_number: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    estimated_delivery: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    delivery_milestones: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    invoice_number: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
   }, {
     tableName: 'orders',
     timestamps: true,

@@ -25,6 +25,9 @@ import {
   DialogContentText,
   DialogActions,
   TextField,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -34,6 +37,8 @@ import {
   LocalShipping,
   Receipt,
   Description,
+  Print,
+  Replay,
 } from '@mui/icons-material';
 import orderService from '../../services/orderService';
 
@@ -48,6 +53,14 @@ const OrderDetail = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState('');
+
+  // Digital download state
+  const [downloadingItemId, setDownloadingItemId] = useState(null);
+
+  // Tax invoice state
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoiceData, setInvoiceData] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   const fetchOrderDetail = useCallback(async () => {
     setLoading(true);
@@ -82,6 +95,33 @@ const OrderDetail = () => {
     }
   };
 
+  const handleDownloadItem = async (item) => {
+    try {
+      setDownloadingItemId(item.id);
+      await orderService.downloadDigitalItem(order.id, item.id, item.product_title);
+      setActionSuccess(`Secure digital download completed for "${item.product_title}".`);
+    } catch (err) {
+      console.error('Failed to download digital material:', err);
+      setError(err.response?.data?.message || err.message || 'Download failed. Ensure payment is complete.');
+    } finally {
+      setDownloadingItemId(null);
+    }
+  };
+
+  const handleOpenInvoice = async () => {
+    setInvoiceOpen(true);
+    setInvoiceLoading(true);
+    try {
+      const res = await orderService.getOrderInvoice(order.id);
+      setInvoiceData(res.data);
+    } catch (err) {
+      console.error('Failed to load tax invoice:', err);
+      setError('Could not retrieve tax invoice');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 8, display: 'flex', justifyContent: 'center' }}>
@@ -105,28 +145,57 @@ const OrderDetail = () => {
 
   const isCancellable = ['pending', 'processing'].includes(order.status?.toLowerCase());
   const dateFormatted = new Date(order.created_at).toLocaleString();
+  const hasPhysical = order.items?.some((i) => i.is_physical) || !!order.carrier || !!order.tracking_number;
+
+  const trackingSteps = ['Order Placed', 'Packaging & Warehouse', 'Shipped via Courier', 'Delivered'];
+  const getActiveTrackingStep = () => {
+    switch (order.status?.toLowerCase()) {
+      case 'pending': return 0;
+      case 'processing': return 1;
+      case 'paid': return 1;
+      case 'shipped': return 2;
+      case 'delivered': return 3;
+      default: return 0;
+    }
+  };
 
   return (
     <Container maxWidth="lg" sx={{ my: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Button startIcon={<ArrowBack />} onClick={() => navigate('/orders')}>
           Back to All Orders
         </Button>
-        {isCancellable && (
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="outlined"
-            color="error"
-            startIcon={<Cancel />}
-            onClick={() => setCancelOpen(true)}
+            color="primary"
+            startIcon={<Receipt />}
+            onClick={handleOpenInvoice}
           >
-            Cancel Order
+            View Tax Invoice
           </Button>
-        )}
+          {isCancellable && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Cancel />}
+              onClick={() => setCancelOpen(true)}
+            >
+              Cancel Order
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {actionSuccess && (
         <Alert severity="success" sx={{ mb: 3 }} onClose={() => setActionSuccess('')}>
           {actionSuccess}
+        </Alert>
+      )}
+
+      {order.status === 'refunded' && (
+        <Alert severity="info" sx={{ mb: 3 }} icon={<Replay />}>
+          <strong>Order Refunded:</strong> A full refund was credited to your original payment method.
         </Alert>
       )}
 
@@ -137,20 +206,59 @@ const OrderDetail = () => {
               Order #{order.order_number}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Placed on {dateFormatted}
+              Placed on {dateFormatted} {order.invoice_number ? `• Invoice: ${order.invoice_number}` : ''}
             </Typography>
           </div>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: { xs: 1, sm: 0 } }}>
             <Chip
               label={`STATUS: ${order.status?.toUpperCase()}`}
-              color={order.status === 'paid' || order.status === 'delivered' ? 'success' : 'primary'}
+              color={
+                order.status === 'paid' || order.status === 'delivered'
+                  ? 'success'
+                  : order.status === 'refunded'
+                  ? 'secondary'
+                  : 'primary'
+              }
             />
             <Chip
               label={`PAYMENT: ${order.payment_status?.toUpperCase()}`}
-              color={order.payment_status === 'paid' ? 'success' : 'warning'}
+              color={order.payment_status === 'paid' ? 'success' : order.payment_status === 'refunded' ? 'secondary' : 'warning'}
             />
           </Box>
         </Box>
+
+        {/* Physical Shipment Tracking Card */}
+        {hasPhysical && (
+          <Card variant="outlined" sx={{ my: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+              <Typography variant="subtitle1" fontWeight="bold" display="flex" alignItems="center">
+                <LocalShipping color="primary" sx={{ mr: 1 }} /> Parcel Delivery Tracking
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {order.carrier && (
+                  <Chip label={`Carrier: ${order.carrier}`} size="small" color="primary" variant="outlined" />
+                )}
+                {order.tracking_number && (
+                  <Chip label={`Tracking #: ${order.tracking_number}`} size="small" color="default" />
+                )}
+                {order.estimated_delivery && (
+                  <Chip
+                    label={`Est. Delivery: ${new Date(order.estimated_delivery).toLocaleDateString()}`}
+                    size="small"
+                    color="info"
+                  />
+                )}
+              </Box>
+            </Box>
+            <Stepper activeStep={getActiveTrackingStep()} alternativeLabel sx={{ pt: 1, pb: 1 }}>
+              {trackingSteps.map((label) => (
+                <Step key={label}>
+                  <StepLabel>{label}</StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Card>
+        )}
 
         <Divider sx={{ my: 3 }} />
 
@@ -200,12 +308,11 @@ const OrderDetail = () => {
                         variant="contained"
                         size="small"
                         color="success"
-                        startIcon={<Download />}
-                        onClick={() =>
-                          alert(`Digital asset access granted! Secure download initialized for: ${item.product_title}`)
-                        }
+                        startIcon={downloadingItemId === item.id ? <CircularProgress size={16} color="inherit" /> : <Download />}
+                        disabled={downloadingItemId === item.id}
+                        onClick={() => handleDownloadItem(item)}
                       >
-                        Download PDF
+                        {downloadingItemId === item.id ? 'Downloading...' : 'Download PDF'}
                       </Button>
                     ) : (
                       <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" justifyContent="center">
@@ -308,6 +415,115 @@ const OrderDetail = () => {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Tax Invoice Dialog */}
+      <Dialog open={invoiceOpen} onClose={() => setInvoiceOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Official Tax Invoice & Receipt</span>
+          <Button startIcon={<Print />} variant="outlined" size="small" onClick={() => window.print()}>
+            Print / Save
+          </Button>
+        </DialogTitle>
+        <DialogContent dividers>
+          {invoiceLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : invoiceData ? (
+            <Box sx={{ p: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+                <div>
+                  <Typography variant="h6" fontWeight="bold" color="primary">
+                    {invoiceData.seller?.company_name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Tax Registration ID: {invoiceData.seller?.tax_id}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {invoiceData.seller?.address}
+                  </Typography>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    INVOICE: {invoiceData.invoice_number}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Order Ref: #{invoiceData.order_number}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Date: {new Date(invoiceData.issue_date).toLocaleDateString()}
+                  </Typography>
+                </div>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                Billed To:
+              </Typography>
+              <Typography variant="body2">{invoiceData.customer?.name}</Typography>
+              <Typography variant="body2" color="text.secondary">{invoiceData.customer?.email}</Typography>
+              {invoiceData.customer?.billing_address && (
+                <Typography variant="body2" color="text.secondary">
+                  {invoiceData.customer.billing_address.street}, {invoiceData.customer.billing_address.city}
+                </Typography>
+              )}
+
+              <TableContainer component={Paper} variant="outlined" sx={{ my: 2 }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: 'grey.100' }}>
+                    <TableRow>
+                      <TableCell>Item Description</TableCell>
+                      <TableCell>Format</TableCell>
+                      <TableCell align="right">Qty</TableCell>
+                      <TableCell align="right">Unit Price</TableCell>
+                      <TableCell align="right">Amount</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invoiceData.items?.map((it, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{it.title} ({it.subject})</TableCell>
+                        <TableCell>{it.type}</TableCell>
+                        <TableCell align="right">{it.quantity}</TableCell>
+                        <TableCell align="right">${it.unit_price.toFixed(2)}</TableCell>
+                        <TableCell align="right">${it.total_price.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <Box sx={{ maxWidth: 280, ml: 'auto', mt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2">Subtotal:</Typography>
+                  <Typography variant="body2">${invoiceData.financials?.subtotal.toFixed(2)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2">VAT / Tax:</Typography>
+                  <Typography variant="body2">${invoiceData.financials?.tax_amount.toFixed(2)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2">Shipping:</Typography>
+                  <Typography variant="body2">${invoiceData.financials?.shipping_cost.toFixed(2)}</Typography>
+                </Box>
+                <Divider sx={{ my: 1 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="subtitle1" fontWeight="bold">Total Paid:</Typography>
+                  <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                    ${invoiceData.financials?.total_amount.toFixed(2)} {invoiceData.currency}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          ) : (
+            <Typography>Invoice could not be loaded.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInvoiceOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Cancellation Dialog */}
       <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)}>

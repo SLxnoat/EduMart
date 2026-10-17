@@ -67,8 +67,8 @@ const FAQ_KNOWLEDGE_BASE = [
 const classifyIntent = (message) => {
   const normalized = (message || '').toLowerCase().trim();
 
-  // Check for Order Status query pattern (e.g. "ORD-", "#123", "order status")
-  const orderMatch = normalized.match(/ord-[\w\-]+|order\s+#?([a-zA-Z0-9\-]+)/i);
+  // Check for Order Status query pattern (e.g. "EDM-", "ORD-", "#123", "order status")
+  const orderMatch = normalized.match(/edm-[\w\-]+|ord-[\w\-]+|order\s+#?([a-zA-Z0-9\-]+)/i);
   if (
     orderMatch ||
     normalized.includes('my order') ||
@@ -81,7 +81,8 @@ const classifyIntent = (message) => {
     let orderNumber = null;
     if (orderMatch) {
       orderNumber = orderMatch[1] || orderMatch[0];
-      if (!orderNumber.toUpperCase().startsWith('ORD-') && orderMatch[0].toUpperCase().startsWith('ORD-')) {
+      const upper0 = orderMatch[0].toUpperCase();
+      if (upper0.startsWith('EDM-') || upper0.startsWith('ORD-')) {
         orderNumber = orderMatch[0];
       }
     }
@@ -205,8 +206,12 @@ const handleOrderQuery = async (orderNumber, userId) => {
   if (orderNumber) {
     const order = await Order.findOne({ where: { order_number: orderNumber } });
     if (order) {
+      let trackingInfo = '';
+      if (order.carrier && order.tracking_number) {
+        trackingInfo = ` Dispatched via ${order.carrier} (Tracking: ${order.tracking_number}).`;
+      }
       return {
-        reply: `Order #${order.order_number} is currently ${order.status.toUpperCase()}. Payment Status: ${order.payment_status.toUpperCase()} (Total: $${order.total_amount}).`,
+        reply: `Order #${order.order_number} is currently ${order.status.toUpperCase()}. Payment Status: ${order.payment_status.toUpperCase()} (Total: $${order.total_amount}).${trackingInfo}`,
         quickReplies: ['Track Shipment', 'View Order Details', 'Need Help']
       };
     }
@@ -219,15 +224,19 @@ const handleOrderQuery = async (orderNumber, userId) => {
     });
 
     if (latestOrder) {
+      let trackingInfo = '';
+      if (latestOrder.carrier && latestOrder.tracking_number) {
+        trackingInfo = ` Dispatched via ${latestOrder.carrier} (Tracking: ${latestOrder.tracking_number}).`;
+      }
       return {
-        reply: `Your most recent order #${latestOrder.order_number} is currently ${latestOrder.status.toUpperCase()} (Payment: ${latestOrder.payment_status.toUpperCase()}).`,
+        reply: `Your most recent order #${latestOrder.order_number} is currently ${latestOrder.status.toUpperCase()} (Payment: ${latestOrder.payment_status.toUpperCase()}).${trackingInfo}`,
         quickReplies: ['View Order Details', 'Download Items', 'Return Policy']
       };
     }
   }
 
   return {
-    reply: "Please provide your order number (e.g., ORD-2026-0001) so I can look up the real-time fulfillment and shipment status for you.",
+    reply: "Please provide your order number (e.g., EDM-20261017-0001 or ORD-2026-0001) so I can look up the real-time fulfillment and shipment status for you.",
     quickReplies: ['View My Orders', 'Contact Support']
   };
 };

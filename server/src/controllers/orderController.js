@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { Order, OrderItem, Payment, Product, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { createNotification } = require('../utils/notificationHelper');
 
 /**
  * Generate a unique human-readable order number
@@ -9,6 +10,15 @@ const generateOrderNumber = () => {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const randomSuffix = Math.floor(100000 + Math.random() * 900000);
   return `EDM-${dateStr}-${randomSuffix}`;
+};
+
+/**
+ * Generate a unique human-readable invoice number
+ */
+const generateInvoiceNumber = () => {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  return `INV-${dateStr}-${randomSuffix}`;
 };
 
 // @desc    Create a new order
@@ -90,11 +100,43 @@ const createOrder = asyncHandler(async (req, res) => {
   );
 
   const orderNumber = generateOrderNumber();
+  const invoiceNumber = generateInvoiceNumber();
+
+  const hasPhysical = processedItems.some((pi) => pi.is_physical);
+  const initialMilestones = [
+    {
+      status: 'pending',
+      label: 'Order Placed',
+      timestamp: new Date().toISOString(),
+      description: 'Order placed, awaiting payment confirmation.',
+    },
+  ];
+  if (hasPhysical) {
+    initialMilestones.push({
+      status: 'processing',
+      label: 'Packaging & Warehouse',
+      timestamp: null,
+      description: 'Order details verified, packaging physical study material pack.',
+    });
+    initialMilestones.push({
+      status: 'shipped',
+      label: 'Dispatched to Courier',
+      timestamp: null,
+      description: 'Handed over to delivery carrier.',
+    });
+    initialMilestones.push({
+      status: 'delivered',
+      label: 'Delivered',
+      timestamp: null,
+      description: 'Package delivered to shipping destination.',
+    });
+  }
 
   // Create Order and associated OrderItems
   const order = await Order.create({
     user_id: req.user.id,
     order_number: orderNumber,
+    invoice_number: invoiceNumber,
     status: 'pending',
     subtotal: calculatedSubtotal,
     tax_amount: numTax,
@@ -106,6 +148,10 @@ const createOrder = asyncHandler(async (req, res) => {
     shipping_address: shipping_address || null,
     billing_address: billing_address || shipping_address || null,
     notes: notes || null,
+    carrier: hasPhysical ? 'PromptX Courier' : null,
+    tracking_number: hasPhysical ? `PRX-${orderNumber.slice(-8)}` : null,
+    estimated_delivery: hasPhysical ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) : null,
+    delivery_milestones: initialMilestones,
   });
 
   const orderItemsData = processedItems.map((pi) => ({
@@ -281,10 +327,312 @@ const cancelOrder = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Securely download purchased digital educational material
+// @route   GET /api/orders/:id/download/:itemId
+// @access  Private
+const downloadDigitalItem = asyncHandler(async (req, res) => {
+  const { id, itemId } = req.params;
+
+  const order = await Order.findOne({
+    where: {
+      [Op.or]: [{ id }, { order_number: id }],
+    },
+    include: [{ model: OrderItem, as: 'items' }],
+  });
+
+  if (!order) {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+
+  if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+    res.status(403);
+    throw new Error('Not authorized to download items from this order');
+  }
+
+  if (order.payment_status !== 'paid' && order.status !== 'paid') {
+    res.status(403);
+    throw new Error('Payment required before accessing digital study resources');
+  }
+
+  const item = order.items?.find((i) => i.id === itemId);
+  if (!item) {
+    res.status(404);
+    throw new Error('Educational resource not found in this order');
+  }
+
+  if (!item.is_digital) {
+    res.status(400);
+    throw new Error('Selected item is a physical good and cannot be downloaded digitally');
+  }
+
+  const safeFilename = `${(item.product_title || 'study_material').replace(/[^a-zA-Z0-9_\-]/g, '_')}.pdf`;
+  const pdfBytes = Buffer.from(
+    `%PDF-1.4\n% EduMart Authenticated Digital Material Pack\n` +
+    `Document: ${item.product_title}\n` +
+    `Subject: ${item.product_subject} | Grade Level: ${item.product_grade_level}\n` +
+    `Purchased By: ${req.user.email} (Order: #${order.order_number})\n` +
+    `Authorized License ID: EDM-LIC-${order.id.slice(0, 8)}-${item.id.slice(0, 8)}\n` +
+    `Timestamp: ${new Date().toISOString()}\n%%EOF`
+  );
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Content-Length', pdfBytes.length);
+  res.status(200).send(pdfBytes);
+});
+
+// @desc    Update order physical shipment tracking details
+// @route   PUT /api/orders/:id/tracking
+// @access  Private (Admin / Seller)
+const updateOrderTracking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { carrier, tracking_number, estimated_delivery, status, milestone_label, milestone_description } = req.body;
+
+  const order = await Order.findByPk(id);
+  if (!order) {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+
+  const currentMilestones = Array.isArray(order.delivery_milestones) ? [...order.delivery_milestones] : [];
+  if (milestone_label) {
+    currentMilestones.push({
+      status: status || 'shipped',
+      label: milestone_label,
+      timestamp: new Date().toISOString(),
+      description: milestone_description || `Package handled by ${carrier || order.carrier || 'carrier'}.`,
+    });
+  }
+
+  const updateData = {
+    delivery_milestones: currentMilestones,
+  };
+  if (carrier) updateData.carrier = carrier;
+  if (tracking_number) updateData.tracking_number = tracking_number;
+  if (estimated_delivery) updateData.estimated_delivery = new Date(estimated_delivery);
+  if (status) updateData.status = status;
+
+  await order.update(updateData);
+
+  // Send real-time notification to the customer
+  await createNotification({
+    userId: order.user_id,
+    type: 'order_update',
+    title: 'Shipment Tracking Update',
+    message: `Order #${order.order_number} tracking updated: ${milestone_label || status || 'In Transit'} via ${order.carrier || carrier || 'Courier'}.`,
+    relatedId: order.id,
+    relatedType: 'order',
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Shipment tracking information updated successfully',
+    data: order,
+  });
+});
+
+// @desc    Get structured tax invoice / payment receipt for order
+// @route   GET /api/orders/:id/invoice
+// @access  Private
+const getOrderInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const order = await Order.findOne({
+    where: {
+      [Op.or]: [{ id }, { order_number: id }],
+    },
+    include: [
+      { model: OrderItem, as: 'items' },
+      { model: Payment, as: 'payment' },
+    ],
+  });
+
+  if (!order) {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+
+  if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+    res.status(403);
+    throw new Error('Not authorized to view invoice for this order');
+  }
+
+  const invoice = {
+    invoice_number: order.invoice_number || `INV-${order.order_number}`,
+    issue_date: order.created_at,
+    order_number: order.order_number,
+    payment_status: order.payment_status,
+    payment_method: order.payment?.payment_method || 'credit_card',
+    provider_transaction_id: order.payment?.provider_payment_id || null,
+    currency: order.currency || 'USD',
+    seller: {
+      company_name: 'EduMart Marketplace Platform Ltd.',
+      tax_id: 'LK-VAT-992384',
+      email: 'billing@edumart.lk',
+      address: 'No. 120, High Level Road, Colombo 06, Sri Lanka',
+    },
+    customer: {
+      email: req.user.email,
+      name: order.shipping_address?.fullName || `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || req.user.email,
+      shipping_address: order.shipping_address,
+      billing_address: order.billing_address || order.shipping_address,
+    },
+    items: order.items?.map((item) => ({
+      id: item.id,
+      title: item.product_title,
+      subject: item.product_subject,
+      grade_level: item.product_grade_level,
+      type: item.is_digital ? 'Digital E-Material' : 'Physical Printed',
+      quantity: item.quantity,
+      unit_price: parseFloat(item.unit_price),
+      total_price: parseFloat(item.total_price),
+    })),
+    financials: {
+      subtotal: parseFloat(order.subtotal),
+      tax_amount: parseFloat(order.tax_amount),
+      shipping_cost: parseFloat(order.shipping_cost),
+      discount_amount: parseFloat(order.discount_amount),
+      total_amount: parseFloat(order.total_amount),
+    },
+  };
+
+  res.status(200).json({
+    success: true,
+    data: invoice,
+  });
+});
+
+// @desc    Process order refund with audit trail
+// @route   POST /api/orders/:id/refund
+// @access  Private (Admin / Authorized Seller)
+const refundOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason, amount } = req.body;
+
+  const order = await Order.findByPk(id, {
+    include: [{ model: Payment, as: 'payment' }],
+  });
+
+  if (!order) {
+    res.status(404);
+    throw new Error('Order not found');
+  }
+
+  if (order.status === 'refunded') {
+    res.status(400);
+    throw new Error('Order has already been refunded');
+  }
+
+  const refundAmount = amount ? parseFloat(amount) : parseFloat(order.total_amount);
+  const refundNote = `Refund of $${refundAmount.toFixed(2)} processed on ${new Date().toISOString()}. Reason: ${reason || 'Approved customer refund'}`;
+
+  // Update Payment record if present
+  if (order.payment) {
+    await order.payment.update({
+      status: 'refunded',
+      gateway_response: {
+        ...(order.payment.gateway_response || {}),
+        refunded: true,
+        refund_amount: refundAmount,
+        refund_reason: reason || 'Customer dispute / cancellation approved',
+        refund_timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  await order.update({
+    status: 'refunded',
+    payment_status: 'refunded',
+    notes: order.notes ? `${order.notes}\n${refundNote}` : refundNote,
+  });
+
+  // Notify customer
+  await createNotification({
+    userId: order.user_id,
+    type: 'order_update',
+    title: 'Refund Processed',
+    message: `A refund of $${refundAmount.toFixed(2)} has been credited for Order #${order.order_number}. Reason: ${reason || 'Refund request approved'}.`,
+    relatedId: order.id,
+    relatedType: 'order',
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Order refund successfully processed',
+    data: {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      refundAmount,
+      status: 'refunded',
+    },
+  });
+});
+
+// @desc    Get orders for products sold by the tutor / seller
+// @route   GET /api/orders/seller
+// @access  Private (Tutor, Institute, Seller, Admin)
+const getSellerOrders = asyncHandler(async (req, res) => {
+  const sellerId = req.user.id;
+
+  // Find all products owned by this seller
+  const sellerProducts = await Product.findAll({
+    where: { seller_id: sellerId },
+    attributes: ['id'],
+  });
+  const productIds = sellerProducts.map((p) => p.id);
+
+  if (productIds.length === 0 && req.user.role !== 'admin') {
+    return res.status(200).json({
+      success: true,
+      data: [],
+      pagination: { total: 0, page: 1, limit: 10, pages: 0 },
+    });
+  }
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.max(1, Math.min(50, parseInt(req.query.limit, 10) || 10));
+  const offset = (page - 1) * limit;
+
+  const itemWhere = req.user.role === 'admin' ? {} : { product_id: productIds };
+
+  const { count, rows: orders } = await Order.findAndCountAll({
+    include: [
+      {
+        model: OrderItem,
+        as: 'items',
+        where: itemWhere,
+        required: true,
+      },
+      { model: Payment, as: 'payment' },
+    ],
+    distinct: true,
+    order: [['created_at', 'DESC']],
+    limit,
+    offset,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: orders,
+    pagination: {
+      total: count,
+      page,
+      limit,
+      pages: Math.ceil(count / limit),
+    },
+  });
+});
+
 module.exports = {
   createOrder,
   getMyOrders,
   getOrderById,
   updateOrderStatus,
   cancelOrder,
+  downloadDigitalItem,
+  updateOrderTracking,
+  getOrderInvoice,
+  refundOrder,
+  getSellerOrders,
 };
