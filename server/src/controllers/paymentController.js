@@ -2,7 +2,18 @@ const asyncHandler = require('express-async-handler');
 const paymentService = require('../services/paymentService');
 const { Order } = require('../models');
 
-// @desc    Create a PaymentIntent
+// @desc    Get client-safe payment gateway configuration
+// @route   GET /api/payments/config
+// @access  Public
+const getPaymentConfig = asyncHandler(async (req, res) => {
+  const config = paymentService.getPaymentConfig();
+  res.status(200).json({
+    success: true,
+    data: config,
+  });
+});
+
+// @desc    Create a PaymentIntent (Stripe or Sandbox)
 // @route   POST /api/payments/create
 // @access  Private
 const createPaymentIntent = asyncHandler(async (req, res) => {
@@ -40,6 +51,63 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Create a PayPal Order
+// @route   POST /api/payments/paypal/create-order
+// @access  Private
+const createPayPalOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.body;
+  if (!orderId) {
+    res.status(400);
+    throw new Error('Order ID is required');
+  }
+
+  const result = await paymentService.createPayPalOrder(
+    orderId,
+    req.user ? req.user.id : null
+  );
+
+  res.status(200).json(result);
+});
+
+// @desc    Capture a PayPal Order
+// @route   POST /api/payments/paypal/capture-order
+// @access  Private
+const capturePayPalOrder = asyncHandler(async (req, res) => {
+  const { orderId, paypalOrderId } = req.body;
+  if (!orderId || !paypalOrderId) {
+    res.status(400);
+    throw new Error('Order ID and PayPal Order ID are required');
+  }
+
+  const result = await paymentService.capturePayPalOrder(
+    orderId,
+    paypalOrderId,
+    req.user ? req.user.id : null
+  );
+
+  res.status(200).json(result);
+});
+
+// @desc    Process payment transaction (Stripe live/sandbox, PayPal, Bank Wire, LankaQR, COD)
+// @route   POST /api/payments/process
+// @access  Private
+const processPayment = asyncHandler(async (req, res) => {
+  const { orderId, paymentMethod = 'credit_card', paymentDetails = {} } = req.body;
+  if (!orderId) {
+    res.status(400);
+    throw new Error('Order ID is required');
+  }
+
+  const result = await paymentService.processPayment(
+    orderId,
+    req.user ? req.user.id : null,
+    paymentMethod,
+    paymentDetails
+  );
+
+  res.status(200).json(result);
+});
+
 // @desc    Check payment status
 // @route   GET /api/payments/status/:id
 // @access  Private
@@ -64,7 +132,7 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Simulate payment success (for sandbox / local testing)
+// @desc    Simulate payment success (for sandbox / local testing and backward-compatibility)
 // @route   POST /api/payments/simulate-success
 // @access  Private
 const simulatePaymentSuccess = asyncHandler(async (req, res) => {
@@ -119,7 +187,11 @@ const handlePaymentWebhook = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getPaymentConfig,
   createPaymentIntent,
+  createPayPalOrder,
+  capturePayPalOrder,
+  processPayment,
   getPaymentStatus,
   simulatePaymentSuccess,
   handlePaymentWebhook,

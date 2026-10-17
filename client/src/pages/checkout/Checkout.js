@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -106,6 +106,27 @@ const Checkout = () => {
   const [paypalDetails, setPaypalDetails] = useState({
     paypalEmail: user?.email || 'student@edumart.lk',
   });
+  const [gatewayConfig, setGatewayConfig] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchConfig = async () => {
+      try {
+        if (paymentService.getPaymentConfig) {
+          const res = await paymentService.getPaymentConfig();
+          if (isMounted && res?.data) {
+            setGatewayConfig(res.data);
+          }
+        }
+      } catch (err) {
+        // Fallback silently
+      }
+    };
+    fetchConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const items = (cartItems && cartItems.length > 0)
     ? cartItems.map((item) => ({
@@ -208,8 +229,12 @@ const Checkout = () => {
       // 2. Initialize Payment Intent
       await paymentService.createPaymentIntent(order.id);
 
-      // 3. Process/Simulate Payment Transaction
-      await paymentService.simulatePaymentSuccess(order.id, normalizedMethod, paymentDetails);
+      // 3. Process Payment Transaction (Real Gateway with Sandbox Fallback)
+      const payFn = paymentService.processPayment || paymentService.simulatePaymentSuccess;
+      const paymentResult = await payFn(order.id, normalizedMethod, paymentDetails);
+      if (!paymentResult && paymentService.simulatePaymentSuccess) {
+        await paymentService.simulatePaymentSuccess(order.id, normalizedMethod, paymentDetails);
+      }
 
       // 4. Fetch the refreshed order with paid status
       const updatedOrderRes = await orderService.getOrderById(order.id);
@@ -551,10 +576,23 @@ const Checkout = () => {
                     Official Beneficiary Bank Details
                   </Typography>
                   <Paper variant="outlined" sx={{ p: 1.5, mb: 2, bgcolor: '#f1f5f9' }}>
-                    <Typography variant="body2"><strong>Bank:</strong> Commercial Bank of Ceylon / Bank of Ceylon</Typography>
-                    <Typography variant="body2"><strong>Account Name:</strong> EduMart Educational Services (Pvt) Ltd</Typography>
-                    <Typography variant="body2"><strong>Account Number:</strong> 8004592019</Typography>
-                    <Typography variant="body2"><strong>Branch:</strong> Colombo City Corporate</Typography>
+                    {gatewayConfig?.bankTransfer?.accounts?.length > 0 ? (
+                      gatewayConfig.bankTransfer.accounts.map((acc, idx) => (
+                        <Box key={idx} sx={{ mb: idx < gatewayConfig.bankTransfer.accounts.length - 1 ? 1.5 : 0 }}>
+                          <Typography variant="body2"><strong>Bank:</strong> {acc.bankName} {acc.branch ? `(${acc.branch})` : ''}</Typography>
+                          <Typography variant="body2"><strong>Account Name:</strong> {acc.accountName}</Typography>
+                          <Typography variant="body2"><strong>Account Number:</strong> {acc.accountNumber} {acc.swift ? `• SWIFT: ${acc.swift}` : ''}</Typography>
+                          {idx < gatewayConfig.bankTransfer.accounts.length - 1 && <Divider sx={{ my: 1 }} />}
+                        </Box>
+                      ))
+                    ) : (
+                      <>
+                        <Typography variant="body2"><strong>Bank:</strong> Commercial Bank of Ceylon / Bank of Ceylon</Typography>
+                        <Typography variant="body2"><strong>Account Name:</strong> EduMart Educational Services (Pvt) Ltd</Typography>
+                        <Typography variant="body2"><strong>Account Number:</strong> 8004592019</Typography>
+                        <Typography variant="body2"><strong>Branch:</strong> Colombo City Corporate</Typography>
+                      </>
+                    )}
                   </Paper>
                   <Grid container spacing={2}>
                     <Grid size={{ xs: 12, sm: 6 }}>

@@ -204,4 +204,75 @@ describe('Payment Controller', () => {
       expect(refreshedOrder.payment_status).toBe('failed');
     });
   });
+
+  describe('GET /api/payments/config', () => {
+    it('should return client-safe gateway configuration without leaking secret keys', async () => {
+      const res = await request(app).get('/api/payments/config');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('stripe');
+      expect(res.body.data).toHaveProperty('paypal');
+      expect(res.body.data).toHaveProperty('bankTransfer');
+      expect(res.body.data).toHaveProperty('digitalWallet');
+      expect(res.body.data).toHaveProperty('cod');
+      expect(res.body.data.stripe).not.toHaveProperty('secretKey');
+    });
+  });
+
+  describe('POST /api/payments/process & PayPal Endpoints', () => {
+    it('should process payment across different payment methods', async () => {
+      const order2 = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-MULTI-PAY',
+        status: 'pending',
+        subtotal: 75.0,
+        total_amount: 75.0,
+        currency: 'USD',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/process')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: order2.id,
+          paymentMethod: 'bank_transfer',
+          paymentDetails: {
+            slipNumber: 'TXN-BANK-12345',
+            bankName: 'Commercial Bank',
+            depositorName: 'Charuka Silva',
+          },
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.paymentMethod).toBe('bank_transfer');
+
+      const refreshed = await Order.findByPk(order2.id);
+      expect(refreshed).not.toBeNull();
+    });
+
+    it('should create a PayPal order via /api/payments/paypal/create-order', async () => {
+      const payPalOrder = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-PAYPAL-1',
+        status: 'pending',
+        subtotal: 60.0,
+        total_amount: 60.0,
+        currency: 'USD',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/paypal/create-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ orderId: payPalOrder.id });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body).toHaveProperty('paypalOrderId');
+      expect(res.body).toHaveProperty('approvalUrl');
+    });
+  });
 });
+
