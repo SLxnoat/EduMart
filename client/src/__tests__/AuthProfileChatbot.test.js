@@ -123,13 +123,24 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
       // Switch role tab to Tutor / Seller
       fireEvent.click(screen.getByRole('tab', { name: /tutor \/ seller/i }));
 
-      // Fill in details
+      // Step 1: Personal Details
       fireEvent.change(screen.getByLabelText(/first name/i), { target: { value: 'Kushmi' } });
       fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Senarath' } });
       fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'kushmi.tutor@edumart.com' } });
+
+      // Click Next to advance to Step 2 (Security)
+      const nextSecurityBtn = screen.getByRole('button', { name: /next: security & password/i });
+      fireEvent.click(nextSecurityBtn);
+
+      // Step 2: Credentials
       fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: 'StrongPass123!' } });
       fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'StrongPass123!' } });
 
+      // Click Next to advance to Step 3 (Review & Confirm)
+      const nextReviewBtn = screen.getByRole('button', { name: /next: review & confirm/i });
+      fireEvent.click(nextReviewBtn);
+
+      // Step 3: Final Submit
       const createBtn = screen.getByRole('button', { name: /register as tutor/i });
       fireEvent.click(createBtn);
 
