@@ -18,10 +18,28 @@ const finalizePaidOrder = async (orderId) => {
 
     const items = order.items || [];
     const hasDigital = items.some((i) => i.is_digital);
-    const milestones = Array.isArray(order.delivery_milestones) ? [...order.delivery_milestones] : [];
+    let milestones = [];
+    if (Array.isArray(order.delivery_milestones)) {
+      milestones = [...order.delivery_milestones];
+    } else if (typeof order.delivery_milestones === 'string') {
+      try {
+        milestones = JSON.parse(order.delivery_milestones);
+      } catch (e) {
+        milestones = [];
+      }
+    }
 
     let updated = false;
-    if (hasDigital && !milestones.some((m) => m.label === 'Instant Digital Fulfillment')) {
+    const existingIndex = milestones.findIndex(
+      (m) => (m.label || m.title || '').toLowerCase() === 'instant digital fulfillment'
+    );
+
+    if (existingIndex > -1) {
+      milestones[existingIndex].status = 'paid';
+      milestones[existingIndex].timestamp = new Date().toISOString();
+      order.delivery_milestones = milestones;
+      updated = true;
+    } else if (hasDigital) {
       milestones.push({
         status: 'paid',
         label: 'Instant Digital Fulfillment',
@@ -33,7 +51,12 @@ const finalizePaidOrder = async (orderId) => {
     }
 
     if (updated) {
+      order.changed('delivery_milestones', true);
       await order.save();
+      await Order.update(
+        { delivery_milestones: milestones },
+        { where: { id: order.id } }
+      );
     }
 
     // Trigger order confirmation email
