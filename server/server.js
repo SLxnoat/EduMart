@@ -36,6 +36,8 @@ app.get('/health', (req, res) => {
 // Import routes
 app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
+app.use('/api/cart', require('./src/routes/cartRoutes'));
+app.use('/api/coupons', require('./src/routes/couponRoutes'));
 app.use('/api/payments', require('./src/routes/paymentRoutes'));
 app.use('/api/chatbot', require('./src/routes/chatbotRoutes'));
 

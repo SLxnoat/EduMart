@@ -181,7 +181,7 @@ The EduMart platform was developed by an integrated team of 5 software engineers
 | **Kushmi (Kaushini Ekanayake)** | **User Authentication, Profile Management, RBAC, and AI Chatbot Integration** | Multi-role registration & login, strict SMTP email verification, session revocation, dynamic profile completion engine, floating AI Chatbot widget with live Order & Product database query bridges, comprehensive test suites. |
 | **Charuka** | **Payment Gateway, Order Management, Backend Infrastructure, and AI Integration** | Stripe payment integration, raw webhook verification, order creation pipeline, database migrations, Docker Compose orchestration, AI integration co-lead. |
 | **Vidula** | **Product Catalog, Search & Filtering System** | Multi-attribute search (subject, grade, curriculum, price), category browsing, product detail views, digital asset associations. |
-| **Bhanuka** | **Shopping Cart, Multi-Item Checkout & Coupon Engine** | Persistent shopping cart state, discount coupon validation engine, order item calculation, checkout flow. |
+| **Bhanuka** | **Shopping Cart, Multi-Item Checkout & Coupon Engine** | Persistent shopping cart state (`CartContext` with localStorage + backend sync), interactive Cart UI, Header cart badge count, Save-for-Later wishlist, promotional coupon validation engine (`/api/coupons/validate`), automated test suites. |
 | **Malki** | **Admin Dashboard, Review System, Notifications & Seller Dashboard** | Administrator management interface, star reviews and feedback moderation, user notification delivery, seller sales analytics and commission tracking. |
 
 ---
@@ -190,7 +190,7 @@ The EduMart platform was developed by an integrated team of 5 software engineers
 
 The codebase includes automated test suites covering backend API logic, security constraints, and frontend user interactions:
 
-### Backend Test Suites (Jest + SuperTest)
+### Backend Test Suites (Jest + SuperTest — 39 Tests Passing)
 - Runs against an in-memory SQLite database (`jest.setup.js`) ensuring zero side-effects.
 - **Coverage**:
   - User registration & XSS sanitization
@@ -203,19 +203,22 @@ The codebase includes automated test suites covering backend API logic, security
   - Profile retrieval, updates, and password change self-service
   - Role-based access control (`GET /api/users/:id` permission boundary)
   - Chatbot FAQ intent matching, catalog search, order tracking, and feedback collection
+  - **Shopping Cart API**: Active cart retrieval, adding digital/physical materials, auto-incrementing existing item quantities, estimated physical shipping rate calculations, quantity adjustments, item removals, cart clearing, and save-for-later state transitions
+  - **Coupon & Discount Engine**: Percentage discount verification, fixed-amount reduction, minimum purchase requirement enforcement, expiration checks, and public coupon discovery
 - **Command**:
   ```bash
   cd server
   npm test
   ```
 
-### Frontend Test Suites (React Testing Library + Jest)
+### Frontend Test Suites (React Testing Library + Jest — 8 Tests Passing)
 - **Coverage**:
   - Base application and layout rendering
   - Authentication loading state handling
   - Role-based `<Guard roles={['admin']}>` access prevention and redirection
   - Profile unverified email warning banner and next-step completion tips
   - ChatWidget floating button toggle, quick-reply triggers, and messaging display
+  - **Shopping Cart View**: Empty cart placeholder state, itemized resource rendering, subtotal & shipping rate calculation, quantity stepper operations, and live promotional coupon application with discount deductions
 - **Command**:
   ```bash
   cd client

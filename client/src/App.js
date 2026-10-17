@@ -9,6 +9,7 @@ import Footer from './components/layout/Footer';
 import ChatWidget from './components/chat/ChatWidget';
 import routes from './routes';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 
 // Safe Theme Fallback: customTheme එක createTheme එකක් හරහා pass කිරීමෙන් MUI Theme Schema එක 100% තහවුරු කරයි
 const activeTheme = createTheme(customTheme || {});
@@ -50,7 +51,9 @@ function App() {
       <SnackbarProvider maxSnack={3}>
         <Router>
           <AuthProvider>
-            <AppContent />
+            <CartProvider>
+              <AppContent />
+            </CartProvider>
           </AuthProvider>
         </Router>
       </SnackbarProvider>
