@@ -14,18 +14,44 @@ import {
   Tab,
   LinearProgress,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Divider
 } from '@mui/material';
 import PersonIcon from '@mui/icons-material/Person';
 import SecurityIcon from '@mui/icons-material/Security';
 import InfoIcon from '@mui/icons-material/Info';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import DevicesIcon from '@mui/icons-material/Devices';
+import PrivacyTipIcon from '@mui/icons-material/PrivacyTip';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
 
 const Profile = () => {
-  const { user, updateProfile, changePassword, resendVerification, refreshProfile } = useAuth();
+  const {
+    user,
+    updateProfile,
+    changePassword,
+    resendVerification,
+    refreshProfile,
+    getUserSessions,
+    revokeOtherSessions,
+    exportUserData,
+    deleteAccount
+  } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   const [activeTab, setActiveTab] = useState(0);
@@ -44,6 +70,17 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPass, setChangingPass] = useState(false);
   const [passError, setPassError] = useState('');
+
+  // Sessions State
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingSessions, setRevokingSessions] = useState(false);
+
+  // Data Privacy & Deactivation State
+  const [exportingData, setExportingData] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -120,6 +157,78 @@ const Profile = () => {
       enqueueSnackbar(msg, { variant: 'error' });
     } finally {
       setChangingPass(false);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      setLoadingSessions(true);
+      const res = await getUserSessions();
+      setSessions(res?.sessions || []);
+    } catch (err) {
+      console.error(err);
+      enqueueSnackbar('Failed to load active sessions.', { variant: 'error' });
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 2) {
+      fetchSessions();
+    }
+  }, [activeTab]);
+
+  const handleRevokeSessions = async () => {
+    try {
+      setRevokingSessions(true);
+      const res = await revokeOtherSessions();
+      enqueueSnackbar(res?.message || 'Logged out from all other devices.', { variant: 'success' });
+      await fetchSessions();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to revoke other sessions.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setRevokingSessions(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      setExportingData(true);
+      const data = await exportUserData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `edumart-my-data-${user?.id || user?._id || 'export'}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      enqueueSnackbar('Personal data downloaded successfully.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to export personal data.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      enqueueSnackbar('Please enter your password to confirm.', { variant: 'error' });
+      return;
+    }
+    try {
+      setDeletingAccount(true);
+      await deleteAccount(deletePassword);
+      enqueueSnackbar('Your account has been deactivated.', { variant: 'info' });
+      setDeleteDialogOpen(false);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to deactivate account. Incorrect password?';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -237,10 +346,14 @@ const Profile = () => {
             onChange={(e, val) => setActiveTab(val)}
             textColor="primary"
             indicatorColor="primary"
+            variant="scrollable"
+            scrollButtons="auto"
           >
             <Tab icon={<PersonIcon />} iconPosition="start" label="Personal Details" />
             <Tab icon={<SecurityIcon />} iconPosition="start" label="Security & Password" />
-            <Tab icon={<InfoIcon />} iconPosition="start" label="Account Information" />
+            <Tab icon={<DevicesIcon />} iconPosition="start" label="Active Sessions" />
+            <Tab icon={<PrivacyTipIcon />} iconPosition="start" label="Privacy & GDPR" />
+            <Tab icon={<InfoIcon />} iconPosition="start" label="Account Overview" />
           </Tabs>
         </Box>
 
@@ -366,8 +479,177 @@ const Profile = () => {
             </Box>
           )}
 
-          {/* Tab 2: Account Information */}
+          {/* Tab 2: Active Sessions */}
           {activeTab === 2 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Active Login Sessions
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Review and manage all devices and browsers currently logged into your account.
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<DevicesIcon />}
+                  disabled={revokingSessions || sessions.length <= 1}
+                  onClick={handleRevokeSessions}
+                >
+                  {revokingSessions ? <CircularProgress size={20} color="inherit" /> : 'Log Out Other Devices'}
+                </Button>
+              </Box>
+
+              {loadingSessions ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Device / Client</strong></TableCell>
+                        <TableCell><strong>IP Address</strong></TableCell>
+                        <TableCell><strong>Started</strong></TableCell>
+                        <TableCell><strong>Expires</strong></TableCell>
+                        <TableCell align="right"><strong>Status</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {sessions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                            No active sessions found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        sessions.map((sess) => (
+                          <TableRow key={sess.id} sx={{ bgcolor: sess.is_current ? 'action.hover' : 'inherit' }}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={sess.is_current ? 'bold' : 'normal'}>
+                                {sess.device_info || 'Web Browser'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>{sess.ip_address || '127.0.0.1'}</TableCell>
+                            <TableCell>{sess.created_at ? new Date(sess.created_at).toLocaleString() : 'N/A'}</TableCell>
+                            <TableCell>{sess.expires_at ? new Date(sess.expires_at).toLocaleDateString() : 'N/A'}</TableCell>
+                            <TableCell align="right">
+                              {sess.is_current ? (
+                                <Chip label="Current Session" color="success" size="small" />
+                              ) : (
+                                <Chip label="Active" color="default" size="small" />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
+
+          {/* Tab 3: Privacy & GDPR */}
+          {activeTab === 3 && (
+            <Box>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Data Privacy & GDPR Rights
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                EduMart adheres to international data protection principles. You retain full control over your personal data and account lifecycle.
+              </Typography>
+
+              {/* Data Portability */}
+              <Card variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                  <Box sx={{ maxWidth: 500 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Right to Data Portability (GDPR Art. 20)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Download a complete copy of your personal data, including your profile information, order history, active sessions, and notifications in standard JSON format.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportData}
+                    disabled={exportingData}
+                  >
+                    {exportingData ? <CircularProgress size={20} color="inherit" /> : 'Download My Data (JSON)'}
+                  </Button>
+                </Box>
+              </Card>
+
+              {/* Account Deactivation */}
+              <Card variant="outlined" sx={{ p: 3, borderRadius: 2, borderColor: 'error.light' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                  <Box sx={{ maxWidth: 500 }}>
+                    <Typography variant="subtitle1" fontWeight="bold" color="error.main">
+                      Deactivate Account (Right to Erasure)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Deactivating your account will instantly log you out, revoke all active sessions, and disable your profile. You may contact support if you ever wish to reactivate.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteForeverIcon />}
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    Deactivate Account
+                  </Button>
+                </Box>
+              </Card>
+
+              {/* Confirmation Dialog for Deactivation */}
+              <Dialog
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+              >
+                <DialogTitle sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                  Deactivate Your Account?
+                </DialogTitle>
+                <DialogContent>
+                  <DialogContentText sx={{ mb: 2 }}>
+                    This action will immediately terminate all active sessions and disable your access to EduMart. To confirm this security action, please enter your current account password.
+                  </DialogContentText>
+                  <TextField
+                    autoFocus
+                    fullWidth
+                    type="password"
+                    label="Account Password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    margin="dense"
+                  />
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                  <Button onClick={() => setDeleteDialogOpen(false)} disabled={deletingAccount}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDeleteAccount}
+                    color="error"
+                    variant="contained"
+                    disabled={deletingAccount || !deletePassword}
+                  >
+                    {deletingAccount ? <CircularProgress size={20} color="inherit" /> : 'Confirm Deactivation'}
+                  </Button>
+                </DialogActions>
+              </Dialog>
+            </Box>
+          )}
+
+          {/* Tab 4: Account Overview */}
+          {activeTab === 4 && (
             <Box>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 Account Overview

@@ -1,4 +1,4 @@
-const { User, Session } = require('../models');
+const { User, Session, Order, Review, Notification, AiInteraction } = require('../models');
 const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcryptjs');
@@ -7,6 +7,7 @@ const validator = require('validator');
 const { Op } = require('sequelize');
 const { revokeToken } = require('../middleware/authMiddleware');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
+const { createNotification } = require('../utils/notificationHelper');
 
 // Sanitize input string against XSS
 const sanitizeText = (str) => (typeof str === 'string' ? validator.escape(str.trim()) : str);
@@ -398,7 +399,160 @@ const changePassword = asyncHandler(async (req, res) => {
   user.password_hash = newPassword;
   await user.save();
 
+  // Dispatch security alert notification to user
+  await createNotification({
+    userId: user.id,
+    type: 'security_alert',
+    title: 'Security Alert: Password Changed',
+    message: 'Your account password was updated successfully. If you did not initiate this change, please contact support immediately.',
+    priority: 'urgent'
+  });
+
   res.status(200).json({ message: 'Password updated successfully' });
+});
+
+// @desc    Get active login sessions for user
+// @route   GET /api/users/sessions
+// @access  Private
+const getUserSessions = asyncHandler(async (req, res) => {
+  if (!Session) {
+    return res.status(200).json({ sessions: [] });
+  }
+
+  const sessions = await Session.findAll({
+    where: { user_id: req.user.id },
+    order: [['created_at', 'DESC']]
+  });
+
+  const formatted = sessions.map((s) => ({
+    id: s.id,
+    ip_address: s.ip_address || '127.0.0.1',
+    user_agent: s.user_agent || 'Web Browser',
+    created_at: s.created_at,
+    expires_at: s.expires_at,
+    is_current: s.token === req.token
+  }));
+
+  res.status(200).json({ sessions: formatted });
+});
+
+// @desc    Revoke all other device sessions
+// @route   DELETE /api/users/sessions
+// @access  Private
+const revokeOtherSessions = asyncHandler(async (req, res) => {
+  if (!Session) {
+    return res.status(200).json({ message: 'Session store not active' });
+  }
+
+  const destroyed = await Session.destroy({
+    where: {
+      user_id: req.user.id,
+      token: { [Op.ne]: req.token }
+    }
+  });
+
+  res.status(200).json({
+    message: `Revoked ${destroyed} other active session${destroyed === 1 ? '' : 's'}`
+  });
+});
+
+// @desc    Export personal data archive (GDPR compliance)
+// @route   GET /api/users/export-data
+// @access  Private
+const exportUserData = asyncHandler(async (req, res) => {
+  const user = await User.findByPk(req.user.id, {
+    attributes: { exclude: ['password_hash', 'verification_token', 'reset_token'] }
+  });
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Aggregate user records across modules safely
+  let userOrders = [];
+  try {
+    if (Order) {
+      userOrders = await Order.findAll({
+        where: { user_id: user.id },
+        attributes: ['id', 'order_number', 'total_amount', 'status', 'created_at']
+      });
+    }
+  } catch (e) {}
+
+  let userReviews = [];
+  try {
+    if (Review) {
+      userReviews = await Review.findAll({
+        where: { user_id: user.id },
+        attributes: ['id', 'product_id', 'rating', 'title', 'comment', 'created_at']
+      });
+    }
+  } catch (e) {}
+
+  let userNotifications = [];
+  try {
+    if (Notification) {
+      userNotifications = await Notification.findAll({
+        where: { user_id: user.id },
+        attributes: ['id', 'title', 'message', 'type', 'created_at']
+      });
+    }
+  } catch (e) {}
+
+  let activeSessions = [];
+  try {
+    if (Session) {
+      activeSessions = await Session.findAll({
+        where: { user_id: user.id },
+        attributes: ['id', 'ip_address', 'user_agent', 'created_at']
+      });
+    }
+  } catch (e) {}
+
+  res.status(200).json({
+    export_metadata: {
+      platform: 'EduMart Academic E-Commerce Platform',
+      compliance: 'GDPR Article 15 Data Portability',
+      generated_at: new Date().toISOString(),
+      account_email: user.email
+    },
+    user_profile: user,
+    active_sessions: activeSessions,
+    orders: userOrders,
+    reviews: userReviews,
+    notifications: userNotifications
+  });
+});
+
+// @desc    Self-service account deactivation
+// @route   DELETE /api/users/profile
+// @access  Private
+const deleteUserAccount = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  if (!password) {
+    res.status(400);
+    throw new Error('Password is required to confirm account deletion');
+  }
+
+  const user = await User.findByPk(req.user.id);
+  if (!user || !(await user.matchPassword(password))) {
+    res.status(401);
+    throw new Error('Incorrect password confirmation');
+  }
+
+  // Revoke token and terminate all sessions
+  if (Session) {
+    await Session.destroy({ where: { user_id: user.id } });
+  }
+  revokeToken(req.token);
+
+  user.is_active = false;
+  await user.save();
+
+  res.status(200).json({
+    message: 'Account deactivated successfully. You have been logged out.'
+  });
 });
 
 module.exports = {
@@ -413,5 +567,9 @@ module.exports = {
   getUserProfile,
   getUserById,
   updateUserProfile,
-  changePassword
+  changePassword,
+  getUserSessions,
+  revokeOtherSessions,
+  exportUserData,
+  deleteUserAccount
 };

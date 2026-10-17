@@ -4,7 +4,11 @@ const {
   getUserProfile,
   getUserById,
   updateUserProfile,
-  changePassword
+  changePassword,
+  getUserSessions,
+  revokeOtherSessions,
+  exportUserData,
+  deleteUserAccount
 } = require('../controllers/authController');
 const { protect, adminOrSelf } = require('../middleware/authMiddleware');
 const {
@@ -24,12 +28,21 @@ const validate = (schema) => (req, res, next) => {
   next();
 };
 
-// GET  /api/users/profile  — Private
-// PUT  /api/users/profile  — Private
+// User Profile routes
 router
   .route('/profile')
   .get(protect, getUserProfile)
-  .put(protect, validate(updateUserProfileSchema), updateUserProfile);
+  .put(protect, validate(updateUserProfileSchema), updateUserProfile)
+  .delete(protect, deleteUserAccount);
+
+// Session Management routes
+router
+  .route('/sessions')
+  .get(protect, getUserSessions)
+  .delete(protect, revokeOtherSessions);
+
+// GDPR Data Export route
+router.get('/export-data', protect, exportUserData);
 
 // PUT  /api/users/change-password — Private
 router.put(

@@ -149,6 +149,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Active session management
+  const getUserSessions = async () => {
+    return await authService.getUserSessions();
+  };
+
+  const revokeOtherSessions = async () => {
+    return await authService.revokeOtherSessions();
+  };
+
+  // GDPR data export
+  const exportUserData = async () => {
+    return await authService.exportUserData();
+  };
+
+  // Self-service account deactivation
+  const deleteAccount = async (password) => {
+    const res = await authService.deleteAccount(password);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    setUser(null);
+    navigate('/login');
+    return res;
+  };
+
   const value = {
     user,
     loading,
@@ -161,7 +187,11 @@ export const AuthProvider = ({ children }) => {
     forgotPassword,
     resetPassword,
     changePassword,
-    refreshProfile
+    refreshProfile,
+    getUserSessions,
+    revokeOtherSessions,
+    exportUserData,
+    deleteAccount
   };
 
   return (

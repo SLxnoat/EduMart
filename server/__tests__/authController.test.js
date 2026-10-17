@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../server');
-const { User, Session } = require('../src/models');
+const { User, Session, Notification } = require('../src/models');
 const { resetRateLimits } = require('../src/middleware/rateLimiter');
 
 // jest.setup.js already mocks config/database with a SQLite in-memory Sequelize instance
@@ -10,17 +10,20 @@ beforeAll(async () => {
   // Sync (create) all tables in the in-memory SQLite DB
   await User.sync({ force: true });
   await Session.sync({ force: true });
+  await Notification.sync({ force: true });
 });
 
 afterAll(async () => {
   // Drop all tables
+  await Notification.drop();
   await Session.drop();
   await User.drop();
 });
 
 beforeEach(async () => {
-  // Wipe sessions and users between each test for isolation
+  // Wipe sessions, notifications, and users between each test for isolation
   resetRateLimits();
+  await Notification.destroy({ truncate: true, cascade: false });
   await Session.destroy({ truncate: true, cascade: false });
   await User.destroy({ truncate: true, cascade: false });
 });
@@ -388,6 +391,138 @@ describe('Auth Controller', () => {
         .set('Authorization', `Bearer ${user1Res.body.token}`);
       expect(adminRes.statusCode).toEqual(200);
       expect(adminRes.body.email).toBe('student2@example.com');
+    });
+
+    it('should manage active sessions and allow revoking other sessions', async () => {
+      const regRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          firstName: 'Session',
+          lastName: 'Tester',
+          email: 'session.test@example.com',
+          password: 'Password123!',
+          role: 'student'
+        });
+      const token1 = regRes.body.token;
+
+      // Simulate a second login from a mobile device
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .set('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)')
+        .send({
+          email: 'session.test@example.com',
+          password: 'Password123!'
+        });
+      const token2 = loginRes.body.token;
+
+      // Inspect active sessions
+      const sessionsRes = await request(app)
+        .get('/api/users/sessions')
+        .set('Authorization', `Bearer ${token2}`);
+
+      expect(sessionsRes.statusCode).toEqual(200);
+      expect(sessionsRes.body.sessions.length).toBeGreaterThanOrEqual(2);
+      const current = sessionsRes.body.sessions.find((s) => s.is_current);
+      expect(current).toBeDefined();
+
+      // Revoke other device sessions from current session
+      const revokeRes = await request(app)
+        .delete('/api/users/sessions')
+        .set('Authorization', `Bearer ${token2}`);
+
+      expect(revokeRes.statusCode).toEqual(200);
+      expect(revokeRes.body.message).toContain('Revoked');
+
+      // Remaining sessions should only be 1
+      const afterRes = await request(app)
+        .get('/api/users/sessions')
+        .set('Authorization', `Bearer ${token2}`);
+      expect(afterRes.body.sessions.length).toBe(1);
+    });
+
+    it('should export user personal data archive under GDPR compliance', async () => {
+      const regRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          firstName: 'Gdpr',
+          lastName: 'Tester',
+          email: 'gdpr.test@example.com',
+          password: 'Password123!',
+          role: 'student'
+        });
+
+      const exportRes = await request(app)
+        .get('/api/users/export-data')
+        .set('Authorization', `Bearer ${regRes.body.token}`);
+
+      expect(exportRes.statusCode).toEqual(200);
+      expect(exportRes.body).toHaveProperty('export_metadata');
+      expect(exportRes.body.export_metadata.compliance).toContain('GDPR');
+      expect(exportRes.body.user_profile.email).toBe('gdpr.test@example.com');
+      expect(exportRes.body).toHaveProperty('active_sessions');
+      expect(exportRes.body).toHaveProperty('orders');
+    });
+
+    it('should dispatch security alert notification when password is changed', async () => {
+      const regRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          firstName: 'Sec',
+          lastName: 'Alert',
+          email: 'sec.alert@example.com',
+          password: 'OldPassword123!',
+          role: 'student'
+        });
+
+      const changeRes = await request(app)
+        .put('/api/users/change-password')
+        .set('Authorization', `Bearer ${regRes.body.token}`)
+        .send({
+          currentPassword: 'OldPassword123!',
+          newPassword: 'NewPassword123!'
+        });
+
+      expect(changeRes.statusCode).toEqual(200);
+
+      // Verify security alert was dispatched
+      const notif = await Notification.findOne({
+        where: { user_id: regRes.body._id, type: 'security_alert' }
+      });
+      expect(notif).not.toBeNull();
+      expect(notif.title).toContain('Password Changed');
+    });
+
+    it('should allow self-service account deactivation with password confirmation', async () => {
+      const regRes = await request(app)
+        .post('/api/auth/register')
+        .send({
+          firstName: 'Close',
+          lastName: 'Account',
+          email: 'close.me@example.com',
+          password: 'Password123!',
+          role: 'student'
+        });
+
+      // Reject invalid password
+      const badRes = await request(app)
+        .delete('/api/users/profile')
+        .set('Authorization', `Bearer ${regRes.body.token}`)
+        .send({ password: 'WrongPassword' });
+      expect(badRes.statusCode).toEqual(401);
+
+      // Succeeded with correct password
+      const deleteRes = await request(app)
+        .delete('/api/users/profile')
+        .set('Authorization', `Bearer ${regRes.body.token}`)
+        .send({ password: 'Password123!' });
+      expect(deleteRes.statusCode).toEqual(200);
+      expect(deleteRes.body.message).toContain('deactivated');
+
+      // Subsequent access should be blocked (token revoked / account inactive)
+      const checkRes = await request(app)
+        .get('/api/users/profile')
+        .set('Authorization', `Bearer ${regRes.body.token}`);
+      expect([401, 403]).toContain(checkRes.statusCode);
     });
   });
 });
