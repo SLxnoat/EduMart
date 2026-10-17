@@ -404,7 +404,8 @@ const createProduct = asyncHandler(async (req, res) => {
     exam_year,
     product_type,
     format = 'digital',
-    category_id
+    category_id,
+    stock_quantity
   } = req.body;
 
   if (!title || !description || price === undefined || !subject || !grade_level || !product_type || !category_id) {
@@ -430,6 +431,7 @@ const createProduct = asyncHandler(async (req, res) => {
     exam_year: exam_year ? parseInt(exam_year, 10) : null,
     product_type,
     format,
+    stock_quantity: stock_quantity !== undefined && !isNaN(stock_quantity) ? parseInt(stock_quantity, 10) : (format === 'digital' ? 0 : 50),
     is_active: true,
     is_approved: true // Approved for verified tutors/admins
   });
@@ -520,6 +522,7 @@ const updateProduct = asyncHandler(async (req, res) => {
     product_type,
     format,
     category_id,
+    stock_quantity,
     is_active
   } = req.body;
 
@@ -532,6 +535,9 @@ const updateProduct = asyncHandler(async (req, res) => {
   if (product_type) product.product_type = product_type;
   if (format) product.format = format;
   if (category_id) product.category_id = category_id;
+  if (stock_quantity !== undefined && !isNaN(stock_quantity)) {
+    product.stock_quantity = parseInt(stock_quantity, 10);
+  }
   if (is_active !== undefined) product.is_active = is_active;
 
   await product.save();

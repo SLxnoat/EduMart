@@ -50,24 +50,31 @@ const createOrder = asyncHandler(async (req, res) => {
 
   for (const item of items) {
     const quantity = parseInt(item.quantity, 10) || 1;
-    let unitPrice = parseFloat(item.unit_price);
-    let title = item.product_title;
-    let subject = item.product_subject || 'General Education';
-    let gradeLevel = item.product_grade_level || 'All Grades';
+    let unitPrice = item.unit_price !== undefined ? parseFloat(item.unit_price) : (item.price !== undefined ? parseFloat(item.price) : NaN);
+    let title = item.product_title || item.title;
+    let subject = item.product_subject || item.subject || 'General Education';
+    let gradeLevel = item.product_grade_level || item.grade_level || 'All Grades';
     let isDigital = item.is_digital !== undefined ? !!item.is_digital : true;
     let isPhysical = item.is_physical !== undefined ? !!item.is_physical : false;
 
+    const prodId = item.product_id || item.productId;
+
     // If product_id exists in database, verify or populate details
-    if (item.product_id) {
+    if (prodId) {
       try {
-        const dbProduct = await Product.findByPk(item.product_id);
+        const dbProduct = await Product.findByPk(prodId);
         if (dbProduct) {
           if (isNaN(unitPrice)) unitPrice = parseFloat(dbProduct.price);
           title = title || dbProduct.title;
           subject = dbProduct.subject || subject;
           gradeLevel = dbProduct.grade_level || gradeLevel;
-          isDigital = dbProduct.material_type === 'digital' || isDigital;
-          isPhysical = dbProduct.material_type === 'physical' || isPhysical;
+          if (dbProduct.format) {
+            isDigital = dbProduct.format === 'digital' || dbProduct.format === 'both';
+            isPhysical = dbProduct.format === 'physical' || dbProduct.format === 'both';
+          } else if (dbProduct.material_type) {
+            isDigital = dbProduct.material_type === 'digital';
+            isPhysical = dbProduct.material_type === 'physical';
+          }
         }
       } catch (e) {
         // Continue with supplied item details
@@ -76,14 +83,14 @@ const createOrder = asyncHandler(async (req, res) => {
 
     if (isNaN(unitPrice) || unitPrice < 0) {
       res.status(400);
-      throw new Error(`Invalid price for item: ${title || item.product_id}`);
+      throw new Error(`Invalid price for item: ${title || prodId}`);
     }
 
     const itemTotal = parseFloat((quantity * unitPrice).toFixed(2));
     calculatedSubtotal += itemTotal;
 
     processedItems.push({
-      product_id: item.product_id || '00000000-0000-0000-0000-000000000000',
+      product_id: prodId || '00000000-0000-0000-0000-000000000000',
       quantity,
       unit_price: unitPrice,
       total_price: itemTotal,
