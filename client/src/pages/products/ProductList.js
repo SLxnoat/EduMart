@@ -301,7 +301,7 @@ const ProductList = () => {
         </Typography>
 
         {/* Quick Subject Chips & Tutor Publish CTA */}
-        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap" sx={{ mt: 2, gap: 1 }}>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 2, gap: 1, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
           {['Combined Mathematics', 'Physics', 'Chemistry', 'Biology', 'Mathematics'].map((subj) => (
             <Chip
               key={subj}

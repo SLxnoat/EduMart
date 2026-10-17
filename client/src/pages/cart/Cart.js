@@ -116,7 +116,7 @@ const Cart = () => {
 
   return (
     <Container maxWidth="lg" sx={{ my: 4 }}>
-      <Typography variant="h4" component="h1" fontWeight="bold" display="flex" alignItems="center" gutterBottom>
+      <Typography variant="h4" component="h1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }} gutterBottom>
         <ShoppingCart sx={{ mr: 1, fontSize: 36 }} color="primary" /> Shopping Cart
         <Chip
           label={`${cartCount} item${cartCount === 1 ? '' : 's'}`}
@@ -128,7 +128,7 @@ const Cart = () => {
 
       <Grid container spacing={4}>
         {/* Main Cart Items List */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           {cartItems.length > 0 ? (
             <Paper sx={{ borderRadius: 2, overflow: 'hidden', mb: 4 }} elevation={2}>
               <TableContainer>
@@ -249,7 +249,7 @@ const Cart = () => {
           {/* Saved for Later Section */}
           {savedForLater.length > 0 && (
             <Paper sx={{ p: 3, borderRadius: 2 }} elevation={1}>
-              <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gutterBottom>
+              <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }} gutterBottom>
                 <Bookmark sx={{ mr: 1 }} color="primary" /> Saved for Later ({savedForLater.length})
               </Typography>
               <Divider sx={{ mb: 2 }} />
@@ -295,7 +295,7 @@ const Cart = () => {
         </Grid>
 
         {/* Order Summary & Coupon Panel */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card variant="outlined" sx={{ borderRadius: 2, position: 'sticky', top: 90 }}>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -309,7 +309,7 @@ const Cart = () => {
               </Box>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography color="text.secondary" display="flex" alignItems="center">
+                <Typography color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalShipping fontSize="small" sx={{ mr: 0.5 }} />
                   Estimated Shipping
                 </Typography>
@@ -328,7 +328,7 @@ const Cart = () => {
 
               {appliedCoupon && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography color="success.main" display="flex" alignItems="center">
+                  <Typography color="success.main" sx={{ display: 'flex', alignItems: 'center' }}>
                     <LocalOffer fontSize="small" sx={{ mr: 0.5 }} />
                     Promo ({appliedCoupon.code})
                   </Typography>
@@ -349,7 +349,7 @@ const Cart = () => {
 
               {/* Coupon Form */}
               <Box component="form" onSubmit={handleApplyCoupon} sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom display="flex" alignItems="center">
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalOffer sx={{ mr: 0.5, fontSize: 18 }} /> Apply Promotional Coupon
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>

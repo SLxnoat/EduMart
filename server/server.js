@@ -10,7 +10,16 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
 
@@ -70,21 +79,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database Connection and Server Start logic
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    console.log('MySQL Database connected successfully.');
+    const dialectName = typeof sequelize.getDialect === 'function' ? sequelize.getDialect().toUpperCase() : 'Database';
+    console.log(`${dialectName} connected successfully.`);
 
     await sequelize.sync({ force: false });
-    console.log('MySQL models synchronized.');
+    console.log(`${dialectName} models synchronized.`);
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('Unable to connect to the database:', error);
+    console.error('Unable to connect to the database:', error.message);
+    const dialect = typeof sequelize.getDialect === 'function' ? sequelize.getDialect() : 'mysql';
+    if (dialect === 'mysql') {
+      console.warn('\n💡 Tip: To run without local MySQL setup, set DB_DIALECT=sqlite in server/.env\n');
+    }
     process.exit(1);
   }
 };

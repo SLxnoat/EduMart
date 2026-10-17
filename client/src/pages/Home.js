@@ -104,8 +104,8 @@ const Home = () => {
         }}
       >
         <Container maxWidth="lg">
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={8} sx={{ mx: 'auto', textAlign: 'center' }}>
+          <Grid container spacing={4} sx={{ alignItems: 'center' }}>
+            <Grid size={{ xs: 12, md: 8 }} sx={{ mx: 'auto', textAlign: 'center' }}>
               <Chip
                 label="Sri Lanka's Premier Learning Material Marketplace"
                 sx={{
@@ -163,13 +163,15 @@ const Home = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   variant="standard"
-                  InputProps={{
-                    disableUnderline: true,
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon color="action" sx={{ ml: 1 }} />
-                      </InputAdornment>
-                    ),
+                  slotProps={{
+                    input: {
+                      disableUnderline: true,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon color="action" sx={{ ml: 1 }} />
+                        </InputAdornment>
+                      ),
+                    },
                   }}
                   sx={{ ml: 1, flex: 1 }}
                 />
@@ -187,10 +189,8 @@ const Home = () => {
               <Stack
                 direction="row"
                 spacing={1}
-                justifyContent="center"
-                flexWrap="wrap"
                 useFlexGap
-                sx={{ mt: 3 }}
+                sx={{ mt: 3, justifyContent: 'center', flexWrap: 'wrap' }}
               >
                 <Typography variant="body2" sx={{ opacity: 0.85, alignSelf: 'center', mr: 1 }}>
                   Popular:
@@ -219,7 +219,7 @@ const Home = () => {
       <Container maxWidth="lg" sx={{ mt: -5, position: 'relative', zIndex: 2 }}>
         <Grid container spacing={3}>
           {VALUE_PROPS.map((prop, idx) => (
-            <Grid item xs={12} sm={6} md={3} key={idx}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={idx}>
               <Paper
                 elevation={0}
                 sx={{
@@ -262,7 +262,7 @@ const Home = () => {
 
         <Grid container spacing={2}>
           {CATEGORIES.map((cat, idx) => (
-            <Grid item xs={6} sm={4} md={2.4} key={idx}>
+            <Grid size={{ xs: 6, sm: 4, md: 2.4 }} key={idx}>
               <Card
                 sx={{
                   textAlign: 'center',
@@ -305,7 +305,7 @@ const Home = () => {
         <Grid container spacing={3}>
           {loading ? (
             [1, 2, 3, 4].map((n) => (
-              <Grid item xs={12} sm={6} md={3} key={n}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={n}>
                 <Card sx={{ p: 2, height: 320 }}>
                   <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 2, mb: 2 }} />
                   <Skeleton width="60%" height={24} />
@@ -316,7 +316,7 @@ const Home = () => {
             ))
           ) : featuredProducts.length > 0 ? (
             featuredProducts.map((product) => (
-              <Grid item xs={12} sm={6} md={3} key={product.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={product.id}>
                 <Card
                   sx={{
                     height: '100%',
@@ -393,7 +393,7 @@ const Home = () => {
               </Grid>
             ))
           ) : (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Paper sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="body1" color="text.secondary">
                   No materials currently listed. Check back soon or visit our catalog!

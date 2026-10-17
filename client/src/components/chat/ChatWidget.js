@@ -268,7 +268,7 @@ const ChatWidget = () => {
                 <SmartToyIcon fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
                   EduMart Assistant
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

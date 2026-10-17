@@ -188,14 +188,14 @@ const Checkout = () => {
         {/* STEP 1: Shipping and Delivery Details */}
         {activeStep === 0 && (
           <Grid container spacing={4}>
-            <Grid item xs={12} md={7}>
-              <Typography variant="h6" gutterBottom display="flex" alignItems="center">
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                 <LocalShipping sx={{ mr: 1 }} color="primary" /> Shipping & Delivery Information
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     required
                     fullWidth
@@ -205,7 +205,7 @@ const Checkout = () => {
                     onChange={handleShippingChange}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     required
                     fullWidth
@@ -215,7 +215,7 @@ const Checkout = () => {
                     onChange={handleShippingChange}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     required
                     fullWidth
@@ -225,7 +225,7 @@ const Checkout = () => {
                     onChange={handleShippingChange}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Postal / ZIP Code"
@@ -234,7 +234,7 @@ const Checkout = () => {
                     onChange={handleShippingChange}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Country"
@@ -243,7 +243,7 @@ const Checkout = () => {
                     onChange={handleShippingChange}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Phone Number"
@@ -262,10 +262,10 @@ const Checkout = () => {
             </Grid>
 
             {/* Order Summary Side Panel */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Card variant="outlined" sx={{ bgcolor: 'grey.50' }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom display="flex" alignItems="center">
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                     <ReceiptLong sx={{ mr: 1 }} /> Order Summary
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
@@ -316,8 +316,8 @@ const Checkout = () => {
         {/* STEP 2: Payment Selection and Card Form */}
         {activeStep === 1 && (
           <Grid container spacing={4}>
-            <Grid item xs={12} md={7}>
-              <Typography variant="h6" gutterBottom display="flex" alignItems="center">
+            <Grid size={{ xs: 12, md: 7 }}>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                 <PaymentIcon sx={{ mr: 1 }} color="primary" /> Payment Method
               </Typography>
               <Divider sx={{ mb: 2 }} />

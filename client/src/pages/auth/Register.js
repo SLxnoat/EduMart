@@ -237,9 +237,9 @@ const Register = () => {
       }}
     >
       <Container maxWidth="lg">
-        <Grid container spacing={4} alignItems="stretch" justifyContent="center">
+        <Grid container spacing={4} sx={{ alignItems: 'stretch', justifyContent: 'center' }}>
           {/* Left Column: Visual Brand & Value Props (Desktop Width Enhancement) */}
-          <Grid item xs={12} md={5} sx={{ display: { xs: 'none', md: 'flex' } }}>
+          <Grid size={{ xs: 12, md: 5 }} sx={{ display: { xs: 'none', md: 'flex' } }}>
             <Paper
               elevation={0}
               sx={{
@@ -337,7 +337,7 @@ const Register = () => {
           </Grid>
 
           {/* Right Column: Multi-Step Registration Form Card (Section-Wise UI) */}
-          <Grid item xs={12} md={7}>
+          <Grid size={{ xs: 12, md: 7 }}>
             <Card
               elevation={0}
               sx={{
@@ -468,7 +468,7 @@ const Register = () => {
 
                     {/* Personal Details Fields */}
                     <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           required
                           fullWidth
@@ -476,16 +476,18 @@ const Register = () => {
                           label="First Name"
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PersonOutlinedIcon fontSize="small" color="action" />
-                              </InputAdornment>
-                            ),
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PersonOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                            },
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           required
                           fullWidth
@@ -496,7 +498,7 @@ const Register = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12}>
+                      <Grid size={{ xs: 12 }}>
                         <TextField
                           required
                           fullWidth
@@ -505,17 +507,19 @@ const Register = () => {
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <EmailOutlinedIcon fontSize="small" color="action" />
-                              </InputAdornment>
-                            ),
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <EmailOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                            },
                           }}
                         />
                       </Grid>
 
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           id="phone"
@@ -523,16 +527,18 @@ const Register = () => {
                           placeholder="+94 77 123 4567"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PhoneOutlinedIcon fontSize="small" color="action" />
-                              </InputAdornment>
-                            ),
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PhoneOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                            },
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           fullWidth
                           id="institution"
@@ -540,12 +546,14 @@ const Register = () => {
                           placeholder="e.g. Ananda College"
                           value={institution}
                           onChange={(e) => setInstitution(e.target.value)}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <AccountBalanceIcon fontSize="small" color="action" />
-                              </InputAdornment>
-                            ),
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <AccountBalanceIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                            },
                           }}
                         />
                       </Grid>
@@ -564,7 +572,7 @@ const Register = () => {
                     </Typography>
 
                     <Grid container spacing={2.5}>
-                      <Grid item xs={12}>
+                      <Grid size={{ xs: 12 }}>
                         <TextField
                           required
                           fullWidth
@@ -574,23 +582,25 @@ const Register = () => {
                           id="password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LockOutlinedIcon fontSize="small" color="action" />
-                              </InputAdornment>
-                            ),
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton
-                                  aria-label="toggle password visibility"
-                                  onClick={() => setShowPassword(!showPassword)}
-                                  edge="end"
-                                >
-                                  {showPassword ? <VisibilityOff /> : <Visibility />}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <LockOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="toggle password visibility"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    edge="end"
+                                  >
+                                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                            },
                           }}
                         />
 
@@ -648,7 +658,7 @@ const Register = () => {
                         )}
                       </Grid>
 
-                      <Grid item xs={12}>
+                      <Grid size={{ xs: 12 }}>
                         <TextField
                           required
                           fullWidth
@@ -658,23 +668,25 @@ const Register = () => {
                           id="confirmPassword"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LockOutlinedIcon fontSize="small" color="action" />
-                              </InputAdornment>
-                            ),
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton
-                                  aria-label="toggle confirm password visibility"
-                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                  edge="end"
-                                >
-                                  {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <LockOutlinedIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="toggle confirm password visibility"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    edge="end"
+                                  >
+                                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                            },
                           }}
                         />
                       </Grid>
@@ -691,26 +703,26 @@ const Register = () => {
 
                     <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, mb: 3, bgcolor: '#f8fafc' }}>
                       <Grid container spacing={2}>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Typography variant="caption" color="text.secondary">Account Role</Typography>
                           <Typography variant="body2" fontWeight={700} color="primary.main">
                             {currentRole.title}
                           </Typography>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Typography variant="caption" color="text.secondary">Full Name</Typography>
                           <Typography variant="body2" fontWeight={700}>
                             {firstName} {lastName}
                           </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                           <Divider sx={{ my: 0.5 }} />
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Typography variant="caption" color="text.secondary">Email Address</Typography>
                           <Typography variant="body2" fontWeight={600}>{email}</Typography>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={{ xs: 6 }}>
                           <Typography variant="caption" color="text.secondary">Phone / Institution</Typography>
                           <Typography variant="body2" fontWeight={600}>
                             {phone || 'Not provided'} • {institution || 'General'}

@@ -265,8 +265,8 @@ const Profile = () => {
       {/* Header Profile Card */}
       <Card elevation={2} sx={{ mb: 4, borderRadius: 2 }}>
         <CardContent sx={{ p: 4 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item>
+          <Grid container spacing={3} sx={{ alignItems: 'center' }}>
+            <Grid>
               <Avatar
                 sx={{
                   width: 80,
@@ -279,7 +279,7 @@ const Profile = () => {
                 {user?.firstName?.[0] || 'U'}
               </Avatar>
             </Grid>
-            <Grid item xs>
+            <Grid size={{ xs: true }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
                 <Typography variant="h5" fontWeight="bold">
                   {user?.firstName} {user?.lastName}

@@ -134,7 +134,7 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
 
       // Step 2: Credentials
       fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: 'StrongPass123!' } });
-      fireEvent.change(screen.getByLabelText(/confirm password/i), { target: { value: 'StrongPass123!' } });
+      fireEvent.change(screen.getByLabelText(/confirm password \*/i), { target: { value: 'StrongPass123!' } });
 
       // Click Next to advance to Step 3 (Review & Confirm)
       const nextReviewBtn = screen.getByRole('button', { name: /next: review & confirm/i });

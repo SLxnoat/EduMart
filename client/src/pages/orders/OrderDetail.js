@@ -231,7 +231,7 @@ const OrderDetail = () => {
         {hasPhysical && (
           <Card variant="outlined" sx={{ my: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-              <Typography variant="subtitle1" fontWeight="bold" display="flex" alignItems="center">
+              <Typography variant="subtitle1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
                 <LocalShipping color="primary" sx={{ mr: 1 }} /> Parcel Delivery Tracking
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -263,7 +263,7 @@ const OrderDetail = () => {
         <Divider sx={{ my: 3 }} />
 
         {/* Items Section */}
-        <Typography variant="h6" gutterBottom display="flex" alignItems="center">
+        <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
           <Description sx={{ mr: 1 }} color="primary" /> Purchased Educational Materials
         </Typography>
 
@@ -315,7 +315,7 @@ const OrderDetail = () => {
                         {downloadingItemId === item.id ? 'Downloading...' : 'Download PDF'}
                       </Button>
                     ) : (
-                      <Typography variant="body2" color="text.secondary" display="flex" alignItems="center" justifyContent="center">
+                      <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <LocalShipping fontSize="small" sx={{ mr: 0.5 }} /> Parcel Shipping
                       </Typography>
                     )}
@@ -328,10 +328,10 @@ const OrderDetail = () => {
 
         {/* Addresses & Financial Summary */}
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card variant="outlined" sx={{ height: '100%' }}>
               <CardContent>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom display="flex" alignItems="center">
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalShipping sx={{ mr: 1 }} color="action" /> Delivery & Billing Address
                 </Typography>
                 <Divider sx={{ mb: 1.5 }} />
@@ -374,10 +374,10 @@ const OrderDetail = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Card variant="outlined" sx={{ height: '100%', bgcolor: 'grey.50' }}>
               <CardContent>
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom display="flex" alignItems="center">
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <Receipt sx={{ mr: 1 }} color="action" /> Payment Breakdown
                 </Typography>
                 <Divider sx={{ mb: 1.5 }} />
