@@ -110,7 +110,7 @@ describe('Order & Checkout Modules (Charuka)', () => {
             order_number: 'EDM-101',
             created_at: '2026-10-17T10:00:00Z',
             total_amount: 43.5,
-            currency: 'USD',
+            currency: 'LKR',
             status: 'paid',
             payment_status: 'paid',
             items: [{ id: 'item-1' }],
@@ -126,7 +126,7 @@ describe('Order & Checkout Modules (Charuka)', () => {
       );
 
       expect(await screen.findByText('EDM-101')).toBeInTheDocument();
-      expect(screen.getByText(/\$43.50 USD/i)).toBeInTheDocument();
+      expect(screen.getByText(/LKR\s*43\.50/i)).toBeInTheDocument();
       expect(screen.getByText(/View Details/i)).toBeInTheDocument();
     });
   });
@@ -235,7 +235,7 @@ describe('Order & Checkout Modules (Charuka)', () => {
           invoice_number: 'INV-20261017-9912',
           order_number: 'EDM-101',
           issue_date: '2026-10-17T10:00:00Z',
-          currency: 'USD',
+          currency: 'LKR',
           seller: {
             company_name: 'EduMart Marketplace Platform Ltd.',
             tax_id: 'LK-VAT-992384',

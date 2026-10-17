@@ -15,7 +15,7 @@ const BUILT_IN_COUPONS = {
   },
   WELCOME20: {
     code: 'WELCOME20',
-    description: '$20 off on orders of $50 or more',
+    description: 'LKR 20 off on orders of LKR 50 or more',
     discount_type: 'fixed',
     discount_value: 20,
     min_purchase: 50,
@@ -24,7 +24,7 @@ const BUILT_IN_COUPONS = {
   },
   STUDENT5: {
     code: 'STUDENT5',
-    description: '$5 off on study notes over $15',
+    description: 'LKR 5 off on study notes over LKR 15',
     discount_type: 'fixed',
     discount_value: 5,
     min_purchase: 15,
@@ -80,7 +80,7 @@ const validateCoupon = asyncHandler(async (req, res) => {
   if (currentSubtotal < minPurchase) {
     res.status(400);
     throw new Error(
-      `Coupon '${normalizedCode}' requires a minimum purchase of $${minPurchase.toFixed(2)}`
+      `Coupon '${normalizedCode}' requires a minimum purchase of LKR ${minPurchase.toFixed(2)}`
     );
   }
 

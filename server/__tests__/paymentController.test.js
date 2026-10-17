@@ -37,7 +37,7 @@ describe('Payment Controller', () => {
       shipping_cost: 0,
       discount_amount: 0,
       total_amount: 45.0,
-      currency: 'USD',
+      currency: 'LKR',
       payment_status: 'pending',
     });
   });
@@ -130,7 +130,7 @@ describe('Payment Controller', () => {
         status: 'pending',
         subtotal: 30.0,
         total_amount: 30.0,
-        currency: 'USD',
+        currency: 'LKR',
         payment_status: 'pending',
       });
 
@@ -140,7 +140,7 @@ describe('Payment Controller', () => {
           object: {
             id: 'pi_test_webhook_success_99',
             amount: 3000,
-            currency: 'usd',
+            currency: 'lkr',
             metadata: {
               order_id: webhookOrder.id,
             },
@@ -174,7 +174,7 @@ describe('Payment Controller', () => {
         status: 'pending',
         subtotal: 25.0,
         total_amount: 25.0,
-        currency: 'USD',
+        currency: 'LKR',
         payment_status: 'pending',
       });
 
@@ -184,7 +184,7 @@ describe('Payment Controller', () => {
           object: {
             id: 'pi_test_webhook_failed_88',
             amount: 2500,
-            currency: 'usd',
+            currency: 'lkr',
             metadata: {
               order_id: failOrder.id,
             },
@@ -227,7 +227,7 @@ describe('Payment Controller', () => {
         status: 'pending',
         subtotal: 75.0,
         total_amount: 75.0,
-        currency: 'USD',
+        currency: 'LKR',
         payment_status: 'pending',
       });
 
@@ -259,7 +259,7 @@ describe('Payment Controller', () => {
         status: 'pending',
         subtotal: 60.0,
         total_amount: 60.0,
-        currency: 'USD',
+        currency: 'LKR',
         payment_status: 'pending',
       });
 

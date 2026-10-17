@@ -150,7 +150,7 @@ const OrderList = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="bold">
-                          ${parseFloat(order.total_amount).toFixed(2)} {order.currency || 'USD'}
+                          {order.currency || 'LKR'} {parseFloat(order.total_amount).toFixed(2)}
                         </Typography>
                       </TableCell>
                       <TableCell>

@@ -199,7 +199,7 @@ CREATE TABLE orders (
     shipping_cost DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (shipping_cost >= 0),
     discount_amount DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (discount_amount >= 0),
     total_amount DECIMAL(10, 2) NOT NULL CHECK (total_amount >= 0),
-    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    currency VARCHAR(3) NOT NULL DEFAULT 'LKR',
     payment_status ENUM('pending', 'processing', 'paid', 'failed', 'refunded', 'partially_refunded') NOT NULL DEFAULT 'pending',
     shipping_address JSON,
     billing_address JSON,
@@ -251,7 +251,7 @@ CREATE TABLE payments (
     order_id CHAR(36) NOT NULL,
     user_id CHAR(36) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
-    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    currency VARCHAR(3) NOT NULL DEFAULT 'LKR',
     payment_method ENUM('credit_card', 'paypal', 'bank_transfer', 'digital_wallet') NOT NULL,
     provider VARCHAR(50) NOT NULL, -- e.g., 'stripe', 'paypal'
     provider_payment_id VARCHAR(255) UNIQUE,
@@ -402,7 +402,7 @@ CREATE TABLE seller_earnings (
     platform_fee DECIMAL(10, 2) NOT NULL CHECK (platform_fee >= 0),
     payment_processing_fee DECIMAL(10, 2) NOT NULL CHECK (payment_processing_fee >= 0),
     net_earnings DECIMAL(10, 2) GENERATED AS (sale_amount - platform_fee - payment_processing_fee) STORED,
-    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    currency VARCHAR(3) NOT NULL DEFAULT 'LKR',
     status ENUM('pending', 'available', 'paid', 'held', 'refunded') NOT NULL DEFAULT 'pending',
     available_at TIMESTAMP NULL, -- when funds become available for withdrawal
     paid_at TIMESTAMP NULL,

@@ -379,7 +379,7 @@ const Home = () => {
 
                   <Box sx={{ p: 2, pt: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" color="primary.main" sx={{ fontWeight: 800 }}>
-                      ${Number(product.price).toFixed(2)}
+                      LKR {Number(product.price).toFixed(2)}
                     </Typography>
                     <Button
                       size="small"

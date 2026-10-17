@@ -219,7 +219,7 @@ const Checkout = () => {
         shipping_cost: shippingCost,
         tax_amount: taxAmount,
         discount_amount: 0,
-        currency: 'USD',
+        currency: 'LKR',
         notes: `Placed via Web Checkout (${normalizedMethod.toUpperCase()})`,
       };
 
@@ -373,7 +373,7 @@ const Checkout = () => {
                           }`}
                         />
                         <Typography variant="body2" fontWeight="bold">
-                          ${(item.quantity * item.unit_price).toFixed(2)}
+                          LKR {(item.quantity * item.unit_price).toFixed(2)}
                         </Typography>
                       </ListItem>
                     ))}
@@ -383,21 +383,21 @@ const Checkout = () => {
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography color="text.secondary">Subtotal</Typography>
-                    <Typography>${subtotal.toFixed(2)}</Typography>
+                    <Typography>LKR {subtotal.toFixed(2)}</Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography color="text.secondary">Shipping Cost</Typography>
-                    <Typography>{shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : 'FREE'}</Typography>
+                    <Typography>{shippingCost > 0 ? `LKR ${shippingCost.toFixed(2)}` : 'FREE'}</Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography color="text.secondary">Estimated Tax</Typography>
-                    <Typography>${taxAmount.toFixed(2)}</Typography>
+                    <Typography>LKR {taxAmount.toFixed(2)}</Typography>
                   </Box>
                   <Divider sx={{ my: 1.5 }} />
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="h6" fontWeight="bold">Total Amount</Typography>
                     <Typography variant="h6" fontWeight="bold" color="primary">
-                      ${totalAmount.toFixed(2)} USD
+                      LKR {totalAmount.toFixed(2)}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -660,7 +660,7 @@ const Checkout = () => {
                     Cash on Delivery Instructions
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Please prepare the exact sum of <strong>${totalAmount.toFixed(2)} USD</strong> (or equivalent LKR) in cash. The PromptX Courier delivery representative will issue an official printed tax invoice receipt upon parcel handover.
+                    Please prepare the exact sum of <strong>LKR {totalAmount.toFixed(2)}</strong> in cash. The PromptX Courier delivery representative will issue an official printed tax invoice receipt upon parcel handover.
                   </Typography>
                 </Card>
               )}
@@ -681,7 +681,7 @@ const Checkout = () => {
                   disabled={loading}
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Lock />}
                 >
-                  {loading ? 'Authorizing Payment...' : `Pay $${totalAmount.toFixed(2)} USD Now`}
+                  {loading ? 'Authorizing Payment...' : `Pay LKR ${totalAmount.toFixed(2)} Now`}
                 </Button>
               </Box>
             </Grid>
@@ -706,7 +706,7 @@ const Checkout = () => {
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography color="text.secondary">Total Payable:</Typography>
                     <Typography variant="h6" color="primary" fontWeight="bold">
-                      ${totalAmount.toFixed(2)} USD
+                      LKR {totalAmount.toFixed(2)}
                     </Typography>
                   </Box>
                 </CardContent>
@@ -763,7 +763,7 @@ const Checkout = () => {
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Total Paid:</Typography>
                   <Typography variant="subtitle1" fontWeight="bold" color="success.main">
-                    ${parseFloat(placedOrder.total_amount).toFixed(2)} USD
+                    LKR {parseFloat(placedOrder.total_amount).toFixed(2)}
                   </Typography>
                 </Grid>
               </Grid>

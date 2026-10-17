@@ -34,7 +34,7 @@ const createOrder = asyncHandler(async (req, res) => {
     shipping_cost = 0,
     tax_amount = 0,
     discount_amount = 0,
-    currency = 'USD',
+    currency = process.env.DEFAULT_CURRENCY || 'LKR',
     notes,
   } = req.body;
 
@@ -515,7 +515,7 @@ const getOrderInvoice = asyncHandler(async (req, res) => {
     payment_status: order.payment_status,
     payment_method: order.payment?.payment_method || 'credit_card',
     provider_transaction_id: order.payment?.provider_payment_id || null,
-    currency: order.currency || 'USD',
+    currency: order.currency || process.env.DEFAULT_CURRENCY || 'LKR',
     seller: {
       company_name: 'EduMart Marketplace Platform Ltd.',
       tax_id: 'LK-VAT-992384',
@@ -575,7 +575,7 @@ const refundOrder = asyncHandler(async (req, res) => {
   }
 
   const refundAmount = amount ? parseFloat(amount) : parseFloat(order.total_amount);
-  const refundNote = `Refund of $${refundAmount.toFixed(2)} processed on ${new Date().toISOString()}. Reason: ${reason || 'Approved customer refund'}`;
+  const refundNote = `Refund of LKR ${refundAmount.toFixed(2)} processed on ${new Date().toISOString()}. Reason: ${reason || 'Approved customer refund'}`;
 
   // Update Payment record if present
   if (order.payment) {
@@ -602,7 +602,7 @@ const refundOrder = asyncHandler(async (req, res) => {
     userId: order.user_id,
     type: 'order_update',
     title: 'Refund Processed',
-    message: `A refund of $${refundAmount.toFixed(2)} has been credited for Order #${order.order_number}. Reason: ${reason || 'Refund request approved'}.`,
+    message: `A refund of LKR ${refundAmount.toFixed(2)} has been credited for Order #${order.order_number}. Reason: ${reason || 'Refund request approved'}.`,
     relatedId: order.id,
     relatedType: 'order',
   });

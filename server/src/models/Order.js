@@ -48,7 +48,7 @@ module.exports = (sequelize) => {
     },
     currency: {
       type: DataTypes.STRING(3),
-      defaultValue: 'USD',
+      defaultValue: 'LKR',
     },
     payment_status: {
       type: DataTypes.ENUM('pending', 'processing', 'paid', 'failed', 'refunded', 'partially_refunded'),

@@ -76,7 +76,7 @@ const Cart = () => {
     setCouponLoading(true);
     try {
       const data = await applyCoupon(couponInput.trim());
-      setCouponSuccess(`Applied coupon '${data.code}' (-$${parseFloat(data.discount_amount).toFixed(2)})`);
+      setCouponSuccess(`Applied coupon '${data.code}' (-LKR ${parseFloat(data.discount_amount).toFixed(2)})`);
       setCouponInput('');
     } catch (err) {
       setCouponError(err.response?.data?.message || err.message || 'Invalid promotional coupon code');
@@ -171,7 +171,7 @@ const Cart = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            ${itemPrice.toFixed(2)}
+                            LKR {itemPrice.toFixed(2)}
                           </TableCell>
 
                           <TableCell align="center">
@@ -198,7 +198,7 @@ const Cart = () => {
 
                           <TableCell align="right">
                             <Typography variant="subtitle2" fontWeight="bold">
-                              ${itemTotal}
+                              LKR {itemTotal}
                             </Typography>
                           </TableCell>
 
@@ -264,7 +264,7 @@ const Cart = () => {
                             {saved.title}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            ${parseFloat(saved.price).toFixed(2)} • {saved.subject || 'Resource'}
+                            LKR {parseFloat(saved.price).toFixed(2)} • {saved.subject || 'Resource'}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
@@ -305,7 +305,7 @@ const Cart = () => {
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography color="text.secondary">Subtotal ({cartCount} items)</Typography>
-                <Typography fontWeight="medium">${subtotal.toFixed(2)}</Typography>
+                <Typography fontWeight="medium">LKR {subtotal.toFixed(2)}</Typography>
               </Box>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -314,7 +314,7 @@ const Cart = () => {
                   Estimated Shipping
                 </Typography>
                 <Typography fontWeight="medium">
-                  {shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : 'FREE'}
+                  {shippingCost > 0 ? `LKR ${shippingCost.toFixed(2)}` : 'FREE'}
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
@@ -323,7 +323,7 @@ const Cart = () => {
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography color="text.secondary">Estimated Tax (5%)</Typography>
-                <Typography fontWeight="medium">${taxAmount.toFixed(2)}</Typography>
+                <Typography fontWeight="medium">LKR {taxAmount.toFixed(2)}</Typography>
               </Box>
 
               {appliedCoupon && (
@@ -333,7 +333,7 @@ const Cart = () => {
                     Promo ({appliedCoupon.code})
                   </Typography>
                   <Typography color="success.main" fontWeight="bold">
-                    -${discountAmount.toFixed(2)}
+                    -LKR {discountAmount.toFixed(2)}
                   </Typography>
                 </Box>
               )}
@@ -343,7 +343,7 @@ const Cart = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
                 <Typography variant="h6" fontWeight="bold">Total</Typography>
                 <Typography variant="h6" fontWeight="bold" color="primary">
-                  ${totalAmount.toFixed(2)} USD
+                  LKR {totalAmount.toFixed(2)}
                 </Typography>
               </Box>
 

@@ -376,7 +376,7 @@ const AdminDashboard = () => {
                       {metrics?.orders?.total || 0}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      ${metrics?.orders?.grossRevenue?.toFixed(2) || '0.00'} gross volume
+                      LKR {metrics?.orders?.grossRevenue?.toFixed(2) || '0.00'} gross volume
                     </Typography>
                   </CardContent>
                 </Card>
@@ -635,7 +635,7 @@ const AdminDashboard = () => {
                       <TableCell>
                         <Chip label={p.format?.toUpperCase() || 'DIGITAL'} size="small" variant="outlined" />
                       </TableCell>
-                      <TableCell>${parseFloat(p.price).toFixed(2)}</TableCell>
+                      <TableCell>LKR {parseFloat(p.price).toFixed(2)}</TableCell>
                       <TableCell>
                         <Chip
                           label={p.is_approved ? 'Approved' : 'Pending Review'}

@@ -296,10 +296,10 @@ const OrderDetail = () => {
                       variant="outlined"
                     />
                   </TableCell>
-                  <TableCell align="right">${parseFloat(item.unit_price).toFixed(2)}</TableCell>
+                  <TableCell align="right">{order.currency || 'LKR'} {parseFloat(item.unit_price).toFixed(2)}</TableCell>
                   <TableCell align="center">{item.quantity}</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                    ${parseFloat(item.total_price).toFixed(2)}
+                    {order.currency || 'LKR'} {parseFloat(item.total_price).toFixed(2)}
                   </TableCell>
                   <TableCell align="center">
                     {item.is_digital ? (
@@ -382,23 +382,23 @@ const OrderDetail = () => {
                 <Divider sx={{ mb: 1.5 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2" color="text.secondary">Subtotal</Typography>
-                  <Typography variant="body2">${parseFloat(order.subtotal).toFixed(2)}</Typography>
+                  <Typography variant="body2">{order.currency || 'LKR'} {parseFloat(order.subtotal).toFixed(2)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2" color="text.secondary">Shipping</Typography>
                   <Typography variant="body2">
-                    {parseFloat(order.shipping_cost) > 0 ? `$${parseFloat(order.shipping_cost).toFixed(2)}` : 'FREE'}
+                    {parseFloat(order.shipping_cost) > 0 ? `${order.currency || 'LKR'} ${parseFloat(order.shipping_cost).toFixed(2)}` : 'FREE'}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2" color="text.secondary">Estimated Tax</Typography>
-                  <Typography variant="body2">${parseFloat(order.tax_amount).toFixed(2)}</Typography>
+                  <Typography variant="body2">{order.currency || 'LKR'} {parseFloat(order.tax_amount).toFixed(2)}</Typography>
                 </Box>
                 {parseFloat(order.discount_amount) > 0 && (
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography variant="body2" color="success.main">Promotional Discount</Typography>
                     <Typography variant="body2" color="success.main">
-                      -${parseFloat(order.discount_amount).toFixed(2)}
+                      -{order.currency || 'LKR'} {parseFloat(order.discount_amount).toFixed(2)}
                     </Typography>
                   </Box>
                 )}
@@ -406,7 +406,7 @@ const OrderDetail = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="subtitle1" fontWeight="bold">Total Amount Paid</Typography>
                   <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                    ${parseFloat(order.total_amount).toFixed(2)} {order.currency || 'USD'}
+                    {order.currency || 'LKR'} {parseFloat(order.total_amount).toFixed(2)}
                   </Typography>
                 </Box>
               </CardContent>
@@ -496,21 +496,21 @@ const OrderDetail = () => {
               <Box sx={{ maxWidth: 280, ml: 'auto', mt: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography variant="body2">Subtotal:</Typography>
-                  <Typography variant="body2">${invoiceData.financials?.subtotal.toFixed(2)}</Typography>
+                  <Typography variant="body2">{invoiceData.currency || 'LKR'} {invoiceData.financials?.subtotal.toFixed(2)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography variant="body2">VAT / Tax:</Typography>
-                  <Typography variant="body2">${invoiceData.financials?.tax_amount.toFixed(2)}</Typography>
+                  <Typography variant="body2">{invoiceData.currency || 'LKR'} {invoiceData.financials?.tax_amount.toFixed(2)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                   <Typography variant="body2">Shipping:</Typography>
-                  <Typography variant="body2">${invoiceData.financials?.shipping_cost.toFixed(2)}</Typography>
+                  <Typography variant="body2">{invoiceData.currency || 'LKR'} {invoiceData.financials?.shipping_cost.toFixed(2)}</Typography>
                 </Box>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="subtitle1" fontWeight="bold">Total Paid:</Typography>
                   <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                    ${invoiceData.financials?.total_amount.toFixed(2)} {invoiceData.currency}
+                    {invoiceData.currency || 'LKR'} {invoiceData.financials?.total_amount.toFixed(2)}
                   </Typography>
                 </Box>
               </Box>

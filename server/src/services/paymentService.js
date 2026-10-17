@@ -82,7 +82,7 @@ const paymentService = {
    */
   getPaymentConfig: () => {
     return {
-      currency: process.env.DEFAULT_CURRENCY || 'USD',
+      currency: process.env.DEFAULT_CURRENCY || 'LKR',
       stripe: {
         enabled: isRealStripeConfigured(),
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
@@ -130,9 +130,9 @@ const paymentService = {
    * Create a Stripe PaymentIntent or mock fallback
    * @param {string} orderId - ID of the order being paid
    * @param {number} amount - Total amount to charge
-   * @param {string} currency - Currency code (e.g., 'USD')
+   * @param {string} currency - Currency code (e.g., 'LKR')
    */
-  createPaymentIntent: async (orderId, amount, currency = 'USD') => {
+  createPaymentIntent: async (orderId, amount, currency = 'LKR') => {
     if (isRealStripeConfigured()) {
       try {
         const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -199,7 +199,7 @@ const paymentService = {
                 reference_id: order.id,
                 description: `EduMart Order #${order.order_number}`,
                 amount: {
-                  currency_code: (order.currency || 'USD').toUpperCase(),
+                  currency_code: (order.currency || 'LKR').toUpperCase(),
                   value: parseFloat(order.total_amount).toFixed(2),
                 },
               },
@@ -297,7 +297,7 @@ const paymentService = {
       order_id: order.id,
       user_id: order.user_id,
       amount: order.total_amount,
-      currency: order.currency || 'USD',
+      currency: order.currency || 'LKR',
       payment_method: 'paypal',
       provider: isRealPayPalConfigured() ? 'paypal_live' : 'paypal_sandbox',
       provider_payment_id: providerPaymentId,
@@ -314,7 +314,7 @@ const paymentService = {
       userId: order.user_id,
       type: 'payment_status',
       title: 'PayPal Payment Received',
-      message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} via PayPal has been confirmed.`,
+      message: `Your payment of LKR ${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} via PayPal has been confirmed.`,
       relatedId: order.id,
       relatedType: 'order',
       priority: 'high',
@@ -389,7 +389,7 @@ const paymentService = {
 
             const paymentIntent = await stripe.paymentIntents.create({
               amount: Math.round(order.total_amount * 100),
-              currency: (order.currency || 'USD').toLowerCase(),
+              currency: (order.currency || 'LKR').toLowerCase(),
               payment_method: paymentMethodObj.id,
               confirm: true,
               metadata: {
@@ -405,7 +405,7 @@ const paymentService = {
                 order_id: order.id,
                 user_id: order.user_id,
                 amount: order.total_amount,
-                currency: (order.currency || 'USD').toUpperCase(),
+                currency: (order.currency || 'LKR').toUpperCase(),
                 payment_method: 'credit_card',
                 provider: 'stripe',
                 provider_payment_id: paymentIntent.id,
@@ -419,7 +419,7 @@ const paymentService = {
                 userId: order.user_id,
                 type: 'payment_status',
                 title: 'Payment Succeeded',
-                message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} via Stripe was confirmed.`,
+                message: `Your payment of LKR ${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} via Stripe was confirmed.`,
                 relatedId: order.id,
                 relatedType: 'order',
                 priority: 'high',
@@ -460,7 +460,7 @@ const paymentService = {
         order_id: order.id,
         user_id: order.user_id,
         amount: order.total_amount,
-        currency: order.currency || 'USD',
+        currency: order.currency || 'LKR',
         payment_method: 'credit_card',
         provider: 'stripe_mock',
         provider_payment_id: mockPaymentId,
@@ -474,7 +474,7 @@ const paymentService = {
         userId: order.user_id,
         type: 'payment_status',
         title: 'Payment Successful!',
-        message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} via Credit / Debit Card for Order #${order.order_number} has been confirmed.`,
+        message: `Your payment of LKR ${parseFloat(order.total_amount).toFixed(2)} via Credit / Debit Card for Order #${order.order_number} has been confirmed.`,
         relatedId: order.id,
         relatedType: 'order',
         priority: 'high',
@@ -502,7 +502,7 @@ const paymentService = {
         order_id: order.id,
         user_id: order.user_id,
         amount: order.total_amount,
-        currency: order.currency || 'USD',
+        currency: order.currency || 'LKR',
         payment_method: 'paypal',
         provider: 'paypal_sandbox',
         provider_payment_id: mockPaymentId,
@@ -516,7 +516,7 @@ const paymentService = {
         userId: order.user_id,
         type: 'payment_status',
         title: 'Payment Successful!',
-        message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} via PayPal for Order #${order.order_number} has been confirmed.`,
+        message: `Your payment of LKR ${parseFloat(order.total_amount).toFixed(2)} via PayPal for Order #${order.order_number} has been confirmed.`,
         relatedId: order.id,
         relatedType: 'order',
         priority: 'high',
@@ -544,7 +544,7 @@ const paymentService = {
         order_id: order.id,
         user_id: order.user_id,
         amount: order.total_amount,
-        currency: order.currency || 'USD',
+        currency: order.currency || 'LKR',
         payment_method: 'bank_transfer',
         provider: 'bank_wire',
         provider_payment_id: slipRef,
@@ -568,7 +568,7 @@ const paymentService = {
         type: 'payment_status',
         title: autoApprove ? 'Bank Deposit Verified' : 'Bank Deposit Submitted',
         message: autoApprove
-          ? `Your bank transfer of $${parseFloat(order.total_amount).toFixed(2)} (Ref: ${slipRef}) for Order #${order.order_number} has been verified.`
+          ? `Your bank transfer of LKR ${parseFloat(order.total_amount).toFixed(2)} (Ref: ${slipRef}) for Order #${order.order_number} has been verified.`
           : `Your deposit slip (Ref: ${slipRef}) for Order #${order.order_number} has been submitted and is pending verification.`,
         relatedId: order.id,
         relatedType: 'order',
@@ -595,7 +595,7 @@ const paymentService = {
         order_id: order.id,
         user_id: order.user_id,
         amount: order.total_amount,
-        currency: order.currency || 'USD',
+        currency: order.currency || 'LKR',
         payment_method: 'digital_wallet',
         provider: walletProvider,
         provider_payment_id: walletRef,
@@ -615,7 +615,7 @@ const paymentService = {
         userId: order.user_id,
         type: 'payment_status',
         title: 'Payment Successful!',
-        message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} via Digital Wallet (${walletProvider.toUpperCase()}) for Order #${order.order_number} was confirmed.`,
+        message: `Your payment of LKR ${parseFloat(order.total_amount).toFixed(2)} via Digital Wallet (${walletProvider.toUpperCase()}) for Order #${order.order_number} was confirmed.`,
         relatedId: order.id,
         relatedType: 'order',
         priority: 'high',
@@ -641,7 +641,7 @@ const paymentService = {
         order_id: order.id,
         user_id: order.user_id,
         amount: order.total_amount,
-        currency: order.currency || 'USD',
+        currency: order.currency || 'LKR',
         payment_method: 'cash_on_delivery',
         provider: 'promptx_cod',
         provider_payment_id: codTrackingNumber,
@@ -663,7 +663,7 @@ const paymentService = {
         userId: order.user_id,
         type: 'order_status',
         title: 'Order Confirmed - Cash on Delivery',
-        message: `Order #${order.order_number} has been scheduled for courier dispatch with ${courierPartner}. Tracking #${codTrackingNumber}. Total due upon delivery: $${parseFloat(order.total_amount).toFixed(2)}.`,
+        message: `Order #${order.order_number} has been scheduled for courier dispatch with ${courierPartner}. Tracking #${codTrackingNumber}. Total due upon delivery: LKR ${parseFloat(order.total_amount).toFixed(2)}.`,
         relatedId: order.id,
         relatedType: 'order',
         priority: 'high',
@@ -738,7 +738,7 @@ const paymentService = {
             order_id: orderId,
             user_id: order.user_id,
             amount: (paymentIntent.amount || Math.round(order.total_amount * 100)) / 100,
-            currency: (paymentIntent.currency || order.currency || 'USD').toUpperCase(),
+            currency: (paymentIntent.currency || order.currency || 'LKR').toUpperCase(),
             payment_method: 'credit_card',
             provider: 'stripe',
             provider_payment_id: paymentIntent.id,
@@ -761,7 +761,7 @@ const paymentService = {
           userId: order.user_id,
           type: 'payment_status',
           title: 'Payment Succeeded',
-          message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} has been received.`,
+          message: `Your payment of LKR ${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} has been received.`,
           relatedId: order.id,
           relatedType: 'order',
           priority: 'high',
@@ -784,7 +784,7 @@ const paymentService = {
             order_id: failedOrderId,
             user_id: order.user_id,
             amount: (failedIntent.amount || Math.round(order.total_amount * 100)) / 100,
-            currency: (failedIntent.currency || order.currency || 'USD').toUpperCase(),
+            currency: (failedIntent.currency || order.currency || 'LKR').toUpperCase(),
             payment_method: 'credit_card',
             provider: 'stripe',
             provider_payment_id: failedIntent.id,

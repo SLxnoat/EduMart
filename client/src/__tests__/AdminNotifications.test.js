@@ -286,7 +286,7 @@ describe('Malki Modules - Admin Dashboard, Notifications & Seller Hub', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Tutor & Seller Hub/i)).toBeInTheDocument();
-        expect(screen.getByText('$1125.00')).toBeInTheDocument();
+        expect(screen.getByText('LKR 1125.00')).toBeInTheDocument();
         expect(screen.getByText('Invaluable guide')).toBeInTheDocument();
         expect(screen.getByText(/Helped me score an A in my term test/i)).toBeInTheDocument();
       });

@@ -184,7 +184,7 @@ const handleProductQuery = async (query) => {
 
     if (products && products.length > 0) {
       const listText = products
-        .map((p) => `• ${p.title} (${p.subject} - ${p.grade_level}) — $${Number(p.price).toFixed(2)}`)
+        .map((p) => `• ${p.title} (${p.subject} - ${p.grade_level}) — LKR ${Number(p.price).toFixed(2)}`)
         .join('\n');
       return {
         reply: `Here are top study materials matching your request:\n${listText}\n\nYou can view and purchase these directly in our Products catalog!`,
@@ -211,7 +211,7 @@ const handleOrderQuery = async (orderNumber, userId) => {
         trackingInfo = ` Dispatched via ${order.carrier} (Tracking: ${order.tracking_number}).`;
       }
       return {
-        reply: `Order #${order.order_number} is currently ${order.status.toUpperCase()}. Payment Status: ${order.payment_status.toUpperCase()} (Total: $${order.total_amount}).${trackingInfo}`,
+        reply: `Order #${order.order_number} is currently ${order.status.toUpperCase()}. Payment Status: ${order.payment_status.toUpperCase()} (Total: ${order.currency || 'LKR'} ${order.total_amount}).${trackingInfo}`,
         quickReplies: ['Track Shipment', 'View Order Details', 'Need Help']
       };
     }

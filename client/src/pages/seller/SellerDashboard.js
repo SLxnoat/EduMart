@@ -197,10 +197,10 @@ const SellerDashboard = () => {
                   <AttachMoney fontSize="medium" />
                 </Box>
                 <Typography variant="h3" fontWeight="bold">
-                  ${metrics.netEarnings?.toFixed(2) || '0.00'}
+                  LKR {metrics.netEarnings?.toFixed(2) || '0.00'}
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  Gross sales: ${metrics.grossSales?.toFixed(2) || '0.00'}
+                  Gross sales: LKR {metrics.grossSales?.toFixed(2) || '0.00'}
                 </Typography>
               </CardContent>
             </Card>
@@ -402,7 +402,7 @@ const SellerDashboard = () => {
                               color={isPhysical ? 'warning' : 'primary'}
                             />
                           </TableCell>
-                          <TableCell>${parseFloat(item.price).toFixed(2)}</TableCell>
+                          <TableCell>LKR {parseFloat(item.price).toFixed(2)}</TableCell>
                           <TableCell>
                             <Chip
                               label={item.is_approved ? 'Live Marketplace' : 'Pending Review'}
