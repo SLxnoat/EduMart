@@ -291,7 +291,7 @@ const ProductDetail = () => {
 
       <Grid container spacing={4}>
         {/* Left Column: Details & Overview */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper elevation={2} sx={{ p: 4, borderRadius: 2, mb: 3 }}>
             {/* Top Badges */}
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
@@ -387,27 +387,27 @@ const ProductDetail = () => {
               Material Specifications
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Subject</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.subject}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Grade / Standard</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.grade_level}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Delivery Format</Typography>
                 <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>{product.format}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Category</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.category?.name || 'General'}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Examination Year</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.exam_year || 'National Curriculum'}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Access</Typography>
                 <Typography variant="body2" fontWeight="bold">Lifetime Access</Typography>
               </Grid>
@@ -440,7 +440,7 @@ const ProductDetail = () => {
         </Grid>
 
         {/* Right Column: Pricing & Purchase Card */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper
             elevation={3}
             sx={{
@@ -576,7 +576,7 @@ const ProductDetail = () => {
 
           <Grid container spacing={3}>
             {relatedProducts.map((rel) => (
-              <Grid item xs={12} sm={6} md={3} key={rel.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={rel.id}>
                 <Card
                   variant="outlined"
                   sx={{
@@ -640,7 +640,7 @@ const ProductDetail = () => {
 
         <Grid container spacing={4}>
           {/* Summary Column */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
               <Typography variant="h3" fontWeight="bold" color="primary">
                 {reviewSummary.average ? reviewSummary.average.toFixed(1) : Number(product.rating_average || 0).toFixed(1)}
@@ -685,7 +685,7 @@ const ProductDetail = () => {
           </Grid>
 
           {/* Reviews List & Write Review Form Column */}
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             {/* Write a Review Box */}
             <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, mb: 3 }}>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>

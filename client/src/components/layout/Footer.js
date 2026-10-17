@@ -23,7 +23,7 @@ const Footer = () => {
       <Container maxWidth="lg">
         <Grid container spacing={4}>
           {/* Brand Info */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2, color: '#ffffff' }}>
               <SchoolIcon sx={{ color: '#3b82f6', fontSize: 32 }} />
               <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
@@ -51,7 +51,7 @@ const Footer = () => {
           </Grid>
 
           {/* Quick Links: Catalog */}
-          <Grid item xs={6} sm={4} md={2.5}>
+          <Grid size={{ xs: 6, sm: 4, md: 2.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffffff', mb: 2, textTransform: 'uppercase' }}>
               Explore Catalog
             </Typography>
@@ -75,7 +75,7 @@ const Footer = () => {
           </Grid>
 
           {/* Quick Links: For Users */}
-          <Grid item xs={6} sm={4} md={2.5}>
+          <Grid size={{ xs: 6, sm: 4, md: 2.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffffff', mb: 2, textTransform: 'uppercase' }}>
               Students & Tutors
             </Typography>
@@ -96,7 +96,7 @@ const Footer = () => {
           </Grid>
 
           {/* Support & Assistant */}
-          <Grid item xs={12} sm={4} md={3}>
+          <Grid size={{ xs: 12, sm: 4, md: 3 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#ffffff', mb: 2, textTransform: 'uppercase' }}>
               Need Help?
             </Typography>

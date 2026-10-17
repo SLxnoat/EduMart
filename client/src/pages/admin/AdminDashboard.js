@@ -28,8 +28,7 @@ import {
   DialogContentText,
   DialogActions,
   Rating,
-  Pagination,
-  Tooltip
+  Pagination
 } from '@mui/material';
 import {
   People,
@@ -332,7 +331,7 @@ const AdminDashboard = () => {
             </Box>
           ) : (
             <Grid container spacing={3}>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 2 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -349,7 +348,7 @@ const AdminDashboard = () => {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ bgcolor: 'secondary.light', color: 'secondary.contrastText', borderRadius: 2 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -366,7 +365,7 @@ const AdminDashboard = () => {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ bgcolor: 'success.light', color: 'success.contrastText', borderRadius: 2 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -383,7 +382,7 @@ const AdminDashboard = () => {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card
                   sx={{
                     bgcolor: (metrics?.products?.lowStock > 0) ? 'warning.light' : 'info.light',
@@ -407,7 +406,7 @@ const AdminDashboard = () => {
               </Grid>
 
               {/* Quick Action Shortcut Panels */}
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Paper sx={{ p: 3, borderRadius: 2 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Urgent Moderation Tasks
@@ -437,7 +436,7 @@ const AdminDashboard = () => {
                 </Paper>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Paper sx={{ p: 3, borderRadius: 2 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     Multi-Channel System Announcement
@@ -469,8 +468,10 @@ const AdminDashboard = () => {
               placeholder="Search user by name or email..."
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              InputProps={{
-                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+              slotProps={{
+                input: {
+                  startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+                }
               }}
               sx={{ minWidth: 260 }}
             />
@@ -783,7 +784,7 @@ const AdminDashboard = () => {
 
           <Box component="form" onSubmit={handleSendBroadcast} sx={{ mt: 3 }}>
             <Grid container spacing={3}>
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   required
@@ -794,7 +795,7 @@ const AdminDashboard = () => {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   select
@@ -809,7 +810,7 @@ const AdminDashboard = () => {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
                   select
@@ -824,7 +825,7 @@ const AdminDashboard = () => {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   required
@@ -837,7 +838,7 @@ const AdminDashboard = () => {
                 />
               </Grid>
 
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Button
                   type="submit"
                   variant="contained"

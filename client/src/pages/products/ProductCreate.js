@@ -16,7 +16,8 @@ import {
   Alert,
   CircularProgress,
   Stack,
-  Breadcrumbs
+  Breadcrumbs,
+  InputAdornment
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -187,8 +188,16 @@ const ProductCreate = () => {
 
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
+            {/* Section 1: Basic Information */}
+            <Grid size={{ xs: 12 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                1. Resource Details
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
             {/* Title */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Material Title"
@@ -200,8 +209,31 @@ const ProductCreate = () => {
               />
             </Grid>
 
+            {/* Description */}
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Description & Syllabus Coverage"
+                name="description"
+                placeholder="Detail key chapters covered, marking methodology, solution styles, and teacher tips..."
+                value={formData.description}
+                onChange={handleChange}
+                required
+              />
+            </Grid>
+
+            {/* Section 2: Curriculum & Classification */}
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                2. Academic Classification
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
             {/* Subject */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="subject-label">Subject</InputLabel>
                 <Select
@@ -221,7 +253,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Grade Level */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="grade-label">Grade / Standard</InputLabel>
                 <Select
@@ -241,7 +273,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Category */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth disabled={loadingCategories}>
                 <InputLabel id="category-label">Curriculum Category</InputLabel>
                 <Select
@@ -262,7 +294,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Material Type */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="type-label">Material Type</InputLabel>
                 <Select
@@ -282,7 +314,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Delivery Format */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="format-label">Delivery Format</InputLabel>
                 <Select
@@ -300,7 +332,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Exam Year */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Examination Year"
@@ -312,8 +344,16 @@ const ProductCreate = () => {
               />
             </Grid>
 
+            {/* Section 3: Pricing & Inventory */}
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                3. Pricing & Fulfillment
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
             {/* Price (LKR) */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Price (LKR)"
@@ -323,12 +363,17 @@ const ProductCreate = () => {
                 value={formData.price}
                 onChange={handleChange}
                 required
-                inputProps={{ step: '0.01', min: '0' }}
+                slotProps={{
+                  input: {
+                    startAdornment: <InputAdornment position="start">LKR</InputAdornment>,
+                  },
+                  htmlInput: { step: '0.01', min: '0' }
+                }}
               />
             </Grid>
 
             {/* Physical Stock Quantity */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Inventory Stock Quantity"
@@ -337,42 +382,29 @@ const ProductCreate = () => {
                 value={formData.stock_quantity}
                 onChange={handleChange}
                 helperText="Available physical copies for islandwide shipping"
-                inputProps={{ min: '0' }}
-              />
-            </Grid>
-
-            {/* Description */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Description & Syllabus Coverage"
-                name="description"
-                placeholder="Detail key chapters covered, marking methodology, solution styles, and teacher tips..."
-                value={formData.description}
-                onChange={handleChange}
-                required
+                slotProps={{
+                  htmlInput: { min: '0' }
+                }}
               />
             </Grid>
 
             {/* Publisher attribution */}
-            <Grid item xs={12}>
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fbfcfd' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Grid size={{ xs: 12 }}>
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <CheckCircleIcon color="success" fontSize="small" />
                   <Typography variant="body2" color="text.secondary">
-                    Listing will be published under tutor account: <strong>{user?.firstName} {user?.lastName}</strong> ({user?.institution || 'Registered Tutor'})
+                    Listing will be published under verified educator profile: <strong>{user?.firstName} {user?.lastName}</strong> ({user?.institution || 'Registered Educator'})
                   </Typography>
                 </Box>
               </Paper>
             </Grid>
 
             {/* Action Buttons */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
               <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
-                <Button component={Link} to="/products" variant="outlined">
+                <Button component={Link} to="/products" variant="outlined" sx={{ px: 3, fontWeight: 600 }}>
                   Cancel
                 </Button>
                 <Button
@@ -382,6 +414,7 @@ const ProductCreate = () => {
                   size="large"
                   disabled={submitting}
                   startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <CloudUploadIcon />}
+                  sx={{ px: 4, py: 1.2, fontWeight: 700, boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)' }}
                 >
                   {submitting ? 'Publishing...' : 'Publish Material'}
                 </Button>

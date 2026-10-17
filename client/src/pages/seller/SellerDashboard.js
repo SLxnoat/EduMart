@@ -174,7 +174,7 @@ const SellerDashboard = () => {
         </Box>
       ) : (
         <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', borderRadius: 2 }}>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -191,7 +191,7 @@ const SellerDashboard = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{ bgcolor: 'success.main', color: 'success.contrastText', borderRadius: 2 }}>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -208,7 +208,7 @@ const SellerDashboard = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', borderRadius: 2 }}>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -225,7 +225,7 @@ const SellerDashboard = () => {
             </Card>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card
               sx={{
                 bgcolor: (metrics.lowStockCount > 0) ? 'warning.main' : 'info.main',
@@ -284,7 +284,7 @@ const SellerDashboard = () => {
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
               {recentReviews.map((rev) => (
-                <Grid item xs={12} md={6} key={rev.id}>
+                <Grid size={{ xs: 12, md: 6 }} key={rev.id}>
                   <Card variant="outlined" sx={{ borderRadius: 2, height: '100%' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>

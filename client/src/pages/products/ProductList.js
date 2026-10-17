@@ -334,7 +334,7 @@ const ProductList = () => {
       {/* Main Grid: Filters Sidebar + Products Content */}
       <Grid container spacing={3}>
         {/* Sidebar Filters */}
-        <Grid item xs={12} md={3}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -376,19 +376,21 @@ const ProductList = () => {
                       setShowSuggestions(false);
                     }
                   }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" color="action" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: keyword && (
-                      <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => setKeyword('')}>
-                          <ClearIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    )
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                      endAdornment: keyword && (
+                        <InputAdornment position="end">
+                          <IconButton size="small" onClick={() => setKeyword('')}>
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
                   }}
                 />
 
@@ -621,7 +623,7 @@ const ProductList = () => {
         </Grid>
 
         {/* Product Cards and Controls */}
-        <Grid item xs={12} md={9}>
+        <Grid size={{ xs: 12, md: 9 }}>
           {/* Top Control Bar: Total Count & Sort By */}
           <Paper
             elevation={1}
@@ -673,7 +675,7 @@ const ProductList = () => {
           {loading ? (
             <Grid container spacing={3}>
               {[1, 2, 3, 4, 5, 6].map((sk) => (
-                <Grid item xs={12} sm={6} lg={4} key={sk}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={sk}>
                   <Card sx={{ p: 2.5, height: 340, borderRadius: 2 }}>
                     <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 1.5, mb: 2 }} />
                     <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
@@ -705,7 +707,7 @@ const ProductList = () => {
             /* Product Cards Grid */
             <Grid container spacing={3}>
               {products.map((product) => (
-                <Grid item xs={12} sm={6} lg={4} key={product.id}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={product.id}>
                   <Card
                     elevation={2}
                     sx={{

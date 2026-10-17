@@ -26,8 +26,13 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Divider
+  InputAdornment,
+  IconButton
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import PersonIcon from '@mui/icons-material/Person';
 import SecurityIcon from '@mui/icons-material/Security';
 import InfoIcon from '@mui/icons-material/Info';
@@ -68,6 +73,9 @@ const Profile = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [changingPass, setChangingPass] = useState(false);
   const [passError, setPassError] = useState('');
 
@@ -369,37 +377,73 @@ const Profile = () => {
               </Typography>
 
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="First Name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Last Name"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Phone Number"
                     placeholder="+94 77 123 4567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PhoneOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="School / University / Institute"
                     value={institution}
                     onChange={(e) => setInstitution(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -434,34 +478,97 @@ const Profile = () => {
               )}
 
               <Grid container spacing={2} maxWidth="sm">
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     required
-                    type="password"
+                    type={showCurrentPass ? 'text' : 'password'}
                     label="Current Password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle current password visibility"
+                              onClick={() => setShowCurrentPass(!showCurrentPass)}
+                              edge="end"
+                              size="small"
+                            >
+                              {showCurrentPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     required
-                    type="password"
+                    type={showNewPass ? 'text' : 'password'}
                     label="New Password (min 8 characters)"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle new password visibility"
+                              onClick={() => setShowNewPass(!showNewPass)}
+                              edge="end"
+                              size="small"
+                            >
+                              {showNewPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     required
-                    type="password"
+                    type={showConfirmPass ? 'text' : 'password'}
                     label="Confirm New Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle confirm new password visibility"
+                              onClick={() => setShowConfirmPass(!showConfirmPass)}
+                              edge="end"
+                              size="small"
+                            >
+                              {showConfirmPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -655,53 +762,65 @@ const Profile = () => {
                 Account Overview
               </Typography>
               <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Registered Email
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {user?.email}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Registered Email
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {user?.email}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Account Role
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {user?.role?.toUpperCase()}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Account Role
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {user?.role?.toUpperCase()}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Account Status
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium" color={user?.isVerified ? 'success.main' : 'warning.main'}>
-                    {user?.isVerified ? 'Email Verified' : 'Pending Verification'}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Account Status
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" color={user?.isVerified ? 'success.main' : 'warning.main'}>
+                      {user?.isVerified ? 'Email Verified' : 'Pending Verification'}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    User ID
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                    {user?._id || user?.id}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      User ID
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      {user?._id || user?.id}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Joined Date
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Active Member'}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Joined Date
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Active Member'}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Last Login
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Current Session'}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Last Login
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Current Session'}
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </Box>

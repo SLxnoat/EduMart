@@ -337,7 +337,7 @@ const Checkout = () => {
 
               <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#fbfbfb' }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       label="Name on Card"
@@ -346,7 +346,7 @@ const Checkout = () => {
                       onChange={handleCardChange}
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField
                       fullWidth
                       label="Card Number"
@@ -354,12 +354,14 @@ const Checkout = () => {
                       value={cardDetails.cardNumber}
                       onChange={handleCardChange}
                       placeholder="4242 4242 4242 4242"
-                      InputProps={{
-                        endAdornment: <CreditCard color="action" />,
+                      slotProps={{
+                        input: {
+                          endAdornment: <CreditCard color="action" />,
+                        },
                       }}
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <TextField
                       fullWidth
                       label="Expiry Date"
@@ -369,7 +371,7 @@ const Checkout = () => {
                       placeholder="MM/YY"
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <TextField
                       fullWidth
                       label="CVC / CVV"
@@ -404,7 +406,7 @@ const Checkout = () => {
             </Grid>
 
             {/* Summary */}
-            <Grid item xs={12} md={5}>
+            <Grid size={{ xs: 12, md: 5 }}>
               <Card variant="outlined" sx={{ bgcolor: 'grey.50' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>Review & Deliver To</Typography>
@@ -445,21 +447,21 @@ const Checkout = () => {
 
             <Paper variant="outlined" sx={{ maxWidth: 600, mx: 'auto', p: 3, my: 3, textAlign: 'left' }}>
               <Grid container spacing={2}>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Order Number:</Typography>
                   <Typography variant="subtitle1" fontWeight="bold">
                     {placedOrder.order_number}
                   </Typography>
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
                   <Chip label="PAID" color="success" size="small" />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Order Status:</Typography>
                   <Chip label={placedOrder.status?.toUpperCase()} color="primary" size="small" />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Total Paid:</Typography>
                   <Typography variant="subtitle1" fontWeight="bold" color="success.main">
                     ${parseFloat(placedOrder.total_amount).toFixed(2)} USD
