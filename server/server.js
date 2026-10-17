@@ -38,6 +38,11 @@ app.use('/api/auth', require('./src/routes/authRoutes'));
 app.use('/api/users', require('./src/routes/userRoutes'));
 app.use('/api/payments', require('./src/routes/paymentRoutes'));
 app.use('/api/chatbot', require('./src/routes/chatbotRoutes'));
+app.use('/api/products', require('./src/routes/productRoutes'));
+app.use('/api/categories', (req, res, next) => {
+  const { getCategories } = require('./src/controllers/productController');
+  getCategories(req, res, next);
+});
 
 // 404 handler
 app.use('*', (req, res) => {
