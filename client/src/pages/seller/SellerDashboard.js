@@ -23,8 +23,7 @@ import {
   Alert,
   Rating,
   Pagination,
-  Divider,
-  InputAdornment
+  Divider
 } from '@mui/material';
 import {
   Storefront,
@@ -33,7 +32,6 @@ import {
   AttachMoney,
   Star,
   Warning,
-  CheckCircle,
   Refresh,
   Save
 } from '@mui/icons-material';
@@ -381,6 +379,20 @@ const SellerDashboard = () => {
                             <Typography variant="caption" color="text.secondary">
                               {`${item.subject} | ${item.grade_level}`}
                             </Typography>
+                            {item.digitalAssets && item.digitalAssets.length > 0 && (
+                              <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                {item.digitalAssets.map((asset) => (
+                                  <Chip
+                                    key={asset.id}
+                                    size="small"
+                                    variant="outlined"
+                                    color={asset.is_preview ? 'default' : 'primary'}
+                                    label={`${asset.is_preview ? 'Preview' : 'Material'}: ${asset.file_name} (${(asset.file_size / (1024 * 1024)).toFixed(1)} MB)`}
+                                    sx={{ fontSize: '0.68rem', height: 20 }}
+                                  />
+                                ))}
+                              </Box>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Chip

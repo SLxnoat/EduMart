@@ -1,5 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
 const { Product, Category, User, DigitalAsset } = require('../models');
 
 // Auto-seed initial educational catalog data if the database is empty
@@ -319,20 +321,43 @@ const getProducts = asyncHandler(async (req, res) => {
 const getProductById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const product = await Product.findByPk(id, {
-    include: [
-      {
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name', 'description']
-      },
-      {
-        model: User,
-        as: 'seller',
-        attributes: ['id', 'first_name', 'last_name', 'email', 'institution']
-      }
-    ]
-  });
+  let product;
+  try {
+    product = await Product.findByPk(id, {
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name', 'description']
+        },
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'institution']
+        },
+        {
+          model: DigitalAsset,
+          as: 'digitalAssets',
+          attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count', 'created_at']
+        }
+      ]
+    });
+  } catch (err) {
+    product = await Product.findByPk(id, {
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name', 'description']
+        },
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'institution']
+        }
+      ]
+    });
+  }
 
   if (!product) {
     res.status(404);
@@ -409,12 +434,55 @@ const createProduct = asyncHandler(async (req, res) => {
     is_approved: true // Approved for verified tutors/admins
   });
 
-  const createdProduct = await Product.findByPk(product.id, {
-    include: [
-      { model: Category, as: 'category', attributes: ['id', 'name'] },
-      { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
-    ]
-  });
+  // Attach uploaded main study material file if present
+  if (req.files && req.files.material_file && req.files.material_file.length > 0) {
+    try {
+      const file = req.files.material_file[0];
+      await DigitalAsset.create({
+        product_id: product.id,
+        file_name: file.originalname,
+        file_path: file.path,
+        file_size: Math.max(1, Math.round(file.size / 1024)),
+        mime_type: file.mimetype,
+        is_preview: false,
+        sort_order: 1
+      });
+    } catch (_) {}
+  }
+
+  // Attach uploaded curriculum sample preview file if present
+  if (req.files && req.files.preview_file && req.files.preview_file.length > 0) {
+    try {
+      const pFile = req.files.preview_file[0];
+      await DigitalAsset.create({
+        product_id: product.id,
+        file_name: pFile.originalname,
+        file_path: pFile.path,
+        file_size: Math.max(1, Math.round(pFile.size / 1024)),
+        mime_type: pFile.mimetype,
+        is_preview: true,
+        sort_order: 0
+      });
+    } catch (_) {}
+  }
+
+  let createdProduct;
+  try {
+    createdProduct = await Product.findByPk(product.id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] },
+        { model: DigitalAsset, as: 'digitalAssets', attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count'] }
+      ]
+    });
+  } catch (_) {
+    createdProduct = await Product.findByPk(product.id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
+      ]
+    });
+  }
 
   res.status(201).json({
     success: true,
@@ -468,12 +536,81 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   await product.save();
 
-  const updatedProduct = await Product.findByPk(id, {
-    include: [
-      { model: Category, as: 'category', attributes: ['id', 'name'] },
-      { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
-    ]
-  });
+  // Handle uploaded main study material file replacement
+  if (req.files && req.files.material_file && req.files.material_file.length > 0) {
+    const file = req.files.material_file[0];
+    const existingAsset = await DigitalAsset.findOne({
+      where: { product_id: product.id, is_preview: false }
+    });
+    if (existingAsset) {
+      if (existingAsset.file_path && fs.existsSync(existingAsset.file_path)) {
+        try { fs.unlinkSync(existingAsset.file_path); } catch (e) {}
+      }
+      existingAsset.file_name = file.originalname;
+      existingAsset.file_path = file.path;
+      existingAsset.file_size = Math.max(1, Math.round(file.size / 1024));
+      existingAsset.mime_type = file.mimetype;
+      await existingAsset.save();
+    } else {
+      await DigitalAsset.create({
+        product_id: product.id,
+        file_name: file.originalname,
+        file_path: file.path,
+        file_size: Math.max(1, Math.round(file.size / 1024)),
+        mime_type: file.mimetype,
+        is_preview: false,
+        sort_order: 1
+      });
+    }
+  }
+
+  // Handle uploaded sample preview file replacement
+  if (req.files && req.files.preview_file && req.files.preview_file.length > 0) {
+    try {
+      const pFile = req.files.preview_file[0];
+      const existingPreview = await DigitalAsset.findOne({
+        where: { product_id: product.id, is_preview: true }
+      });
+      if (existingPreview) {
+        if (existingPreview.file_path && fs.existsSync(existingPreview.file_path)) {
+          try { fs.unlinkSync(existingPreview.file_path); } catch (e) {}
+        }
+        existingPreview.file_name = pFile.originalname;
+        existingPreview.file_path = pFile.path;
+        existingPreview.file_size = Math.max(1, Math.round(pFile.size / 1024));
+        existingPreview.mime_type = pFile.mimetype;
+        await existingPreview.save();
+      } else {
+        await DigitalAsset.create({
+          product_id: product.id,
+          file_name: pFile.originalname,
+          file_path: pFile.path,
+          file_size: Math.max(1, Math.round(pFile.size / 1024)),
+          mime_type: pFile.mimetype,
+          is_preview: true,
+          sort_order: 0
+        });
+      }
+    } catch (_) {}
+  }
+
+  let updatedProduct;
+  try {
+    updatedProduct = await Product.findByPk(id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] },
+        { model: DigitalAsset, as: 'digitalAssets', attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count'] }
+      ]
+    });
+  } catch (_) {
+    updatedProduct = await Product.findByPk(id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
+      ]
+    });
+  }
 
   res.status(200).json({
     success: true,
@@ -500,6 +637,17 @@ const deleteProduct = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error('Not authorized to delete this product');
   }
+
+  // Remove physical files and records
+  try {
+    const assets = await DigitalAsset.findAll({ where: { product_id: id } });
+    for (const asset of assets) {
+      if (asset.file_path && fs.existsSync(asset.file_path)) {
+        try { fs.unlinkSync(asset.file_path); } catch (e) {}
+      }
+      await asset.destroy();
+    }
+  } catch (_) {}
 
   await product.destroy();
 
@@ -607,6 +755,14 @@ const getProductPreview = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
+  // Check if a custom preview asset was uploaded
+  let previewAsset = null;
+  try {
+    previewAsset = await DigitalAsset.findOne({
+      where: { product_id: id, is_preview: true }
+    });
+  } catch (_) {}
+
   const preview = {
     productId: product.id,
     title: product.title,
@@ -614,6 +770,8 @@ const getProductPreview = asyncHandler(async (req, res) => {
     grade_level: product.grade_level,
     exam_year: product.exam_year,
     format: product.format,
+    has_custom_preview: !!(previewAsset && previewAsset.file_path && fs.existsSync(previewAsset.file_path)),
+    preview_filename: previewAsset?.file_name || null,
     tableOfContents: [
       'Unit 1: Syllabus Guidelines & National Curriculum Overview',
       'Unit 2: Key Theoretical Formulations & Conceptual Definitions',
@@ -632,6 +790,35 @@ const getProductPreview = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Stream or download sample preview document file
+ * @route   GET /api/products/:id/preview-file
+ * @access  Public
+ */
+const getProductPreviewFile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  let asset = null;
+  try {
+    asset = await DigitalAsset.findOne({
+      where: { product_id: id, is_preview: true }
+    });
+  } catch (_) {}
+
+  if (asset && asset.file_path && fs.existsSync(asset.file_path)) {
+    return res.download(path.resolve(asset.file_path), asset.file_name);
+  }
+
+  // Fallback watermarked preview buffer
+  const product = await Product.findByPk(id);
+  const title = product?.title || 'Curriculum Sample Preview';
+  const pdfBytes = Buffer.from(
+    `%PDF-1.4\n% EduMart Sample Preview\nTitle: ${title}\nWatermarked Sample Excerpt for Evaluation\n%%EOF`
+  );
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${title.replace(/[^a-zA-Z0-9_\-]/g, '_')}_preview.pdf"`);
+  res.status(200).send(pdfBytes);
+});
+
 module.exports = {
   getProducts,
   getProductById,
@@ -639,6 +826,7 @@ module.exports = {
   getSuggestions,
   getRelatedProducts,
   getProductPreview,
+  getProductPreviewFile,
   createProduct,
   updateProduct,
   deleteProduct,

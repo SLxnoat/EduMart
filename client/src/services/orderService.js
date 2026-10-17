@@ -60,11 +60,20 @@ const orderService = {
     const response = await api.get(`/orders/${orderId}/download/${itemId}`, {
       responseType: 'blob',
     });
-    const blob = new Blob([response.data], { type: 'application/pdf' });
+    let filename = `${fallbackTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+    const disposition = response.headers && (response.headers['content-disposition'] || response.headers['Content-Disposition']);
+    if (disposition && disposition.indexOf('filename=') !== -1) {
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].trim();
+      }
+    }
+    const contentType = response.headers?.['content-type'] || 'application/octet-stream';
+    const blob = new Blob([response.data], { type: contentType });
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = `${fallbackTitle.replace(/[^a-zA-Z0-9_\-]/g, '_')}.pdf`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();

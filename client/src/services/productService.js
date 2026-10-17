@@ -24,12 +24,21 @@ const productService = {
     return response.data;
   },
   createProduct: async (productData) => {
-    const response = await api.post('/products', productData);
+    const isFormData = typeof FormData !== 'undefined' && productData instanceof FormData;
+    const response = await api.post('/products', productData, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
     return response.data;
   },
   updateProduct: async (id, productData) => {
-    const response = await api.put(`/products/${id}`, productData);
+    const isFormData = typeof FormData !== 'undefined' && productData instanceof FormData;
+    const response = await api.put(`/products/${id}`, productData, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
     return response.data;
+  },
+  getPreviewFileUrl: (id) => {
+    return `/api/products/${id}/preview-file`;
   },
   deleteProduct: async (id) => {
     const response = await api.delete(`/products/${id}`);

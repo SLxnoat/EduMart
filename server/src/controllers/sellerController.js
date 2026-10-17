@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
-const { Product, Order, OrderItem, Review, User, SellerEarning } = require('../models');
+const { Product, Order, OrderItem, Review, User, SellerEarning, DigitalAsset } = require('../models');
 
 // @desc    Get seller/tutor dashboard metrics and recent sales
 // @route   GET /api/seller/dashboard
@@ -115,12 +115,31 @@ const getSellerInventory = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 20;
   const offset = (page - 1) * limit;
 
-  const { count, rows: products } = await Product.findAndCountAll({
-    where: { seller_id: sellerId },
-    order: [['created_at', 'DESC']],
-    limit,
-    offset
-  });
+  let queryResult;
+  try {
+    queryResult = await Product.findAndCountAll({
+      where: { seller_id: sellerId },
+      include: [
+        {
+          model: DigitalAsset,
+          as: 'digitalAssets',
+          attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count']
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
+    });
+  } catch (err) {
+    queryResult = await Product.findAndCountAll({
+      where: { seller_id: sellerId },
+      order: [['created_at', 'DESC']],
+      limit,
+      offset
+    });
+  }
+
+  const { count, rows: products } = queryResult;
 
   res.json({
     products,

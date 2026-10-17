@@ -17,12 +17,17 @@ import {
   CircularProgress,
   Stack,
   Breadcrumbs,
-  InputAdornment
+  InputAdornment,
+  IconButton
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import { useAuth } from '../../context/AuthContext';
@@ -78,6 +83,41 @@ const ProductCreate = () => {
     stock_quantity: 50
   });
 
+  const [materialFile, setMaterialFile] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleMaterialFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) {
+        setError('Study material file exceeds maximum permitted limit (50 MB).');
+        return;
+      }
+      setMaterialFile(file);
+      setError(null);
+    }
+  };
+
+  const handlePreviewFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        setError('Sample preview file exceeds maximum permitted limit (20 MB).');
+        return;
+      }
+      setPreviewFile(file);
+      setError(null);
+    }
+  };
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -132,7 +172,24 @@ const ProductCreate = () => {
         stock_quantity: parseInt(formData.stock_quantity, 10) || 50
       };
 
-      const res = await productService.createProduct(payload);
+      let submissionData = payload;
+      if (materialFile || previewFile) {
+        const data = new FormData();
+        Object.keys(payload).forEach((key) => {
+          if (payload[key] !== null && payload[key] !== undefined) {
+            data.append(key, payload[key]);
+          }
+        });
+        if (materialFile) {
+          data.append('material_file', materialFile);
+        }
+        if (previewFile) {
+          data.append('preview_file', previewFile);
+        }
+        submissionData = data;
+      }
+
+      const res = await productService.createProduct(submissionData);
       enqueueSnackbar('Educational material published successfully!', { variant: 'success' });
       if (res && res.product && res.product.id) {
         navigate(`/products/${res.product.id}`);
@@ -386,6 +443,139 @@ const ProductCreate = () => {
                   htmlInput: { min: '0' }
                 }}
               />
+            </Grid>
+
+            {/* Section 4: Study Material File Upload */}
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                4. Study Material File & Curriculum Preview
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                Upload the complete document/resource for students to download upon purchase. Supported: PDF, Word, PPT, ZIP, EPUB (Max 50MB).
+              </Typography>
+            </Grid>
+
+            {/* Main Study Material File */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderStyle: materialFile ? 'solid' : 'dashed',
+                  borderWidth: 2,
+                  borderColor: materialFile ? 'success.main' : 'primary.light',
+                  bgcolor: materialFile ? 'rgba(34, 197, 94, 0.04)' : '#fafbff',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                {materialFile ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                      <PictureAsPdfIcon color="error" sx={{ fontSize: 36 }} />
+                      <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                          {materialFile.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatFileSize(materialFile.size)} • Ready for upload
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <IconButton size="small" color="error" onClick={() => setMaterialFile(null)} aria-label="remove material file">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box>
+                    <CloudUploadIcon color="primary" sx={{ fontSize: 40, mb: 1, opacity: 0.8 }} />
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      Upload Primary Study Material
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Full curriculum paper, notes, or model answer guide
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      size="small"
+                      startIcon={<AttachFileIcon />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Browse File
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.epub,.txt,.jpg,.jpeg,.png"
+                        onChange={handleMaterialFileChange}
+                      />
+                    </Button>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* Optional Sample Preview File */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderStyle: previewFile ? 'solid' : 'dashed',
+                  borderWidth: 2,
+                  borderColor: previewFile ? 'info.main' : '#cbd5e1',
+                  bgcolor: previewFile ? 'rgba(56, 189, 248, 0.04)' : '#f8fafc',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                {previewFile ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                      <DescriptionIcon color="info" sx={{ fontSize: 36 }} />
+                      <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                          {previewFile.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatFileSize(previewFile.size)} • Sample Preview
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <IconButton size="small" color="error" onClick={() => setPreviewFile(null)} aria-label="remove preview file">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box>
+                    <DescriptionIcon color="action" sx={{ fontSize: 40, mb: 1, opacity: 0.8 }} />
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      Upload Sample Preview (Optional)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Watermarked sample or first 2–3 pages for students to inspect
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      component="label"
+                      size="small"
+                      startIcon={<AttachFileIcon />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Browse Preview
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handlePreviewFileChange}
+                      />
+                    </Button>
+                  </Box>
+                )}
+              </Paper>
             </Grid>
 
             {/* Publisher attribution */}

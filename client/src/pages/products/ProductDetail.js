@@ -46,6 +46,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import CloseIcon from '@mui/icons-material/Close';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import reviewService from '../../services/reviewService';
@@ -413,6 +415,76 @@ const ProductDetail = () => {
               </Grid>
             </Grid>
           </Paper>
+
+          {/* Included Digital Resources & Downloads */}
+          {product.digitalAssets && product.digitalAssets.length > 0 && (
+            <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, border: '1px solid #e0e7ff', bgcolor: '#f8faff' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                <CloudDownloadIcon color="primary" />
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Included Study Resources & Files
+                </Typography>
+              </Box>
+              <Stack spacing={1.5}>
+                {product.digitalAssets.map((asset) => (
+                  <Paper
+                    key={asset.id}
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 2,
+                      bgcolor: '#ffffff'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {asset.file_name?.toLowerCase().endsWith('.pdf') ? (
+                        <PictureAsPdfIcon color="error" sx={{ fontSize: 32 }} />
+                      ) : (
+                        <DescriptionIcon color="primary" sx={{ fontSize: 32 }} />
+                      )}
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {asset.file_name}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={asset.is_preview ? 'Curriculum Sample' : 'Full Study Resource'}
+                            color={asset.is_preview ? 'default' : 'primary'}
+                            sx={{ height: 20, fontSize: '0.7rem' }}
+                          />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {asset.file_size ? `${(asset.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Digital Resource'} •{' '}
+                          {asset.is_preview
+                            ? 'Publicly accessible sample excerpt'
+                            : 'Immediate download upon order completion'}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {asset.is_preview && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<CloudDownloadIcon />}
+                        href={productService.getPreviewFileUrl(product.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download Sample
+                      </Button>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            </Paper>
+          )}
 
           {/* Quality Guarantee Card */}
           <Paper elevation={1} sx={{ p: 3, borderRadius: 2, bgcolor: '#fbfcfd' }}>
@@ -875,19 +947,35 @@ const ProductDetail = () => {
             </Typography>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setPreviewOpen(false)}>Close</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<ShoppingCartIcon />}
-            onClick={() => {
-              handleAddToCart();
-              setPreviewOpen(false);
-            }}
-          >
-            Add to Cart
-          </Button>
+        <DialogActions sx={{ p: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+          <Box>
+            {(previewData?.has_custom_preview || product?.digitalAssets?.some((a) => a.is_preview)) && (
+              <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={<CloudDownloadIcon />}
+                href={productService.getPreviewFileUrl(product.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download Sample PDF
+              </Button>
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button onClick={() => setPreviewOpen(false)}>Close</Button>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<ShoppingCartIcon />}
+              onClick={() => {
+                handleAddToCart();
+                setPreviewOpen(false);
+              }}
+            >
+              Add to Cart
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
     </Container>

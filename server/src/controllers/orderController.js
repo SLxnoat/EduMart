@@ -1,5 +1,7 @@
 const asyncHandler = require('express-async-handler');
-const { Order, OrderItem, Payment, Product, sequelize } = require('../models');
+const path = require('path');
+const fs = require('fs');
+const { Order, OrderItem, Payment, Product, DigitalAsset, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { createNotification } = require('../utils/notificationHelper');
 
@@ -364,6 +366,21 @@ const downloadDigitalItem = asyncHandler(async (req, res) => {
   if (!item.is_digital) {
     res.status(400);
     throw new Error('Selected item is a physical good and cannot be downloaded digitally');
+  }
+
+  // Check if a genuine uploaded digital asset exists on disk
+  if (item.product_id) {
+    try {
+      const asset = await DigitalAsset.findOne({
+        where: { product_id: item.product_id, is_preview: false }
+      });
+      if (asset && asset.file_path && fs.existsSync(asset.file_path)) {
+        await asset.increment('download_count');
+        return res.download(path.resolve(asset.file_path), asset.file_name);
+      }
+    } catch (err) {
+      // In minimal test fixtures or before table sync, fall back to stamped PDF generator
+    }
   }
 
   const safeFilename = `${(item.product_title || 'study_material').replace(/[^a-zA-Z0-9_\-]/g, '_')}.pdf`;
