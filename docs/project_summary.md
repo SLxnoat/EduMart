@@ -179,7 +179,7 @@ The EduMart platform was developed by an integrated team of 5 software engineers
 | Team Member | Core Module Ownership | Major Deliverables |
 |---|---|---|
 | **Kushmi (Kaushini Ekanayake)** | **User Authentication, Profile Management, RBAC, and AI Chatbot Integration** | Multi-role registration & login, strict SMTP email verification, session revocation, dynamic profile completion engine, floating AI Chatbot widget with live Order & Product database query bridges, comprehensive test suites. |
-| **Charuka** | **Payment Gateway, Order Management, Backend Infrastructure, and AI Integration** | Stripe payment integration, raw webhook verification, order creation pipeline, database migrations, Docker Compose orchestration, AI integration co-lead. |
+| **Charuka** | **Payment Gateway, Order Management, Backend Infrastructure, and AI Integration** | Stripe payment integration, raw webhook verification, sandbox/live payment processing, complete Order Management API (`/api/orders`), end-to-end multi-step Checkout UI, Order History & Order Details tracking views, Docker Compose orchestration, AI integration co-lead. |
 | **Vidula** | **Product Catalog, Search & Filtering System** | Multi-attribute search (subject, grade, curriculum, price), category browsing, product detail views, digital asset associations. |
 | **Bhanuka** | **Shopping Cart, Multi-Item Checkout & Coupon Engine** | Persistent shopping cart state, discount coupon validation engine, order item calculation, checkout flow. |
 | **Malki** | **Admin Dashboard, Review System, Notifications & Seller Dashboard** | Administrator management interface, star reviews and feedback moderation, user notification delivery, seller sales analytics and commission tracking. |
@@ -190,7 +190,7 @@ The EduMart platform was developed by an integrated team of 5 software engineers
 
 The codebase includes automated test suites covering backend API logic, security constraints, and frontend user interactions:
 
-### Backend Test Suites (Jest + SuperTest)
+### Backend Test Suites (Jest + SuperTest — 41 Tests Passing)
 - Runs against an in-memory SQLite database (`jest.setup.js`) ensuring zero side-effects.
 - **Coverage**:
   - User registration & XSS sanitization
@@ -203,19 +203,24 @@ The codebase includes automated test suites covering backend API logic, security
   - Profile retrieval, updates, and password change self-service
   - Role-based access control (`GET /api/users/:id` permission boundary)
   - Chatbot FAQ intent matching, catalog search, order tracking, and feedback collection
+  - **Payment Processing**: Stripe PaymentIntent creation, signature webhook handling with `user_id` resolution, sandbox payment simulation, and payment status verification
+  - **Order Management**: Order and OrderItem creation with financial calculations (subtotal, tax, shipping, discount), customer order history retrieval, single order detail view, admin/seller status updates, and order cancellation
 - **Command**:
   ```bash
   cd server
   npm test
   ```
 
-### Frontend Test Suites (React Testing Library + Jest)
+### Frontend Test Suites (React Testing Library + Jest — 9 Tests Passing)
 - **Coverage**:
   - Base application and layout rendering
   - Authentication loading state handling
   - Role-based `<Guard roles={['admin']}>` access prevention and redirection
   - Profile unverified email warning banner and next-step completion tips
   - ChatWidget floating button toggle, quick-reply triggers, and messaging display
+  - **Checkout Flow**: Shipping & delivery address input, order summary calculations, payment method selection, card form processing, and order confirmation
+  - **Order History**: User order table rendering, status chips, and detail navigation
+  - **Order Detail**: Line item breakdown, digital PDF download access trigger, delivery address summary, and cancellation modal
 - **Command**:
   ```bash
   cd client

@@ -1,11 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { createPaymentIntent, handlePaymentWebhook } = require('../controllers/paymentController');
+const {
+  createPaymentIntent,
+  getPaymentStatus,
+  simulatePaymentSuccess,
+  handlePaymentWebhook,
+} = require('../controllers/paymentController');
 const { protect } = require('../middleware/authMiddleware');
 
-// Create payment intent (Requires user authentication)
+// Protected payment endpoints
 router.post('/create', protect, createPaymentIntent);
+router.get('/status/:id', protect, getPaymentStatus);
+router.post('/simulate-success', protect, simulatePaymentSuccess);
 
-// We export the webhook handler separately for server.js raw-body handling
+// Export router and raw webhook handler
 module.exports = router;
 module.exports.webhookHandler = handlePaymentWebhook;

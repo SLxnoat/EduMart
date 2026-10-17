@@ -112,11 +112,18 @@ const Header = () => {
                 <MenuItem component={Link} to="/profile" onClick={handleMenuClose}>
                   Profile
                 </MenuItem>
+                <MenuItem component={Link} to="/orders" onClick={handleMenuClose}>
+                  My Orders
+                </MenuItem>
+                <MenuItem component={Link} to="/checkout" onClick={handleMenuClose}>
+                  Checkout
+                </MenuItem>
                 {user.role === 'admin' && (
                   <MenuItem component={Link} to="/admin" onClick={handleMenuClose}>
                     Admin Dashboard
                   </MenuItem>
                 )}
+                <Divider />
                 <MenuItem onClick={handleLogout}>
                   Logout
                 </MenuItem>
