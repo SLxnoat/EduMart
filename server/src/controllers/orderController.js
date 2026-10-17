@@ -1,9 +1,10 @@
 const asyncHandler = require('express-async-handler');
 const path = require('path');
 const fs = require('fs');
-const { Order, OrderItem, Payment, Product, DigitalAsset, sequelize } = require('../models');
+const { Order, OrderItem, Payment, Product, DigitalAsset, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { createNotification } = require('../utils/notificationHelper');
+const { sendOrderConfirmationEmail } = require('../utils/emailService');
 
 /**
  * Generate a unique human-readable order number
@@ -105,6 +106,7 @@ const createOrder = asyncHandler(async (req, res) => {
   const invoiceNumber = generateInvoiceNumber();
 
   const hasPhysical = processedItems.some((pi) => pi.is_physical);
+  const hasDigital = processedItems.some((pi) => pi.is_digital);
   const initialMilestones = [
     {
       status: 'pending',
@@ -113,6 +115,14 @@ const createOrder = asyncHandler(async (req, res) => {
       description: 'Order placed, awaiting payment confirmation.',
     },
   ];
+  if (hasDigital) {
+    initialMilestones.push({
+      status: 'paid',
+      label: 'Instant Digital Fulfillment',
+      timestamp: null,
+      description: 'Educational resources unlocked for authenticated instant download upon payment.',
+    });
+  }
   if (hasPhysical) {
     initialMilestones.push({
       status: 'processing',
@@ -290,6 +300,46 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   }
   if (status === 'paid') {
     updateFields.payment_status = 'paid';
+    const payment = await Payment.findOne({ where: { order_id: order.id } });
+    if (payment) {
+      await payment.update({ status: 'completed' });
+    }
+
+    // Add Instant Digital Fulfillment milestone if order has digital items
+    const items = await OrderItem.findAll({ where: { order_id: order.id } });
+    const hasDigital = items.some((i) => i.is_digital);
+    const milestones = Array.isArray(order.delivery_milestones) ? [...order.delivery_milestones] : [];
+    if (hasDigital && !milestones.some((m) => m.label === 'Instant Digital Fulfillment')) {
+      milestones.push({
+        status: 'paid',
+        label: 'Instant Digital Fulfillment',
+        timestamp: new Date().toISOString(),
+        description: 'All purchased digital study materials are authenticated and unlocked for instant download.',
+      });
+      updateFields.delivery_milestones = milestones;
+    }
+
+    // Send confirmation email asynchronously
+    Order.findByPk(order.id, {
+      include: [
+        { model: OrderItem, as: 'items' },
+        { model: User, as: 'user' },
+      ],
+    }).then((fullOrder) => {
+      if (fullOrder) {
+        sendOrderConfirmationEmail({
+          email: fullOrder.user?.email,
+          firstName: fullOrder.user?.first_name,
+          order: fullOrder,
+        }).catch((err) => console.warn('[EMAIL] Failed sending order confirmation:', err.message));
+      }
+    }).catch((err) => console.warn('[EMAIL] Error finding full order for email:', err.message));
+  } else if (status === 'delivered') {
+    const payment = await Payment.findOne({ where: { order_id: order.id } });
+    if (payment && payment.payment_method === 'cash_on_delivery') {
+      updateFields.payment_status = 'paid';
+      await payment.update({ status: 'completed' });
+    }
   } else if (status === 'refunded') {
     updateFields.payment_status = 'refunded';
   }
@@ -461,7 +511,16 @@ const updateOrderTracking = asyncHandler(async (req, res) => {
   if (carrier) updateData.carrier = carrier;
   if (tracking_number) updateData.tracking_number = tracking_number;
   if (estimated_delivery) updateData.estimated_delivery = new Date(estimated_delivery);
-  if (status) updateData.status = status;
+  if (status) {
+    updateData.status = status;
+    if (status === 'delivered') {
+      const payment = await Payment.findOne({ where: { order_id: order.id } });
+      if (payment && payment.payment_method === 'cash_on_delivery') {
+        updateData.payment_status = 'paid';
+        await payment.update({ status: 'completed' });
+      }
+    }
+  }
 
   await order.update(updateData);
 

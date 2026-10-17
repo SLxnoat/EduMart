@@ -69,7 +69,7 @@ app.use('*', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  const statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+  const statusCode = err.statusCode || err.status || (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
   if (process.env.NODE_ENV !== 'test') {
     console.error(err.stack);
   }

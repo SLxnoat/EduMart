@@ -1,6 +1,53 @@
-const { Payment, Order } = require('../models');
+const { Payment, Order, OrderItem, User } = require('../models');
 const { Op } = require('sequelize');
 const { createNotification } = require('../utils/notificationHelper');
+const { sendOrderConfirmationEmail } = require('../utils/emailService');
+
+/**
+ * Post-payment fulfillment: Appends digital instant fulfillment milestone and sends confirmation receipt email
+ */
+const finalizePaidOrder = async (orderId) => {
+  try {
+    const order = await Order.findByPk(orderId, {
+      include: [
+        { model: OrderItem, as: 'items' },
+        { model: User, as: 'user' },
+      ],
+    });
+    if (!order) return;
+
+    const items = order.items || [];
+    const hasDigital = items.some((i) => i.is_digital);
+    const milestones = Array.isArray(order.delivery_milestones) ? [...order.delivery_milestones] : [];
+
+    let updated = false;
+    if (hasDigital && !milestones.some((m) => m.label === 'Instant Digital Fulfillment')) {
+      milestones.push({
+        status: 'paid',
+        label: 'Instant Digital Fulfillment',
+        timestamp: new Date().toISOString(),
+        description: 'All purchased digital study materials are authenticated and unlocked for instant download.',
+      });
+      order.delivery_milestones = milestones;
+      updated = true;
+    }
+
+    if (updated) {
+      await order.save();
+    }
+
+    // Trigger order confirmation email
+    sendOrderConfirmationEmail({
+      email: order.user?.email,
+      firstName: order.user?.first_name,
+      order,
+    }).catch((err) => {
+      console.warn('[EMAIL] Failed sending order confirmation:', err.message);
+    });
+  } catch (err) {
+    console.warn('[PAYMENT] Error during post-payment fulfillment:', err.message);
+  }
+};
 
 /**
  * Check if real Stripe credentials are provided in environment
@@ -309,6 +356,7 @@ const paymentService = {
       status: 'paid',
       payment_status: 'paid',
     });
+    await finalizePaidOrder(order.id);
 
     await createNotification({
       userId: order.user_id,
@@ -414,6 +462,7 @@ const paymentService = {
               });
 
               await order.update({ status: 'paid', payment_status: 'paid' });
+              await finalizePaidOrder(order.id);
 
               await createNotification({
                 userId: order.user_id,
@@ -469,6 +518,7 @@ const paymentService = {
       });
 
       await order.update({ status: 'paid', payment_status: 'paid' });
+      await finalizePaidOrder(order.id);
 
       await createNotification({
         userId: order.user_id,
@@ -511,6 +561,7 @@ const paymentService = {
       });
 
       await order.update({ status: 'paid', payment_status: 'paid' });
+      await finalizePaidOrder(order.id);
 
       await createNotification({
         userId: order.user_id,
@@ -563,6 +614,10 @@ const paymentService = {
         payment_status: paymentStatus,
       });
 
+      if (autoApprove) {
+        await finalizePaidOrder(order.id);
+      }
+
       await createNotification({
         userId: order.user_id,
         type: 'payment_status',
@@ -610,6 +665,7 @@ const paymentService = {
       });
 
       await order.update({ status: 'paid', payment_status: 'paid' });
+      await finalizePaidOrder(order.id);
 
       await createNotification({
         userId: order.user_id,
@@ -634,6 +690,16 @@ const paymentService = {
 
     // 5. CASH ON DELIVERY (COD)
     if (normalizedMethod === 'cash_on_delivery') {
+      const items = await OrderItem.findAll({ where: { order_id: order.id } });
+      const hasDigital = items.some((i) => i.is_digital);
+      if (hasDigital) {
+        const err = new Error(
+          'Cash on Delivery (COD) is only permitted for 100% physical goods. Please use an online payment method for orders containing digital materials.'
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+
       const courierPartner = process.env.COURIER_PARTNER_NAME || 'PromptX Express Courier';
       const codTrackingNumber = `PRX-${Date.now().toString().slice(-6)}`;
 
@@ -756,6 +822,7 @@ const paymentService = {
           status: 'paid',
           payment_status: 'paid',
         });
+        await finalizePaidOrder(order.id);
 
         await createNotification({
           userId: order.user_id,

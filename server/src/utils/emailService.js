@@ -295,7 +295,138 @@ const sendPasswordResetEmail = async (email, firstName, resetToken) => {
   return { sent: false, resetUrl };
 };
 
+/**
+ * Send order confirmation and instant digital delivery receipt email
+ */
+const sendOrderConfirmationEmail = async ({ email, firstName, order }) => {
+  const baseUrl = getFrontendBaseUrl();
+  const orderUrl = `${baseUrl}/orders/${order.id}`;
+
+  const smtpHost = (process.env.SMTP_HOST || '').trim();
+  const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
+  const smtpUser = (process.env.SMTP_USER || '').trim();
+  const smtpPass = (process.env.SMTP_PASS || '').trim();
+  const smtpFrom = (process.env.SMTP_FROM || smtpUser || 'noreply@edumart.com').trim();
+
+  const recipientEmail = email || order.user?.email || order.shipping_address?.email;
+  const recipientName = firstName || order.user?.first_name || order.shipping_address?.fullName || 'Student';
+
+  if (!recipientEmail) {
+    return { sent: false, error: 'Recipient email not specified' };
+  }
+
+  const items = Array.isArray(order.items) ? order.items : [];
+  const hasDigital = items.some((i) => i.is_digital);
+  const hasPhysical = items.some((i) => i.is_physical);
+
+  const itemsHtml = items.map((item) => `
+    <tr>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #111827;">
+        <strong>${item.product_title || 'Study Material'}</strong><br/>
+        <span style="font-size: 12px; color: #6b7280;">${item.product_subject || ''} • ${item.product_grade_level || ''} (${item.is_digital ? 'Digital PDF' : 'Physical Book'})</span>
+      </td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: center; color: #374151;">${item.quantity || 1}</td>
+      <td style="padding: 10px 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px; text-align: right; font-weight: 600; color: #111827;">${order.currency || 'LKR'} ${parseFloat(item.total_price || 0).toFixed(2)}</td>
+    </tr>
+  `).join('');
+
+  const digitalAccessBanner = hasDigital ? `
+    <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <h3 style="color: #065f46; margin: 0 0 8px 0; font-size: 16px; display: flex; align-items: center;">
+        ⚡ Instant Digital Study Materials Ready
+      </h3>
+      <p style="color: #047857; margin: 0 0 12px 0; font-size: 14px; line-height: 1.5;">
+        Your purchased digital resources are authenticated and unlocked in your account. You can instantly download the PDFs now:
+      </p>
+      <a href="${orderUrl}" style="background-color: #059669; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-block;">
+        Download Digital Materials
+      </a>
+    </div>
+  ` : '';
+
+  const physicalShippingBanner = hasPhysical ? `
+    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <h3 style="color: #1e40af; margin: 0 0 8px 0; font-size: 16px;">
+        📦 Parcel Courier Delivery
+      </h3>
+      <p style="color: #1d4ed8; margin: 0; font-size: 14px; line-height: 1.5;">
+        Your printed educational package has been queued for warehouse packing and courier dispatch via <strong>${order.carrier || 'PromptX Express Courier'}</strong>. Tracking updates will be reflected in your order dashboard.
+      </p>
+    </div>
+  ` : '';
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 24px; border-bottom: 2px solid #2563eb; padding-bottom: 16px;">
+        <h1 style="color: #2563eb; margin: 0; font-size: 28px;">EduMart</h1>
+        <p style="color: #6b7280; margin: 4px 0 0 0; font-size: 14px;">Educational Resources Marketplace</p>
+      </div>
+      <h2 style="color: #111827; margin-top: 0; font-size: 20px;">Order Confirmation & Receipt</h2>
+      <p style="color: #374151; line-height: 1.6; font-size: 15px;">
+        Hi <strong>${recipientName}</strong>, thank you for your order! Your payment for <strong>Order #${order.order_number}</strong> has been confirmed.
+      </p>
+      
+      ${digitalAccessBanner}
+      ${physicalShippingBanner}
+
+      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+        <thead>
+          <tr style="background-color: #f9fafb;">
+            <th style="padding: 10px 12px; text-align: left; font-size: 13px; color: #4b5563; border-bottom: 2px solid #e5e7eb;">Material</th>
+            <th style="padding: 10px 12px; text-align: center; font-size: 13px; color: #4b5563; border-bottom: 2px solid #e5e7eb;">Qty</th>
+            <th style="padding: 10px 12px; text-align: right; font-size: 13px; color: #4b5563; border-bottom: 2px solid #e5e7eb;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="padding: 12px; text-align: right; font-weight: 700; font-size: 15px; color: #111827;">Total Paid:</td>
+            <td style="padding: 12px; text-align: right; font-weight: 700; font-size: 16px; color: #059669;">${order.currency || 'LKR'} ${parseFloat(order.total_amount || 0).toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style="margin: 32px 0; text-align: center;">
+        <a href="${orderUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
+          View Full Order & Tax Invoice
+        </a>
+      </div>
+
+      <p style="color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+        EduMart Marketplace Platform Ltd. • Colombo, Sri Lanka • Need help? Contact support@edumart.lk
+      </p>
+    </div>
+  `;
+
+  if (smtpHost && smtpUser && smtpPass && process.env.NODE_ENV !== 'test') {
+    try {
+      await sendSmtpMail({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        user: smtpUser,
+        pass: smtpPass,
+        from: smtpFrom,
+        to: recipientEmail,
+        subject: `Order Confirmed #${order.order_number} - EduMart`,
+        html,
+      });
+      console.log(`[EMAIL-SERVICE] Order confirmation email sent to ${recipientEmail}`);
+      return { sent: true, orderUrl };
+    } catch (err) {
+      console.error(`[EMAIL-SERVICE] Failed to send order confirmation to ${recipientEmail}: ${err.message}`);
+      return { sent: false, error: err.message, orderUrl };
+    }
+  }
+
+  return { sent: false, orderUrl };
+};
+
 module.exports = {
   sendVerificationEmail,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendOrderConfirmationEmail,
 };
+

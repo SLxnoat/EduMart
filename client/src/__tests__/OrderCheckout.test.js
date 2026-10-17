@@ -73,6 +73,17 @@ describe('Order & Checkout Modules (Charuka)', () => {
           status: 'paid',
           payment_status: 'paid',
           total_amount: 50.18,
+          items: [
+            {
+              id: 'item-dl-1',
+              product_title: 'Instant Download Physics Notes',
+              product_subject: 'Physics',
+              product_grade_level: 'A/L',
+              is_digital: true,
+              is_physical: false,
+              unit_price: 25.0,
+            },
+          ],
         },
       });
 
@@ -94,9 +105,12 @@ describe('Order & Checkout Modules (Charuka)', () => {
       // Submit payment
       fireEvent.click(payNowBtn);
 
-      // Step 3: Success Confirmation
-      expect(await screen.findByText(/Payment Successful!/i)).toBeInTheDocument();
+      // Step 3: Success Confirmation & Instant Download
+      expect(await screen.findByText(/Payment Successful/i)).toBeInTheDocument();
       expect(screen.getByText(/EDM-20261017-123456/i)).toBeInTheDocument();
+      expect(screen.getByText(/Instant Digital Downloads/i)).toBeInTheDocument();
+      expect(screen.getByText('Instant Download Physics Notes')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument();
       expect(screen.getByText(/View Order Details/i)).toBeInTheDocument();
     });
   });
@@ -193,8 +207,8 @@ describe('Order & Checkout Modules (Charuka)', () => {
       );
 
       expect(await screen.findByText(/Order #EDM-101/i)).toBeInTheDocument();
-      expect(screen.getByText(/Mathematics Pure Notes/i)).toBeInTheDocument();
-      expect(screen.getByText(/Download PDF/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Mathematics Pure Notes/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Download PDF/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Payment Breakdown/i)).toBeInTheDocument();
       expect(screen.getByText(/Parcel Delivery Tracking/i)).toBeInTheDocument();
       expect(screen.getByText(/PromptX Courier/i)).toBeInTheDocument();
@@ -214,8 +228,8 @@ describe('Order & Checkout Modules (Charuka)', () => {
         </MemoryRouter>
       );
 
-      const downloadBtn = await screen.findByRole('button', { name: /download pdf/i });
-      fireEvent.click(downloadBtn);
+      const downloadBtns = await screen.findAllByRole('button', { name: /download pdf/i });
+      fireEvent.click(downloadBtns[0]);
 
       await waitFor(() => {
         expect(orderService.downloadDigitalItem).toHaveBeenCalledWith(
@@ -282,5 +296,40 @@ describe('Order & Checkout Modules (Charuka)', () => {
         expect(screen.getByText(/EduMart Marketplace Platform Ltd\./i)).toBeInTheDocument();
       });
     });
+
+    it('allows admin or seller to open shipment tracking modal and update courier dispatch', async () => {
+      useAuth.mockReturnValue({
+        user: { id: 'admin-1', firstName: 'Admin', role: 'admin' },
+        loading: false,
+      });
+
+      orderService.getOrderById.mockResolvedValue({
+        data: mockDetailOrder,
+      });
+      orderService.updateOrderTracking.mockResolvedValue({
+        success: true,
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/orders/order-1']}>
+          <Routes>
+            <Route path="/orders/:id" element={<OrderDetail />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const trackingBtn = await screen.findByRole('button', { name: /update tracking/i });
+      expect(trackingBtn).toBeInTheDocument();
+      fireEvent.click(trackingBtn);
+
+      expect(screen.getByText(/Update Shipment & Delivery Tracking/i)).toBeInTheDocument();
+      const saveBtn = screen.getByRole('button', { name: /save & append milestone/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(orderService.updateOrderTracking).toHaveBeenCalled();
+      });
+    });
   });
 });
+

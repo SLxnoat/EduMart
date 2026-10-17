@@ -24,6 +24,7 @@ import {
   ListItem,
   ListItemText,
   MenuItem,
+  Stack,
 } from '@mui/material';
 import {
   CreditCard,
@@ -36,6 +37,8 @@ import {
   AccountBalanceWallet,
   QrCode2,
   LocalAtm,
+  Download,
+  AccessTime,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -107,6 +110,8 @@ const Checkout = () => {
     paypalEmail: user?.email || 'student@edumart.lk',
   });
   const [gatewayConfig, setGatewayConfig] = useState(null);
+  const [downloadingItemId, setDownloadingItemId] = useState(null);
+  const [downloadMsg, setDownloadMsg] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -144,9 +149,32 @@ const Checkout = () => {
   // Financial calculations
   const subtotal = items.reduce((acc, curr) => acc + curr.quantity * curr.unit_price, 0);
   const hasPhysical = items.some((i) => i.is_physical);
+  const hasDigital = items.some((i) => i.is_digital);
+  const isCodAllowed = hasPhysical && !hasDigital;
   const shippingCost = hasPhysical ? 4.5 : 0.0;
   const taxAmount = parseFloat((subtotal * 0.05).toFixed(2));
   const totalAmount = parseFloat((subtotal + shippingCost + taxAmount).toFixed(2));
+
+  // Reset payment method from COD if cart contains digital items or no physical items
+  useEffect(() => {
+    if (paymentMethod === 'cod' && !isCodAllowed) {
+      setPaymentMethod('card');
+    }
+  }, [isCodAllowed, paymentMethod]);
+
+  const handleInstantDownload = async (item) => {
+    if (!placedOrder) return;
+    try {
+      setDownloadingItemId(item.id);
+      setDownloadMsg('');
+      await orderService.downloadDigitalItem(placedOrder.id, item.id, item.product_title);
+      setDownloadMsg(`Downloaded "${item.product_title}" successfully.`);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Download failed');
+    } finally {
+      setDownloadingItemId(null);
+    }
+  };
 
   const handleShippingChange = (e) => {
     setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
@@ -475,19 +503,32 @@ const Checkout = () => {
                     p: 1.5,
                     borderRadius: 2,
                     borderColor: paymentMethod === 'cod' ? 'primary.main' : 'divider',
-                    opacity: hasPhysical ? 1 : 0.6,
+                    opacity: isCodAllowed ? 1 : 0.6,
+                    bgcolor: isCodAllowed ? 'transparent' : 'action.hover',
                   }}
                 >
                   <FormControlLabel
                     value="cod"
-                    disabled={!hasPhysical}
+                    disabled={!isCodAllowed}
                     control={<Radio />}
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <LocalAtm sx={{ mr: 1 }} color="warning" />
-                        <Typography fontWeight="bold">
-                          Cash on Delivery (COD) {!hasPhysical && '(Available for Physical Book Parcels)'}
-                        </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <LocalAtm sx={{ mr: 1 }} color="warning" />
+                          <Typography fontWeight="bold">Cash on Delivery (COD)</Typography>
+                        </Box>
+                        {!isCodAllowed && (
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
+                            {hasDigital
+                              ? 'Unavailable: Cart includes digital materials. Use Card, PayPal, or Digital Wallet for instant download access.'
+                              : 'Available for physical book parcel orders only.'}
+                          </Typography>
+                        )}
+                        {isCodAllowed && (
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 4 }}>
+                            Pay with cash to the PromptX courier upon package arrival.
+                          </Typography>
+                        )}
                       </Box>
                     }
                   />
@@ -716,76 +757,218 @@ const Checkout = () => {
         )}
 
         {/* STEP 3: Order Completed Confirmation */}
-        {activeStep === 2 && placedOrder && (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <CheckCircle sx={{ fontSize: 72, color: 'success.main', mb: 2 }} />
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Payment Successful!
-            </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-              Thank you for learning with EduMart. Your transaction has been confirmed and your order is now processing.
-            </Typography>
+        {activeStep === 2 && placedOrder && (() => {
+          const isPaid = placedOrder.payment_status === 'paid' || placedOrder.status === 'paid';
+          const isBankPending = paymentMethod === 'bank_transfer' && !isPaid;
+          const orderDigitalItems = placedOrder.items?.filter((i) => i.is_digital) || [];
+          const orderPhysicalItems = placedOrder.items?.filter((i) => i.is_physical) || [];
 
-            <Paper variant="outlined" sx={{ maxWidth: 600, mx: 'auto', p: 3, my: 3, textAlign: 'left' }}>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="body2" color="text.secondary">Order Number:</Typography>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {placedOrder.order_number}
-                  </Typography>
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
-                  <Chip label="PAID" color="success" size="small" />
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="body2" color="text.secondary">Payment Method:</Typography>
-                  <Chip
-                    label={
-                      paymentMethod === 'card'
-                        ? 'Credit / Debit Card'
-                        : paymentMethod === 'paypal'
-                        ? 'PayPal Express'
-                        : paymentMethod === 'bank_transfer'
-                        ? 'Bank Wire Transfer'
-                        : paymentMethod === 'digital_wallet'
-                        ? `${walletDetails.walletType || 'Digital Wallet'}`
-                        : 'Cash on Delivery (COD)'
-                    }
-                    color="secondary"
-                    size="small"
-                  />
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="body2" color="text.secondary">Order Status:</Typography>
-                  <Chip label={placedOrder.status?.toUpperCase()} color="primary" size="small" />
-                </Grid>
-                <Grid size={{ xs: 6 }}>
-                  <Typography variant="body2" color="text.secondary">Total Paid:</Typography>
-                  <Typography variant="subtitle1" fontWeight="bold" color="success.main">
-                    LKR {parseFloat(placedOrder.total_amount).toFixed(2)}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
+          return (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              {isPaid ? (
+                <CheckCircle sx={{ fontSize: 72, color: 'success.main', mb: 2 }} />
+              ) : isBankPending ? (
+                <AccessTime sx={{ fontSize: 72, color: 'warning.main', mb: 2 }} />
+              ) : (
+                <LocalShipping sx={{ fontSize: 72, color: 'primary.main', mb: 2 }} />
+              )}
 
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => navigate(`/orders/${placedOrder.id}`)}
-              >
-                View Order Details
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/orders')}
-              >
-                My Orders History
-              </Button>
+              <Typography variant="h4" fontWeight="bold" gutterBottom>
+                {isPaid
+                  ? 'Payment Successful & Access Unlocked!'
+                  : isBankPending
+                  ? 'Order Submitted - Awaiting Bank Verification'
+                  : 'Order Confirmed - Cash on Delivery Scheduled'}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" paragraph sx={{ maxWidth: 650, mx: 'auto' }}>
+                {isPaid
+                  ? 'Thank you for learning with EduMart! Your transaction has been confirmed and instant digital study materials are ready for download.'
+                  : isBankPending
+                  ? 'Your bank wire deposit slip has been submitted. Our administration team will verify the payment shortly, after which your digital resources will unlock automatically.'
+                  : 'Your physical material parcel has been scheduled for dispatch via PromptX Express Courier. Please prepare the exact cash amount for handover upon delivery.'}
+              </Typography>
+
+              <Paper variant="outlined" sx={{ maxWidth: 650, mx: 'auto', p: 3, my: 3, textAlign: 'left' }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="text.secondary">Order Number:</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {placedOrder.order_number}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
+                    <Chip
+                      label={isPaid ? 'PAID' : isBankPending ? 'PENDING VERIFICATION' : 'DUE ON DELIVERY'}
+                      color={isPaid ? 'success' : isBankPending ? 'warning' : 'info'}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="text.secondary">Payment Method:</Typography>
+                    <Chip
+                      label={
+                        paymentMethod === 'card'
+                          ? 'Credit / Debit Card'
+                          : paymentMethod === 'paypal'
+                          ? 'PayPal Express'
+                          : paymentMethod === 'bank_transfer'
+                          ? 'Bank Wire Transfer'
+                          : paymentMethod === 'digital_wallet'
+                          ? `${walletDetails.walletType || 'Digital Wallet'}`
+                          : 'Cash on Delivery (COD)'
+                      }
+                      color="secondary"
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="body2" color="text.secondary">Order Status:</Typography>
+                    <Chip label={placedOrder.status?.toUpperCase()} color="primary" size="small" />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <Divider sx={{ my: 0.5 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {isPaid ? 'Total Paid:' : 'Total Amount Due:'}
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color={isPaid ? 'success.main' : 'primary.main'}>
+                        LKR {parseFloat(placedOrder.total_amount).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Instant Digital Downloads Card */}
+              {orderDigitalItems.length > 0 && (
+                <Card
+                  variant="outlined"
+                  sx={{
+                    maxWidth: 650,
+                    mx: 'auto',
+                    mb: 3,
+                    p: 2.5,
+                    bgcolor: isPaid ? '#f0fdf4' : '#fffbeb',
+                    borderColor: isPaid ? 'success.light' : 'warning.light',
+                    borderRadius: 2,
+                    textAlign: 'left',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                    <Download color={isPaid ? 'success' : 'warning'} sx={{ mr: 1, fontSize: 28 }} />
+                    <div>
+                      <Typography variant="h6" fontWeight="bold" color={isPaid ? 'success.dark' : 'warning.dark'}>
+                        {isPaid ? '⚡ Instant Digital Downloads (Ready Now)' : '🔒 Digital Materials (Locked Pending Verification)'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {isPaid
+                          ? 'Your authenticated study materials are unlocked. Click to download the PDFs now:'
+                          : 'Downloads will automatically become available once the bank transfer is confirmed.'}
+                      </Typography>
+                    </div>
+                  </Box>
+
+                  {downloadMsg && (
+                    <Alert severity="success" sx={{ mb: 2 }} onClose={() => setDownloadMsg('')}>
+                      {downloadMsg}
+                    </Alert>
+                  )}
+
+                  <Stack spacing={1.5} sx={{ mt: 1 }}>
+                    {orderDigitalItems.map((item) => (
+                      <Paper
+                        key={item.id}
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: 1,
+                          bgcolor: 'background.paper',
+                        }}
+                      >
+                        <div>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {item.product_title}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {item.product_subject} • {item.product_grade_level} • License ID: EDM-LIC-{placedOrder.id.slice(0, 8)}
+                          </Typography>
+                        </div>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size="small"
+                          startIcon={
+                            downloadingItemId === item.id ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <Download />
+                            )
+                          }
+                          disabled={!isPaid || downloadingItemId === item.id}
+                          onClick={() => handleInstantDownload(item)}
+                        >
+                          {downloadingItemId === item.id ? 'Downloading...' : 'Download PDF'}
+                        </Button>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Card>
+              )}
+
+              {/* Physical Parcel Courier Tracking Card */}
+              {orderPhysicalItems.length > 0 && (
+                <Card
+                  variant="outlined"
+                  sx={{
+                    maxWidth: 650,
+                    mx: 'auto',
+                    mb: 3,
+                    p: 2.5,
+                    bgcolor: '#f8fafc',
+                    borderColor: 'primary.light',
+                    borderRadius: 2,
+                    textAlign: 'left',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <LocalShipping color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="subtitle1" fontWeight="bold" color="primary.main">
+                      📦 Parcel Courier Delivery Tracking
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Recipient: <strong>{shippingAddress.fullName}</strong> • Delivery Address:{' '}
+                    <strong>{shippingAddress.street}, {shippingAddress.city}</strong>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Courier: <strong>PromptX Express Courier</strong> • Estimated dispatch within 24-48 hours. Real-time milestones and tracking updates can be viewed on your Order Details page.
+                  </Typography>
+                </Card>
+              )}
+
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => navigate(`/orders/${placedOrder.id}`)}
+                >
+                  View Order Details
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/orders')}
+                >
+                  My Orders History
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        )}
+          );
+        })()}
       </Paper>
     </Container>
   );

@@ -1,15 +1,18 @@
 const request = require('supertest');
 const app = require('../server');
-const { User, Order, OrderItem, Payment, Session } = require('../src/models');
+const { User, Order, OrderItem, Payment, Session, Category, Product } = require('../src/models');
 
 describe('Payment Controller', () => {
   let userToken;
   let testUser;
   let testOrder;
+  let testDigitalProduct;
 
   beforeAll(async () => {
     await User.sync({ force: true });
     await Session.sync({ force: true });
+    await Category.sync({ force: true });
+    await Product.sync({ force: true });
     await Order.sync({ force: true });
     await OrderItem.sync({ force: true });
     await Payment.sync({ force: true });
@@ -26,6 +29,25 @@ describe('Payment Controller', () => {
       });
     userToken = res.body.token;
     testUser = await User.findOne({ where: { email: 'payment.tester@example.com' } });
+
+    const testCategory = await Category.create({
+      name: 'Digital Testing Category',
+      slug: 'digital-testing-category',
+    });
+    testDigitalProduct = await Product.create({
+      title: 'Digital Calculus Notes',
+      description: 'Calculus notes',
+      price: 25.0,
+      category_id: testCategory.id,
+      seller_id: testUser.id,
+      subject: 'Mathematics',
+      grade_level: 'A/L',
+      product_type: 'revision_notes',
+      format: 'digital',
+      stock_quantity: 999,
+      is_digital: true,
+      is_physical: false,
+    });
 
     // Create an order for testing
     testOrder = await Order.create({
@@ -46,6 +68,8 @@ describe('Payment Controller', () => {
     await Payment.drop();
     await OrderItem.drop();
     await Order.drop();
+    await Product.drop();
+    await Category.drop();
     await Session.drop();
     await User.drop();
   });
@@ -250,6 +274,41 @@ describe('Payment Controller', () => {
 
       const refreshed = await Order.findByPk(order2.id);
       expect(refreshed).not.toBeNull();
+    });
+
+    it('should reject Cash on Delivery (COD) if order contains digital items', async () => {
+      const digitalOrder = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-COD-DIGITAL',
+        status: 'pending',
+        subtotal: 25.0,
+        total_amount: 25.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+      await OrderItem.create({
+        order_id: digitalOrder.id,
+        product_id: testDigitalProduct.id,
+        product_title: 'Digital Calculus Notes',
+        product_subject: 'Mathematics',
+        product_grade_level: 'A/L',
+        quantity: 1,
+        unit_price: 25.0,
+        total_price: 25.0,
+        is_digital: true,
+        is_physical: false,
+      });
+
+      const res = await request(app)
+        .post('/api/payments/process')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: digitalOrder.id,
+          paymentMethod: 'cash_on_delivery',
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('Cash on Delivery (COD) is only permitted for 100% physical goods');
     });
 
     it('should create a PayPal order via /api/payments/paypal/create-order', async () => {
