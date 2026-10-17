@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Card,
@@ -24,6 +24,8 @@ import {
   StepLabel,
   Divider,
   Avatar,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Visibility,
@@ -31,6 +33,10 @@ import {
   CheckCircle,
   RadioButtonUnchecked,
   Star as StarIcon,
+  Edit as EditIcon,
+  MarkEmailRead as MarkEmailReadIcon,
+  Timer as TimerIcon,
+  ShieldOutlined as ShieldOutlinedIcon,
 } from '@mui/icons-material';
 import SchoolIcon from '@mui/icons-material/School';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -39,12 +45,12 @@ import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
+import authService from '../../services/authService';
 
 const ROLE_CONFIG = {
   student: {
@@ -98,10 +104,56 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [agreedTerms, setAgreedTerms] = useState(true);
+  const [registeredUser, setRegisteredUser] = useState(null);
+  const [countdown, setCountdown] = useState(5);
+  const [resendingVerification, setResendingVerification] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+
+  // Automatic redirect countdown once registration succeeds
+  useEffect(() => {
+    if (!registeredUser) return;
+    if (countdown <= 0) {
+      const destination =
+        registeredUser.role === 'tutor' || registeredUser.role === 'institute'
+          ? '/seller/dashboard'
+          : '/profile';
+      navigate(destination);
+      return;
+    }
+    const timer = setInterval(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [registeredUser, countdown, navigate]);
+
+  const handleImmediateRedirect = (target) => {
+    if (target) {
+      navigate(target);
+    } else {
+      const destination =
+        registeredUser?.role === 'tutor' || registeredUser?.role === 'institute'
+          ? '/seller/dashboard'
+          : '/profile';
+      navigate(destination);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!registeredUser?.email) return;
+    try {
+      setResendingVerification(true);
+      await authService.resendVerification(registeredUser.email);
+      enqueueSnackbar('Verification link resent to your email address!', { variant: 'success' });
+    } catch (err) {
+      enqueueSnackbar(err.response?.data?.message || 'Could not resend verification email.', { variant: 'error' });
+    } finally {
+      setResendingVerification(false);
+    }
+  };
 
   // Password strength calculation & criteria
   const getPasswordCriteria = (pwd) => {
@@ -201,9 +253,14 @@ const Register = () => {
       return;
     }
 
+    if (!agreedTerms) {
+      setError('Please accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+
     try {
       setLoading(true);
-      await register({
+      const res = await register({
         firstName,
         lastName,
         email,
@@ -213,7 +270,15 @@ const Register = () => {
         role,
       });
       enqueueSnackbar('Registration successful! Please check your email to verify.', { variant: 'success' });
-      navigate('/profile');
+      setRegisteredUser({
+        firstName,
+        lastName,
+        email,
+        phone,
+        institution,
+        role,
+        ...(res || {})
+      });
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.errors?.join(', ') || 'Registration failed.';
       setError(msg);
@@ -224,6 +289,164 @@ const Register = () => {
   };
 
   const currentRole = ROLE_CONFIG[role] || ROLE_CONFIG.student;
+
+  // Render Registration Success & Onboarding Redirect Hub
+  if (registeredUser) {
+    const isTutorOrInstitute =
+      registeredUser.role === 'tutor' || registeredUser.role === 'institute';
+    const destinationLabel = isTutorOrInstitute ? 'Seller Hub' : 'Student Portal';
+    const destinationPath = isTutorOrInstitute ? '/seller/dashboard' : '/profile';
+
+    return (
+      <Box
+        sx={{
+          minHeight: 'calc(100vh - 70px)',
+          bgcolor: '#f8fafc',
+          py: { xs: 4, md: 8 },
+          display: 'flex',
+          alignItems: 'center',
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.08), transparent 75%)',
+        }}
+      >
+        <Container maxWidth="sm">
+          <Paper
+            elevation={3}
+            sx={{
+              p: { xs: 3.5, sm: 5 },
+              borderRadius: 4,
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+            }}
+          >
+            {/* Top decorative accent */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 6,
+                background: 'linear-gradient(90deg, #2563eb, #10b981)',
+              }}
+            />
+
+            {/* Pulsing Success Badge */}
+            <Box
+              sx={{
+                width: 76,
+                height: 76,
+                borderRadius: '50%',
+                bgcolor: 'rgba(16, 185, 129, 0.1)',
+                color: 'success.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2.5,
+                border: '2px solid rgba(16, 185, 129, 0.25)',
+                boxShadow: '0 0 20px rgba(16, 185, 129, 0.2)',
+              }}
+            >
+              <CheckCircle sx={{ fontSize: 44 }} />
+            </Box>
+
+            <Typography variant="h4" fontWeight={800} gutterBottom sx={{ color: '#0f172a', fontSize: { xs: '1.5rem', sm: '1.9rem' } }}>
+              Welcome to EduMart! 🎉
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
+              Your <strong>{ROLE_CONFIG[registeredUser.role]?.title || 'EduMart'}</strong> account for{' '}
+              <strong>{registeredUser.firstName} {registeredUser.lastName}</strong> has been registered.
+            </Typography>
+
+            {/* Email Verification Banner */}
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2.5,
+                borderRadius: 3,
+                bgcolor: '#f0fdf4',
+                borderColor: '#bbf7d0',
+                textAlign: 'left',
+                mb: 3,
+              }}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                <MarkEmailReadIcon color="success" sx={{ fontSize: 26, mt: 0.2 }} />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={700} color="success.dark">
+                    Verification Link Dispatched
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, color: '#166534', wordBreak: 'break-all' }}>
+                    We've emailed an activation link to <strong>{registeredUser.email}</strong>.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.4 }}>
+                    Please check your inbox (and spam/promotions) to activate your account and access full publishing or download features.
+                  </Typography>
+
+                  <Box sx={{ mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="text"
+                      color="primary"
+                      disabled={resendingVerification}
+                      onClick={handleResendVerification}
+                      sx={{ textTransform: 'none', fontWeight: 600, p: 0, minWidth: 'auto' }}
+                    >
+                      {resendingVerification ? 'Resending verification email...' : "Didn't receive email? Resend link"}
+                    </Button>
+                  </Box>
+                </Box>
+              </Stack>
+            </Paper>
+
+            {/* Live Auto-Redirect Countdown Bar */}
+            <Box sx={{ p: 2, mb: 3, bgcolor: '#f8fafc', borderRadius: 2.5, border: '1px solid #e2e8f0' }}>
+              <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+                <TimerIcon color="primary" fontSize="small" />
+                <Typography variant="body2" color="text.secondary">
+                  Redirecting to your <strong>{destinationLabel}</strong> in{' '}
+                  <strong style={{ color: '#2563eb' }}>{countdown}</strong> seconds...
+                </Typography>
+              </Stack>
+              <LinearProgress
+                variant="determinate"
+                value={((5 - countdown) / 5) * 100}
+                sx={{ height: 4, borderRadius: 2, mt: 1.5 }}
+              />
+            </Box>
+
+            {/* Action Navigation Buttons */}
+            <Stack spacing={1.5}>
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                fullWidth
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => handleImmediateRedirect(destinationPath)}
+                sx={{ py: 1.3, fontWeight: 700, borderRadius: 2 }}
+              >
+                Go to {destinationLabel} Now
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                size="large"
+                fullWidth
+                onClick={() => handleImmediateRedirect('/products')}
+                sx={{ py: 1.2, fontWeight: 600, borderRadius: 2 }}
+              >
+                Explore Educational Materials
+              </Button>
+            </Stack>
+          </Paper>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -697,54 +920,224 @@ const Register = () => {
                       SECTION 3: Review Details & GDPR Confirmation
                   ========================================================================= */}
                   <Box sx={{ display: activeStep === 2 ? 'block' : 'none' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary', textTransform: 'uppercase' }}>
-                      Step 3: Review & Confirm Registration
-                    </Typography>
+                    <Box sx={{ mb: 2.5 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+                        Step 3: Review & Confirm Registration
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Verify your account details below. Click 'Edit' on any card to make quick changes before confirming.
+                      </Typography>
+                    </Box>
 
-                    <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3, mb: 3, bgcolor: '#f8fafc' }}>
-                      <Grid container spacing={2}>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Account Role</Typography>
-                          <Typography variant="body2" fontWeight={700} color="primary.main">
-                            {currentRole.title}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Full Name</Typography>
-                          <Typography variant="body2" fontWeight={700}>
-                            {firstName} {lastName}
-                          </Typography>
-                        </Grid>
-                        <Grid size={{ xs: 12 }}>
-                          <Divider sx={{ my: 0.5 }} />
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Email Address</Typography>
-                          <Typography variant="body2" fontWeight={600}>{email}</Typography>
-                        </Grid>
-                        <Grid size={{ xs: 6 }}>
-                          <Typography variant="caption" color="text.secondary">Phone / Institution</Typography>
-                          <Typography variant="body2" fontWeight={600}>
-                            {phone || 'Not provided'} • {institution || 'General'}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Paper>
-
-                    <Box sx={{ p: 2, bgcolor: 'rgba(37,99,235,0.04)', borderRadius: 2.5, border: '1px solid rgba(37,99,235,0.12)', mb: 2 }}>
-                      <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                        <VerifiedUserOutlinedIcon sx={{ color: 'primary.main', mt: 0.3 }} />
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight={700}>
-                            GDPR Privacy & Data Protection
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>
-                            By creating your account, you agree to EduMart's Terms of Service and Privacy Policy.
-                            You retain full control over your active device sessions and personal study data.
+                    <Stack spacing={2} sx={{ mb: 3 }}>
+                      {/* Card 1: Account Role & Permissions */}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: '#eff6ff', color: 'primary.main' }}>
+                              {role === 'tutor' ? <MenuBookIcon fontSize="small" /> : role === 'institute' ? <AccountBalanceIcon fontSize="small" /> : <SchoolIcon fontSize="small" />}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight={700}>
+                                Account Type & Permissions
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Determines catalog purchasing & publishing capabilities
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="text"
+                            color="primary"
+                            startIcon={<EditIcon sx={{ fontSize: 15 }} />}
+                            onClick={() => setActiveStep(0)}
+                            sx={{ fontWeight: 600, fontSize: '0.8rem', textTransform: 'none' }}
+                          >
+                            Edit
+                          </Button>
+                        </Box>
+                        <Divider sx={{ my: 1 }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Chip
+                            label={currentRole.title}
+                            color="primary"
+                            size="small"
+                            sx={{ fontWeight: 700 }}
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            {currentRole.summary}
                           </Typography>
                         </Box>
-                      </Stack>
-                    </Box>
+                      </Paper>
+
+                      {/* Card 2: Personal Profile & Affiliation */}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', color: '#ffffff', fontWeight: 700, fontSize: '0.9rem' }}>
+                              {firstName ? firstName[0].toUpperCase() : 'U'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight={700}>
+                                Personal & Academic Profile
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Profile details shown on orders and publications
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="text"
+                            color="primary"
+                            startIcon={<EditIcon sx={{ fontSize: 15 }} />}
+                            onClick={() => setActiveStep(0)}
+                            sx={{ fontWeight: 600, fontSize: '0.8rem', textTransform: 'none' }}
+                          >
+                            Edit
+                          </Button>
+                        </Box>
+                        <Divider sx={{ my: 1 }} />
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Full Name</Typography>
+                            <Typography variant="body2" fontWeight={700}>
+                              {firstName} {lastName}
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Email Address</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography variant="body2" fontWeight={600} sx={{ wordBreak: 'break-all' }}>
+                                {email}
+                              </Typography>
+                              <CheckCircle sx={{ fontSize: 14, color: 'success.main' }} />
+                            </Box>
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Phone Contact</Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {phone ? phone : 'Not specified'}
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" color="text.secondary">School / Educational Institute</Typography>
+                            <Typography variant="body2" fontWeight={600}>
+                              {institution ? institution : 'General / Independent Student'}
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+
+                      {/* Card 3: Security & Credentials */}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: '#ecfdf5', color: '#059669' }}>
+                              <ShieldOutlinedIcon fontSize="small" />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight={700}>
+                                Account Security & Password
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Password integrity and encryption protection
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="text"
+                            color="primary"
+                            startIcon={<EditIcon sx={{ fontSize: 15 }} />}
+                            onClick={() => setActiveStep(1)}
+                            sx={{ fontWeight: 600, fontSize: '0.8rem', textTransform: 'none' }}
+                          >
+                            Edit
+                          </Button>
+                        </Box>
+                        <Divider sx={{ my: 1 }} />
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Password Status</Typography>
+                            <Typography variant="body2" fontWeight={700}>
+                              •••••••••••• (Encrypted)
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Password Strength</Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.2 }}>
+                              <Chip
+                                label={`${pwdStrength.label} (${pwdStrength.score}%)`}
+                                color={pwdStrength.color}
+                                size="small"
+                                sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                              />
+                            </Box>
+                          </Grid>
+                          <Grid size={{ xs: 12 }}>
+                            <Typography variant="caption" color="text.secondary">Security Standard</Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Protected with Bcrypt 12-round salted hashing & active session management
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+
+                      {/* Card 4: Terms, Privacy & GDPR Consent */}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          bgcolor: 'rgba(37,99,235,0.03)',
+                          borderColor: 'rgba(37,99,235,0.18)',
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={agreedTerms}
+                              onChange={(e) => setAgreedTerms(e.target.checked)}
+                              color="primary"
+                            />
+                          }
+                          label={
+                            <Typography variant="body2" fontWeight={600} sx={{ color: '#1e293b' }}>
+                              I accept EduMart's Terms of Service and acknowledge the GDPR Data Protection & Privacy Policy.
+                            </Typography>
+                          }
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pl: 4, lineHeight: 1.5 }}>
+                          You retain full ownership of your personal data and study purchases. Device sessions can be inspected and revoked at any time from your security profile.
+                        </Typography>
+                      </Paper>
+                    </Stack>
                   </Box>
 
                   {/* Section-Wise Navigation Controls (Next / Back / Submit) */}
@@ -778,7 +1171,7 @@ const Register = () => {
                           type="submit"
                           variant="contained"
                           color="primary"
-                          disabled={loading}
+                          disabled={loading || !agreedTerms}
                           sx={{
                             fontWeight: 700,
                             px: 4,
