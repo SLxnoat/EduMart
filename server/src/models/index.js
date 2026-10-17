@@ -10,6 +10,8 @@ const models = {
   Payment: require('./Payment')(sequelize),
   AiInteraction: require('./AiInteraction')(sequelize),
   Session: require('./Session')(sequelize),
+  Cart: require('./Cart')(sequelize),
+  Coupon: require('./Coupon')(sequelize),
 };
 
 // Initialize associations

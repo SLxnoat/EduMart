@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Button, Menu, MenuItem, Chip, Divider } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Menu, MenuItem, Chip, Divider, Badge } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import PersonIcon from '@mui/icons-material/Person';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -9,6 +10,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 const Header = () => {
   const { user, logout } = useAuth();
+  const { cartCount = 0 } = useCart();
   const [anchorEl, setAnchorEl] = useState(null);
 
   const handleMenuOpen = (event) => {
@@ -36,10 +38,24 @@ const Header = () => {
           EduMart
         </Typography>
 
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <Button component={Link} to="/products" color="inherit">
             Catalog
           </Button>
+
+          {/* Cart button always visible for both guest and authenticated users */}
+          <Button
+            color="inherit"
+            aria-label="cart"
+            sx={{ ml: 1 }}
+            component={Link}
+            to="/cart"
+          >
+            <Badge badgeContent={cartCount} color="error">
+              <ShoppingCartIcon />
+            </Badge>
+          </Button>
+
           {!user ? (
             <>
               <Button component={Link} to="/login" color="inherit" sx={{ ml: 1 }}>
@@ -62,16 +78,6 @@ const Header = () => {
                   Admin
                 </Button>
               )}
-
-              <Button
-                color="inherit"
-                aria-label="cart"
-                sx={{ ml: 1 }}
-                component={Link}
-                to="/cart"
-              >
-                <ShoppingCartIcon />
-              </Button>
 
               <Button
                 color="inherit"

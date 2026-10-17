@@ -181,7 +181,7 @@ The EduMart platform was developed by an integrated team of 5 software engineers
 | **Kushmi (Kaushini Ekanayake)** | **User Authentication, Profile Management, RBAC, and AI Chatbot Integration** | Multi-role registration & login, strict SMTP email verification, session revocation, dynamic profile completion engine, floating AI Chatbot widget with live Order & Product database query bridges, comprehensive test suites. |
 | **Charuka** | **Payment Gateway, Order Management, Backend Infrastructure, and AI Integration** | Stripe payment integration, raw webhook verification, sandbox/live payment processing, complete Order Management API (`/api/orders`), end-to-end multi-step Checkout UI, Order History & Order Details tracking views, Docker Compose orchestration, AI integration co-lead. |
 | **Vidula** | **Product Catalog, Search & Filtering System** | Multi-attribute search (subject, grade, curriculum, price), category browsing, product detail views, digital asset associations. |
-| **Bhanuka** | **Shopping Cart, Multi-Item Checkout & Coupon Engine** | Persistent shopping cart state, discount coupon validation engine, order item calculation, checkout flow. |
+| **Bhanuka** | **Shopping Cart, Multi-Item Checkout & Coupon Engine** | Persistent shopping cart state (`CartContext` with localStorage + backend sync), interactive Cart UI, Header cart badge count, Save-for-Later wishlist, promotional coupon validation engine (`/api/coupons/validate`), automated test suites. |
 | **Malki** | **Admin Dashboard, Review System, Notifications & Seller Dashboard** | Administrator management interface, star reviews and feedback moderation, user notification delivery, seller sales analytics and commission tracking. |
 
 ---
@@ -190,7 +190,7 @@ The EduMart platform was developed by an integrated team of 5 software engineers
 
 The codebase includes automated test suites covering backend API logic, security constraints, and frontend user interactions:
 
-### Backend Test Suites (Jest + SuperTest — 41 Tests Passing)
+### Backend Test Suites (Jest + SuperTest)
 - Runs against an in-memory SQLite database (`jest.setup.js`) ensuring zero side-effects.
 - **Coverage**:
   - User registration & XSS sanitization
@@ -203,24 +203,37 @@ The codebase includes automated test suites covering backend API logic, security
   - Profile retrieval, updates, and password change self-service
   - Role-based access control (`GET /api/users/:id` permission boundary)
   - Chatbot FAQ intent matching, catalog search, order tracking, and feedback collection
+<<<<<<< HEAD
   - **Payment Processing**: Stripe PaymentIntent creation, signature webhook handling with `user_id` resolution, sandbox payment simulation, and payment status verification
   - **Order Management**: Order and OrderItem creation with financial calculations (subtotal, tax, shipping, discount), customer order history retrieval, single order detail view, admin/seller status updates, and order cancellation
+=======
+  - **Shopping Cart API**: Active cart retrieval, adding digital/physical materials, auto-incrementing existing item quantities, estimated physical shipping rate calculations, quantity adjustments, item removals, cart clearing, and save-for-later state transitions
+  - **Coupon & Discount Engine**: Percentage discount verification, fixed-amount reduction, minimum purchase requirement enforcement, expiration checks, and public coupon discovery
+>>>>>>> dev_bhanuka
 - **Command**:
   ```bash
   cd server
   npm test
   ```
 
+<<<<<<< HEAD
 ### Frontend Test Suites (React Testing Library + Jest — 9 Tests Passing)
+=======
+### Frontend Test Suites (React Testing Library + Jest — 8 Tests Passing)
+>>>>>>> dev_bhanuka
 - **Coverage**:
   - Base application and layout rendering
   - Authentication loading state handling
   - Role-based `<Guard roles={['admin']}>` access prevention and redirection
   - Profile unverified email warning banner and next-step completion tips
   - ChatWidget floating button toggle, quick-reply triggers, and messaging display
+<<<<<<< HEAD
   - **Checkout Flow**: Shipping & delivery address input, order summary calculations, payment method selection, card form processing, and order confirmation
   - **Order History**: User order table rendering, status chips, and detail navigation
   - **Order Detail**: Line item breakdown, digital PDF download access trigger, delivery address summary, and cancellation modal
+=======
+  - **Shopping Cart View**: Empty cart placeholder state, itemized resource rendering, subtotal & shipping rate calculation, quantity stepper operations, and live promotional coupon application with discount deductions
+>>>>>>> dev_bhanuka
 - **Command**:
   ```bash
   cd client
