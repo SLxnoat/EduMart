@@ -46,6 +46,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 const SUBJECT_OPTIONS = [
   'All Subjects',
@@ -90,6 +91,7 @@ const RATING_OPTIONS = [
 
 const ProductList = () => {
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const { enqueueSnackbar } = useSnackbar();
   const searchInputRef = useRef(null);
 
@@ -249,6 +251,9 @@ const ProductList = () => {
     e.preventDefault();
     e.stopPropagation();
     try {
+      if (addToCart) {
+        addToCart(product, 1);
+      }
       const raw = localStorage.getItem('cart');
       const cart = raw ? JSON.parse(raw) : [];
       const idx = cart.findIndex((i) => i.id === product.id);

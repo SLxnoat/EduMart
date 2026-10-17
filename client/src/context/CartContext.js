@@ -7,7 +7,27 @@ const CartContext = createContext(null);
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
+    return {
+      cartItems: [],
+      savedForLater: [],
+      appliedCoupon: null,
+      loading: false,
+      cartCount: 0,
+      subtotal: 0,
+      shippingCost: 0,
+      taxAmount: 0,
+      discountAmount: 0,
+      totalAmount: 0,
+      hasPhysicalItems: false,
+      addToCart: () => {},
+      updateQuantity: () => {},
+      removeFromCart: () => {},
+      clearCart: () => {},
+      toggleSaveForLater: () => {},
+      removeFromSavedForLater: () => {},
+      applyCoupon: () => {},
+      removeCoupon: () => {},
+    };
   }
   return context;
 };
@@ -17,7 +37,27 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState(() => {
     try {
       const local = localStorage.getItem('edumart_cart_items');
-      return local ? JSON.parse(local) : [];
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const legacy = localStorage.getItem('cart');
+      if (legacy) {
+        const parsedLegacy = JSON.parse(legacy);
+        if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
+          return parsedLegacy.map((item) => ({
+            product_id: item.id || item.product_id,
+            title: item.title,
+            price: parseFloat(item.price) || 0,
+            quantity: item.quantity || 1,
+            is_digital: item.format !== 'physical',
+            is_physical: item.format === 'physical' || item.format === 'both',
+            subject: item.subject,
+            grade_level: item.grade_level,
+          }));
+        }
+      }
+      return [];
     } catch (e) {
       return [];
     }
@@ -47,10 +87,59 @@ export const CartProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem('edumart_cart_items', JSON.stringify(cartItems));
+      const legacyCart = cartItems.map((item) => ({
+        id: item.product_id,
+        product_id: item.product_id,
+        title: item.title,
+        price: parseFloat(item.price) || 0,
+        format: item.is_physical ? (item.is_digital ? 'both' : 'physical') : 'digital',
+        subject: item.subject,
+        grade_level: item.grade_level,
+        quantity: item.quantity,
+      }));
+      localStorage.setItem('cart', JSON.stringify(legacyCart));
     } catch (e) {
       // storage unavailable
     }
   }, [cartItems]);
+
+  // Synchronize cart across components and windows via storage event
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (!e.key || e.key === 'edumart_cart_items' || e.key === 'cart') {
+        try {
+          const edumartLocal = localStorage.getItem('edumart_cart_items');
+          if (edumartLocal) {
+            const parsed = JSON.parse(edumartLocal);
+            if (Array.isArray(parsed)) {
+              setCartItems(parsed);
+              return;
+            }
+          }
+          const legacy = localStorage.getItem('cart');
+          if (legacy) {
+            const parsed = JSON.parse(legacy);
+            if (Array.isArray(parsed)) {
+              setCartItems(
+                parsed.map((item) => ({
+                  product_id: item.id || item.product_id,
+                  title: item.title,
+                  price: parseFloat(item.price) || 0,
+                  quantity: item.quantity || 1,
+                  is_digital: item.format !== 'physical',
+                  is_physical: item.format === 'physical' || item.format === 'both',
+                  subject: item.subject,
+                  grade_level: item.grade_level,
+                }))
+              );
+            }
+          }
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   useEffect(() => {
     try {
@@ -223,6 +312,8 @@ export const CartProvider = ({ children }) => {
     setAppliedCoupon(null);
     localStorage.removeItem('edumart_cart_items');
     localStorage.removeItem('edumart_cart_coupon');
+    localStorage.removeItem('cart');
+    window.dispatchEvent(new Event('storage'));
 
     if (user) {
       try {

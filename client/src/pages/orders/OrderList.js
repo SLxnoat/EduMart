@@ -16,15 +16,11 @@ import {
   CircularProgress,
   Alert,
   Pagination,
-  Card,
-  CardContent,
-  Divider,
 } from '@mui/material';
 import {
   ReceiptLong,
   Visibility,
   ShoppingBag,
-  ArrowForward,
 } from '@mui/icons-material';
 import orderService from '../../services/orderService';
 

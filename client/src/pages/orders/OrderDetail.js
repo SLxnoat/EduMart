@@ -33,7 +33,6 @@ import {
   ArrowBack,
   Download,
   Cancel,
-  CheckCircle,
   LocalShipping,
   Receipt,
   Description,

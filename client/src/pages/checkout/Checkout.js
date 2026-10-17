@@ -33,6 +33,7 @@ import {
   Payment as PaymentIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import orderService from '../../services/orderService';
 import paymentService from '../../services/paymentService';
 
@@ -62,6 +63,7 @@ const sampleCheckoutItems = [
 
 const Checkout = () => {
   const { user } = useAuth();
+  const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
 
   const [activeStep, setActiveStep] = useState(0);
@@ -88,7 +90,18 @@ const Checkout = () => {
     cvv: '123',
   });
 
-  const [items] = useState(sampleCheckoutItems);
+  const items = (cartItems && cartItems.length > 0)
+    ? cartItems.map((item) => ({
+        product_id: item.product_id || item.id,
+        product_title: item.product_title || item.title || 'Educational Resource',
+        product_subject: item.product_subject || item.subject || 'General',
+        product_grade_level: item.product_grade_level || item.grade_level || 'A/L',
+        quantity: item.quantity || 1,
+        unit_price: parseFloat(item.unit_price || item.price || 0),
+        is_digital: item.is_digital !== undefined ? !!item.is_digital : (item.format === 'digital' || item.format === 'both'),
+        is_physical: item.is_physical !== undefined ? !!item.is_physical : (item.format === 'physical' || item.format === 'both'),
+      }))
+    : sampleCheckoutItems;
 
   // Financial calculations
   const subtotal = items.reduce((acc, curr) => acc + curr.quantity * curr.unit_price, 0);
@@ -149,6 +162,9 @@ const Checkout = () => {
       // 4. Fetch the refreshed order with paid status
       const updatedOrderRes = await orderService.getOrderById(order.id);
       setPlacedOrder(updatedOrderRes.data);
+      if (clearCart) {
+        clearCart();
+      }
       setActiveStep(2);
     } catch (err) {
       console.error('Payment/Order failure:', err);

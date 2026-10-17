@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Card,
@@ -168,7 +168,7 @@ const Profile = () => {
     }
   };
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       setLoadingSessions(true);
       const res = await getUserSessions();
@@ -179,13 +179,13 @@ const Profile = () => {
     } finally {
       setLoadingSessions(false);
     }
-  };
+  }, [enqueueSnackbar, getUserSessions]);
 
   useEffect(() => {
     if (activeTab === 2) {
       fetchSessions();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchSessions]);
 
   const handleRevokeSessions = async () => {
     try {

@@ -52,12 +52,14 @@ import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import reviewService from '../../services/reviewService';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { user } = useAuth();
+  const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -199,6 +201,8 @@ const ProductDetail = () => {
   const handleAddToCart = () => {
     if (!product) return;
     try {
+      addToCart(product, quantity);
+
       const raw = localStorage.getItem('cart');
       const cart = raw ? JSON.parse(raw) : [];
       const idx = cart.findIndex((i) => i.id === product.id);
