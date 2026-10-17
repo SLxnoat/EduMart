@@ -633,7 +633,7 @@ const ProductDetail = () => {
 
             <Divider sx={{ my: 3 }} />
 
-            <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
+            <Typography variant="caption" color="text.secondary" display="block" align="center">
               Secure checkout guaranteed with Stripe & verified banking methods.
             </Typography>
           </Paper>
