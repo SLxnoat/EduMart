@@ -42,6 +42,10 @@ app.use('/api/coupons', require('./src/routes/couponRoutes'));
 app.use('/api/payments', require('./src/routes/paymentRoutes'));
 app.use('/api/chatbot', require('./src/routes/chatbotRoutes'));
 app.use('/api/products', require('./src/routes/productRoutes'));
+app.use('/api/admin', require('./src/routes/adminRoutes'));
+app.use('/api/reviews', require('./src/routes/reviewRoutes'));
+app.use('/api/notifications', require('./src/routes/notificationRoutes'));
+app.use('/api/seller', require('./src/routes/sellerRoutes'));
 app.use('/api/categories', (req, res, next) => {
   const { getCategories } = require('./src/controllers/productController');
   getCategories(req, res, next);

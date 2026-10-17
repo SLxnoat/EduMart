@@ -87,6 +87,12 @@ module.exports = (sequelize) => {
     if (models.DigitalAsset) {
       Product.hasMany(models.DigitalAsset, { foreignKey: 'product_id', as: 'digitalAssets' });
     }
+    if (models.Review) {
+      Product.hasMany(models.Review, { foreignKey: 'product_id', as: 'reviews' });
+    }
+    if (models.SellerEarning) {
+      Product.hasMany(models.SellerEarning, { foreignKey: 'product_id', as: 'sellerEarnings' });
+    }
   };
 
   return Product;

@@ -25,7 +25,10 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  LinearProgress,
+  TextField,
+  Avatar
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -42,13 +45,17 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import CloseIcon from '@mui/icons-material/Close';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
+import reviewService from '../../services/reviewService';
+import { useAuth } from '../../context/AuthContext';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuth();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +69,13 @@ const ProductDetail = () => {
 
   // Related Products State
   const [relatedProducts, setRelatedProducts] = useState([]);
+
+  // Reviews & Ratings State
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ average: 0, count: 0, breakdown: {} });
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     const fetchProductAndRelated = async () => {
@@ -95,10 +109,69 @@ const ProductDetail = () => {
       }
     };
 
+    const fetchReviews = async () => {
+      setLoadingReviews(true);
+      try {
+        const revData = await reviewService.getProductReviews(id);
+        setReviews(revData.reviews || []);
+        if (revData.summary) {
+          setReviewSummary(revData.summary);
+        }
+      } catch (err) {
+        // Safe ignore
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
     if (id) {
       fetchProductAndRelated();
+      fetchReviews();
     }
   }, [id]);
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (!reviewForm.comment.trim()) {
+      enqueueSnackbar('Please enter a review comment', { variant: 'warning' });
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await reviewService.createReview(id, reviewForm);
+      enqueueSnackbar('Your review has been submitted successfully!', { variant: 'success' });
+      setReviewForm({ rating: 5, title: '', comment: '' });
+      const revData = await reviewService.getProductReviews(id);
+      setReviews(revData.reviews || []);
+      if (revData.summary) {
+        setReviewSummary(revData.summary);
+      }
+    } catch (err) {
+      enqueueSnackbar(err.response?.data?.message || 'Failed to submit review', { variant: 'error' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleVoteReview = async (reviewId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const res = await reviewService.voteReview(reviewId);
+      setReviews((prev) =>
+        prev.map((r) => (r.id === reviewId ? { ...r, helpful_votes: res.helpful_votes } : r))
+      );
+      enqueueSnackbar('Thank you for your feedback!', { variant: 'success' });
+    } catch (err) {
+      enqueueSnackbar('Could not record vote', { variant: 'error' });
+    }
+  };
 
   const handleOpenPreview = async () => {
     setPreviewOpen(true);
@@ -555,6 +628,185 @@ const ProductDetail = () => {
           </Grid>
         </Box>
       )}
+
+      {/* Student Reviews & Ratings Section */}
+      <Box sx={{ mt: 6, mb: 4 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
+          Student Reviews & Ratings
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Verified feedback from students and educators who studied this material.
+        </Typography>
+
+        <Grid container spacing={4}>
+          {/* Summary Column */}
+          <Grid item xs={12} md={4}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight="bold" color="primary">
+                {reviewSummary.average ? reviewSummary.average.toFixed(1) : Number(product.rating_average || 0).toFixed(1)}
+              </Typography>
+              <Rating
+                value={reviewSummary.average || Number(product.rating_average || 0)}
+                precision={0.1}
+                readOnly
+                sx={{ my: 1 }}
+              />
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Based on {reviewSummary.count || product.rating_count || 0} student review{(reviewSummary.count || product.rating_count) !== 1 ? 's' : ''}
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Rating Bars */}
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const count = reviewSummary.breakdown?.[stars] || 0;
+                const total = reviewSummary.count || 1;
+                const percentage = reviewSummary.count > 0 ? (count / total) * 100 : 0;
+
+                return (
+                  <Box key={stars} sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+                    <Typography variant="caption" sx={{ minWidth: 40, textAlign: 'right' }}>
+                      {stars} star
+                    </Typography>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={percentage}
+                        sx={{ height: 8, borderRadius: 4 }}
+                      />
+                    </Box>
+                    <Typography variant="caption" sx={{ minWidth: 25, textAlign: 'left', color: 'text.secondary' }}>
+                      {count}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Paper>
+          </Grid>
+
+          {/* Reviews List & Write Review Form Column */}
+          <Grid item xs={12} md={8}>
+            {/* Write a Review Box */}
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Share Your Academic Feedback
+              </Typography>
+              {user ? (
+                <Box component="form" onSubmit={handleSubmitReview} sx={{ mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Typography variant="body2" fontWeight="bold">Your Rating:</Typography>
+                    <Rating
+                      value={reviewForm.rating}
+                      onChange={(e, val) => setReviewForm({ ...reviewForm, rating: val || 5 })}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Review Headline (optional)"
+                    value={reviewForm.title}
+                    onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
+                    placeholder="e.g. Excellent past paper explanations"
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    required
+                    multiline
+                    rows={3}
+                    label="Your Detailed Review"
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                    placeholder="How did this material assist your study preparation?"
+                    sx={{ mb: 2 }}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={submittingReview}
+                  >
+                    {submittingReview ? 'Submitting...' : 'Submit Review'}
+                  </Button>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Please log in to your student or educator account to submit a review.
+                  </Typography>
+                  <Button variant="outlined" size="small" component={Link} to="/login">
+                    Sign In
+                  </Button>
+                </Box>
+              )}
+            </Paper>
+
+            {/* List of Reviews */}
+            {loadingReviews ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress size={30} />
+              </Box>
+            ) : reviews.length === 0 ? (
+              <Alert severity="info">
+                No reviews yet for this material. Be the first to share your learning experience!
+              </Alert>
+            ) : (
+              <Stack spacing={2}>
+                {reviews.map((rev) => (
+                  <Paper key={rev.id} variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.85rem' }}>
+                          {rev.user?.first_name ? rev.user.first_name[0] : 'S'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {rev.user ? `${rev.user.first_name} ${rev.user.last_name}` : 'Student'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(rev.created_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                        {rev.is_verified_purchase && (
+                          <Chip
+                            icon={<CheckCircleIcon sx={{ fontSize: '0.9rem !important' }} />}
+                            label="Verified Purchase"
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.7rem' }}
+                          />
+                        )}
+                      </Box>
+                      <Rating value={Number(rev.rating)} size="small" readOnly />
+                    </Box>
+
+                    {rev.title && (
+                      <Typography variant="subtitle2" fontWeight="bold" sx={{ mt: 1, mb: 0.5 }}>
+                        {rev.title}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary" paragraph sx={{ mb: 1 }}>
+                      {rev.comment}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Button
+                        size="small"
+                        startIcon={<ThumbUpIcon fontSize="small" />}
+                        color="inherit"
+                        onClick={() => handleVoteReview(rev.id)}
+                        sx={{ fontSize: '0.75rem', textTransform: 'none' }}
+                      >
+                        Helpful ({rev.helpful_votes || 0})
+                      </Button>
+                    </Box>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </Grid>
+        </Grid>
+      </Box>
 
       {/* Digital Material Sample Preview Modal Dialog */}
       <Dialog

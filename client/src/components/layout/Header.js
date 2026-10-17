@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, Button, Menu, MenuItem, Chip, Divider, Badge } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -7,11 +7,31 @@ import PersonIcon from '@mui/icons-material/Person';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import StorefrontIcon from '@mui/icons-material/Storefront';
+import notificationService from '../../services/notificationService';
 
 const Header = () => {
   const { user, logout } = useAuth();
   const { cartCount = 0 } = useCart();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUnread = async () => {
+      if (!user) return;
+      try {
+        const data = await notificationService.getNotifications({ limit: 1 });
+        if (isMounted) {
+          setUnreadNotifications(data.unreadCount || 0);
+        }
+      } catch (e) {
+        // Safe ignore
+      }
+    };
+    fetchUnread();
+    return () => { isMounted = false; };
+  }, [user]);
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -79,6 +99,18 @@ const Header = () => {
                 </Button>
               )}
 
+              {(user.role === 'tutor' || user.role === 'institute' || user.role === 'admin') && (
+                <Button
+                  component={Link}
+                  to="/seller/dashboard"
+                  color="inherit"
+                  startIcon={<StorefrontIcon />}
+                  sx={{ ml: 1 }}
+                >
+                  Seller Hub
+                </Button>
+              )}
+
               <Button
                 color="inherit"
                 aria-label="notifications"
@@ -86,7 +118,9 @@ const Header = () => {
                 component={Link}
                 to="/notifications"
               >
-                <NotificationsIcon />
+                <Badge badgeContent={unreadNotifications} color="error">
+                  <NotificationsIcon />
+                </Badge>
               </Button>
 
               <Button
@@ -124,6 +158,11 @@ const Header = () => {
                 <MenuItem component={Link} to="/checkout" onClick={handleMenuClose}>
                   Checkout
                 </MenuItem>
+                {(user.role === 'tutor' || user.role === 'institute' || user.role === 'admin') && (
+                  <MenuItem component={Link} to="/seller/dashboard" onClick={handleMenuClose}>
+                    Seller Hub
+                  </MenuItem>
+                )}
                 {user.role === 'admin' && (
                   <MenuItem component={Link} to="/admin" onClick={handleMenuClose}>
                     Admin Dashboard
