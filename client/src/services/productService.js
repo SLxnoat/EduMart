@@ -9,6 +9,20 @@ const productService = {
     const response = await api.get(`/products/${id}`);
     return response.data;
   },
+  getSuggestions: async (query = '') => {
+    const response = await api.get('/products/suggestions', {
+      params: { q: query }
+    });
+    return response.data;
+  },
+  getRelatedProducts: async (id) => {
+    const response = await api.get(`/products/${id}/related`);
+    return response.data;
+  },
+  getProductPreview: async (id) => {
+    const response = await api.get(`/products/${id}/preview`);
+    return response.data;
+  },
   createProduct: async (productData) => {
     const response = await api.post('/products', productData);
     return response.data;

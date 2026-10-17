@@ -41,6 +41,11 @@ app.use('/api/cart', require('./src/routes/cartRoutes'));
 app.use('/api/coupons', require('./src/routes/couponRoutes'));
 app.use('/api/payments', require('./src/routes/paymentRoutes'));
 app.use('/api/chatbot', require('./src/routes/chatbotRoutes'));
+app.use('/api/products', require('./src/routes/productRoutes'));
+app.use('/api/categories', (req, res, next) => {
+  const { getCategories } = require('./src/controllers/productController');
+  getCategories(req, res, next);
+});
 
 // 404 handler
 app.use('*', (req, res) => {
