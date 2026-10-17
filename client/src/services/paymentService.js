@@ -22,9 +22,15 @@ const paymentService = {
   /**
    * Simulate payment success in sandbox/test mode
    * @param {string} orderId
+   * @param {string} paymentMethod
+   * @param {object} paymentDetails
    */
-  simulatePaymentSuccess: async (orderId) => {
-    const response = await api.post('/payments/simulate-success', { orderId });
+  simulatePaymentSuccess: async (orderId, paymentMethod = 'credit_card', paymentDetails = {}) => {
+    const response = await api.post('/payments/simulate-success', {
+      orderId,
+      paymentMethod,
+      paymentDetails,
+    });
     return response.data;
   },
 };

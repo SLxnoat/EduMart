@@ -68,7 +68,7 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
 // @route   POST /api/payments/simulate-success
 // @access  Private
 const simulatePaymentSuccess = asyncHandler(async (req, res) => {
-  const { orderId } = req.body;
+  const { orderId, paymentMethod = 'credit_card', paymentDetails = {} } = req.body;
   if (!orderId) {
     res.status(400);
     throw new Error('Order ID is required');
@@ -76,7 +76,9 @@ const simulatePaymentSuccess = asyncHandler(async (req, res) => {
 
   const result = await paymentService.simulatePaymentSuccess(
     orderId,
-    req.user ? req.user.id : null
+    req.user ? req.user.id : null,
+    paymentMethod,
+    paymentDetails
   );
 
   res.status(200).json(result);

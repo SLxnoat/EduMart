@@ -23,6 +23,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  MenuItem,
 } from '@mui/material';
 import {
   CreditCard,
@@ -31,6 +32,10 @@ import {
   LocalShipping,
   ReceiptLong,
   Payment as PaymentIcon,
+  AccountBalance,
+  AccountBalanceWallet,
+  QrCode2,
+  LocalAtm,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -89,6 +94,18 @@ const Checkout = () => {
     expDate: '12/28',
     cvv: '123',
   });
+  const [bankDetails, setBankDetails] = useState({
+    slipNumber: 'TXN-98234120',
+    bankName: 'Commercial Bank of Ceylon',
+    depositorName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Charuka Silva',
+  });
+  const [walletDetails, setWalletDetails] = useState({
+    walletType: 'LankaQR',
+    mobileNumber: user?.phone || '0771234567',
+  });
+  const [paypalDetails, setPaypalDetails] = useState({
+    paypalEmail: user?.email || 'student@edumart.lk',
+  });
 
   const items = (cartItems && cartItems.length > 0)
     ? cartItems.map((item) => ({
@@ -105,7 +122,8 @@ const Checkout = () => {
 
   // Financial calculations
   const subtotal = items.reduce((acc, curr) => acc + curr.quantity * curr.unit_price, 0);
-  const shippingCost = items.some((i) => i.is_physical) ? 4.5 : 0.0;
+  const hasPhysical = items.some((i) => i.is_physical);
+  const shippingCost = hasPhysical ? 4.5 : 0.0;
   const taxAmount = parseFloat((subtotal * 0.05).toFixed(2));
   const totalAmount = parseFloat((subtotal + shippingCost + taxAmount).toFixed(2));
 
@@ -115,6 +133,18 @@ const Checkout = () => {
 
   const handleCardChange = (e) => {
     setCardDetails({ ...cardDetails, [e.target.name]: e.target.value });
+  };
+
+  const handleBankChange = (e) => {
+    setBankDetails({ ...bankDetails, [e.target.name]: e.target.value });
+  };
+
+  const handleWalletChange = (e) => {
+    setWalletDetails({ ...walletDetails, [e.target.name]: e.target.value });
+  };
+
+  const handlePaypalChange = (e) => {
+    setPaypalDetails({ ...paypalDetails, [e.target.name]: e.target.value });
   };
 
   const handleNext = () => {
@@ -138,6 +168,28 @@ const Checkout = () => {
     setLoading(true);
 
     try {
+      const normalizedMethod =
+        paymentMethod === 'card'
+          ? 'credit_card'
+          : paymentMethod === 'paypal'
+          ? 'paypal'
+          : paymentMethod === 'bank_transfer'
+          ? 'bank_transfer'
+          : paymentMethod === 'digital_wallet'
+          ? 'digital_wallet'
+          : 'cash_on_delivery';
+
+      const paymentDetails =
+        normalizedMethod === 'credit_card'
+          ? cardDetails
+          : normalizedMethod === 'paypal'
+          ? paypalDetails
+          : normalizedMethod === 'bank_transfer'
+          ? bankDetails
+          : normalizedMethod === 'digital_wallet'
+          ? walletDetails
+          : { method: 'COD', courier: 'PromptX' };
+
       // 1. Create Order in backend
       const orderPayload = {
         items,
@@ -147,7 +199,7 @@ const Checkout = () => {
         tax_amount: taxAmount,
         discount_amount: 0,
         currency: 'USD',
-        notes: 'Placed via Web Checkout',
+        notes: `Placed via Web Checkout (${normalizedMethod.toUpperCase()})`,
       };
 
       const orderResponse = await orderService.createOrder(orderPayload);
@@ -157,7 +209,7 @@ const Checkout = () => {
       await paymentService.createPaymentIntent(order.id);
 
       // 3. Process/Simulate Payment Transaction
-      await paymentService.simulatePaymentSuccess(order.id);
+      await paymentService.simulatePaymentSuccess(order.id, normalizedMethod, paymentDetails);
 
       // 4. Fetch the refreshed order with paid status
       const updatedOrderRes = await orderService.getOrderById(order.id);
@@ -339,69 +391,244 @@ const Checkout = () => {
               <Divider sx={{ mb: 2 }} />
 
               <RadioGroup value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-                <FormControlLabel
-                  value="card"
-                  control={<Radio />}
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CreditCard sx={{ mr: 1 }} />
-                      <Typography fontWeight="medium">Credit / Debit Card (Stripe Gateway)</Typography>
-                    </Box>
-                  }
-                />
+                <Paper variant="outlined" sx={{ mb: 1.5, p: 1.5, borderRadius: 2, borderColor: paymentMethod === 'card' ? 'primary.main' : 'divider' }}>
+                  <FormControlLabel
+                    value="card"
+                    control={<Radio />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CreditCard sx={{ mr: 1 }} color="primary" />
+                        <Typography fontWeight="bold">Credit / Debit Card (Stripe Gateway)</Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+
+                <Paper variant="outlined" sx={{ mb: 1.5, p: 1.5, borderRadius: 2, borderColor: paymentMethod === 'paypal' ? 'primary.main' : 'divider' }}>
+                  <FormControlLabel
+                    value="paypal"
+                    control={<Radio />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <AccountBalanceWallet sx={{ mr: 1 }} color="info" />
+                        <Typography fontWeight="bold">PayPal Express Checkout</Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+
+                <Paper variant="outlined" sx={{ mb: 1.5, p: 1.5, borderRadius: 2, borderColor: paymentMethod === 'bank_transfer' ? 'primary.main' : 'divider' }}>
+                  <FormControlLabel
+                    value="bank_transfer"
+                    control={<Radio />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <AccountBalance sx={{ mr: 1 }} color="secondary" />
+                        <Typography fontWeight="bold">Direct Bank Deposit / Wire Transfer</Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+
+                <Paper variant="outlined" sx={{ mb: 1.5, p: 1.5, borderRadius: 2, borderColor: paymentMethod === 'digital_wallet' ? 'primary.main' : 'divider' }}>
+                  <FormControlLabel
+                    value="digital_wallet"
+                    control={<Radio />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <QrCode2 sx={{ mr: 1 }} color="success" />
+                        <Typography fontWeight="bold">Digital Mobile Wallet & LankaQR (FriMi / eZ Cash)</Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    mb: 1.5,
+                    p: 1.5,
+                    borderRadius: 2,
+                    borderColor: paymentMethod === 'cod' ? 'primary.main' : 'divider',
+                    opacity: hasPhysical ? 1 : 0.6,
+                  }}
+                >
+                  <FormControlLabel
+                    value="cod"
+                    disabled={!hasPhysical}
+                    control={<Radio />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <LocalAtm sx={{ mr: 1 }} color="warning" />
+                        <Typography fontWeight="bold">
+                          Cash on Delivery (COD) {!hasPhysical && '(Available for Physical Book Parcels)'}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </Paper>
               </RadioGroup>
 
-              <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#fbfbfb' }}>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth
-                      label="Name on Card"
-                      name="cardholderName"
-                      value={cardDetails.cardholderName}
-                      onChange={handleCardChange}
-                    />
+              {/* Sub-form: Card */}
+              {paymentMethod === 'card' && (
+                <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#fbfbfb', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom color="primary">
+                    Card Payment Details
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        fullWidth
+                        label="Name on Card"
+                        name="cardholderName"
+                        value={cardDetails.cardholderName}
+                        onChange={handleCardChange}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12 }}>
+                      <TextField
+                        fullWidth
+                        label="Card Number"
+                        name="cardNumber"
+                        value={cardDetails.cardNumber}
+                        onChange={handleCardChange}
+                        placeholder="4242 4242 4242 4242"
+                        slotProps={{
+                          input: {
+                            endAdornment: <CreditCard color="action" />,
+                          },
+                        }}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Expiry Date"
+                        name="expDate"
+                        value={cardDetails.expDate}
+                        onChange={handleCardChange}
+                        placeholder="MM/YY"
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="CVC / CVV"
+                        name="cvv"
+                        value={cardDetails.cvv}
+                        onChange={handleCardChange}
+                        placeholder="123"
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth
-                      label="Card Number"
-                      name="cardNumber"
-                      value={cardDetails.cardNumber}
-                      onChange={handleCardChange}
-                      placeholder="4242 4242 4242 4242"
-                      slotProps={{
-                        input: {
-                          endAdornment: <CreditCard color="action" />,
-                        },
-                      }}
-                    />
+                </Card>
+              )}
+
+              {/* Sub-form: PayPal */}
+              {paymentMethod === 'paypal' && (
+                <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom color="info.main">
+                    PayPal Account Details
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    label="PayPal Account Email"
+                    name="paypalEmail"
+                    value={paypalDetails.paypalEmail}
+                    onChange={handlePaypalChange}
+                    sx={{ my: 1 }}
+                  />
+                  <Typography variant="caption" color="text.secondary">
+                    You will be securely routed through PayPal sandbox one-touch authorization.
+                  </Typography>
+                </Card>
+              )}
+
+              {/* Sub-form: Bank Transfer */}
+              {paymentMethod === 'bank_transfer' && (
+                <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#fbfbfb', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom color="secondary.main">
+                    Official Beneficiary Bank Details
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 1.5, mb: 2, bgcolor: '#f1f5f9' }}>
+                    <Typography variant="body2"><strong>Bank:</strong> Commercial Bank of Ceylon / Bank of Ceylon</Typography>
+                    <Typography variant="body2"><strong>Account Name:</strong> EduMart Educational Services (Pvt) Ltd</Typography>
+                    <Typography variant="body2"><strong>Account Number:</strong> 8004592019</Typography>
+                    <Typography variant="body2"><strong>Branch:</strong> Colombo City Corporate</Typography>
+                  </Paper>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Depositor Full Name"
+                        name="depositorName"
+                        value={bankDetails.depositorName}
+                        onChange={handleBankChange}
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Deposit Slip / Transaction Reference"
+                        name="slipNumber"
+                        value={bankDetails.slipNumber}
+                        onChange={handleBankChange}
+                        placeholder="TXN-98234120"
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="Expiry Date"
-                      name="expDate"
-                      value={cardDetails.expDate}
-                      onChange={handleCardChange}
-                      placeholder="MM/YY"
-                    />
+                </Card>
+              )}
+
+              {/* Sub-form: Digital Wallet */}
+              {paymentMethod === 'digital_wallet' && (
+                <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#fbfbfb', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom color="success.main">
+                    Digital Mobile Wallet & LankaQR
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        select
+                        fullWidth
+                        label="Wallet Provider"
+                        name="walletType"
+                        value={walletDetails.walletType}
+                        onChange={handleWalletChange}
+                      >
+                        <MenuItem value="LankaQR">LankaQR Instant Pay</MenuItem>
+                        <MenuItem value="FriMi">FriMi Mobile Wallet</MenuItem>
+                        <MenuItem value="eZCash">eZ Cash / Dialog Pay</MenuItem>
+                        <MenuItem value="AppleGooglePay">Apple Pay / Google Pay</MenuItem>
+                      </TextField>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        label="Registered Mobile Number"
+                        name="mobileNumber"
+                        value={walletDetails.mobileNumber}
+                        onChange={handleWalletChange}
+                      />
+                    </Grid>
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <TextField
-                      fullWidth
-                      label="CVC / CVV"
-                      name="cvv"
-                      value={cardDetails.cvv}
-                      onChange={handleCardChange}
-                      placeholder="123"
-                    />
-                  </Grid>
-                </Grid>
-              </Card>
+                </Card>
+              )}
+
+              {/* Sub-form: COD */}
+              {paymentMethod === 'cod' && (
+                <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#fffbeb', borderRadius: 2, borderColor: 'warning.light' }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom color="warning.dark">
+                    Cash on Delivery Instructions
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Please prepare the exact sum of <strong>${totalAmount.toFixed(2)} USD</strong> (or equivalent LKR) in cash. The PromptX Courier delivery representative will issue an official printed tax invoice receipt upon parcel handover.
+                  </Typography>
+                </Card>
+              )}
 
               <Alert severity="info" sx={{ mt: 2 }}>
-                Sandbox simulation enabled: Test cards and live Stripe integration are fully supported. Clicking Pay Now will safely authenticate and record the transaction.
+                Sandbox & Live gateway enabled: Transactions are processed securely with SSL encryption and recorded in database audit records.
               </Alert>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
@@ -472,6 +699,24 @@ const Checkout = () => {
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Payment Status:</Typography>
                   <Chip label="PAID" color="success" size="small" />
+                </Grid>
+                <Grid size={{ xs: 6 }}>
+                  <Typography variant="body2" color="text.secondary">Payment Method:</Typography>
+                  <Chip
+                    label={
+                      paymentMethod === 'card'
+                        ? 'Credit / Debit Card'
+                        : paymentMethod === 'paypal'
+                        ? 'PayPal Express'
+                        : paymentMethod === 'bank_transfer'
+                        ? 'Bank Wire Transfer'
+                        : paymentMethod === 'digital_wallet'
+                        ? `${walletDetails.walletType || 'Digital Wallet'}`
+                        : 'Cash on Delivery (COD)'
+                    }
+                    color="secondary"
+                    size="small"
+                  />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <Typography variant="body2" color="text.secondary">Order Status:</Typography>

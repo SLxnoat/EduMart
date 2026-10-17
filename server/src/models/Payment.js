@@ -25,7 +25,7 @@ module.exports = (sequelize) => {
       defaultValue: 'USD',
     },
     payment_method: {
-      type: DataTypes.ENUM('credit_card', 'paypal', 'bank_transfer', 'digital_wallet'),
+      type: DataTypes.ENUM('credit_card', 'paypal', 'bank_transfer', 'digital_wallet', 'cash_on_delivery'),
       allowNull: false,
     },
     provider: {

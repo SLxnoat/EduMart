@@ -165,11 +165,13 @@ const paymentService = {
   },
 
   /**
-   * Simulate a successful payment transaction for testing or offline sandbox mode
+   * Simulate a successful payment transaction for testing or multi-method processing
    * @param {string} orderId
    * @param {string} userId
+   * @param {string} paymentMethod
+   * @param {object} paymentDetails
    */
-  simulatePaymentSuccess: async (orderId, userId) => {
+  simulatePaymentSuccess: async (orderId, userId, paymentMethod = 'credit_card', paymentDetails = {}) => {
     const order = await Order.findByPk(orderId);
     if (!order) {
       const error = new Error('Order not found');
@@ -183,18 +185,32 @@ const paymentService = {
       throw error;
     }
 
-    const mockPaymentId = `pi_mock_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    // Map payment method to valid ENUM
+    const normalizedMethod = ['credit_card', 'paypal', 'bank_transfer', 'digital_wallet', 'cash_on_delivery'].includes(paymentMethod)
+      ? paymentMethod
+      : 'credit_card';
+
+    const providerMap = {
+      credit_card: 'stripe_mock',
+      paypal: 'paypal_sandbox',
+      bank_transfer: 'bank_wire',
+      digital_wallet: 'lanka_qr_wallet',
+      cash_on_delivery: 'promptx_cod',
+    };
+
+    const provider = providerMap[normalizedMethod] || 'mock_gateway';
+    const mockPaymentId = `pi_${normalizedMethod}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     const payment = await Payment.create({
       order_id: order.id,
       user_id: order.user_id,
       amount: order.total_amount,
       currency: order.currency || 'USD',
-      payment_method: 'credit_card',
-      provider: 'stripe_mock',
+      payment_method: normalizedMethod,
+      provider,
       provider_payment_id: mockPaymentId,
       status: 'completed',
-      gateway_response: { simulated: true, success: true, timestamp: new Date() },
+      gateway_response: { simulated: true, success: true, method: normalizedMethod, details: paymentDetails, timestamp: new Date() },
     });
 
     await order.update({
@@ -202,12 +218,20 @@ const paymentService = {
       payment_status: 'paid',
     });
 
+    const methodLabels = {
+      credit_card: 'Credit / Debit Card',
+      paypal: 'PayPal Express',
+      bank_transfer: 'Bank Wire Transfer',
+      digital_wallet: 'Digital Mobile Wallet / LankaQR',
+      cash_on_delivery: 'Cash on Delivery (COD)',
+    };
+
     // Notify user of successful payment
     await createNotification({
       userId: order.user_id,
       type: 'payment_status',
       title: 'Payment Successful!',
-      message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} for Order #${order.order_number} has been confirmed.`,
+      message: `Your payment of $${parseFloat(order.total_amount).toFixed(2)} via ${methodLabels[normalizedMethod] || normalizedMethod} for Order #${order.order_number} has been confirmed.`,
       relatedId: order.id,
       relatedType: 'order',
       priority: 'high',
@@ -218,6 +242,8 @@ const paymentService = {
       orderId: order.id,
       orderNumber: order.order_number,
       paymentId: payment.id,
+      paymentMethod: normalizedMethod,
+      provider,
       status: 'completed',
     };
   },
