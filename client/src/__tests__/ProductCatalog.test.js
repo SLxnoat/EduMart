@@ -5,9 +5,21 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SnackbarProvider } from 'notistack';
 import ProductList from '../pages/products/ProductList';
 import ProductDetail from '../pages/products/ProductDetail';
+import ProductCreate from '../pages/products/ProductCreate';
 import productService from '../services/productService';
 
 jest.mock('../services/productService');
+jest.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: {
+      firstName: 'Vidula',
+      lastName: 'Dissanayake',
+      role: 'tutor',
+      institution: 'Royal Institute'
+    },
+    loading: false
+  })
+}));
 
 const mockProducts = [
   {
@@ -20,6 +32,9 @@ const mockProducts = [
     exam_year: 2023,
     product_type: 'past_paper',
     format: 'digital',
+    rating_average: 4.9,
+    rating_count: 24,
+    stock_quantity: 50,
     seller: {
       first_name: 'Vidula',
       last_name: 'Dissanayake',
@@ -40,6 +55,9 @@ const mockProducts = [
     exam_year: 2024,
     product_type: 'revision_notes',
     format: 'both',
+    rating_average: 4.8,
+    rating_count: 18,
+    stock_quantity: 25,
     seller: {
       first_name: 'Vidula',
       last_name: 'Dissanayake',
@@ -57,11 +75,31 @@ const mockCategories = [
   { id: 2, name: 'Revision Guides & Short Notes' }
 ];
 
+const mockPreview = {
+  productId: 'prod-uuid-1',
+  title: 'G.C.E. A/L Combined Mathematics 2023 Past Paper',
+  subject: 'Combined Mathematics',
+  grade_level: 'A/L Grade 13',
+  exam_year: 2023,
+  tableOfContents: ['Unit 1: Pure Mathematics', 'Unit 2: Applied Mathematics'],
+  sampleExcerpt: 'Evaluation of step-by-step problem-solving sequence.',
+  is_watermarked: true
+};
+
 describe('Vidula Product Catalog & Search Components', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
     productService.getCategories.mockResolvedValue({ categories: mockCategories });
+    productService.getSuggestions.mockResolvedValue({
+      suggestions: ['Combined Mathematics 2023', 'Physics Mechanics']
+    });
+    productService.getRelatedProducts.mockResolvedValue({
+      products: [mockProducts[1]]
+    });
+    productService.getProductPreview.mockResolvedValue({
+      preview: mockPreview
+    });
     productService.getAllProducts.mockResolvedValue({
       success: true,
       count: mockProducts.length,
@@ -73,7 +111,7 @@ describe('Vidula Product Catalog & Search Components', () => {
   });
 
   describe('ProductList Page', () => {
-    test('renders catalog header, filters, and loads products list', async () => {
+    test('renders catalog header, filters, star ratings and loads products list', async () => {
       render(
         <SnackbarProvider>
           <MemoryRouter>
@@ -93,6 +131,8 @@ describe('Vidula Product Catalog & Search Components', () => {
 
       expect(screen.getByText(/LKR 750.00/i)).toBeInTheDocument();
       expect(screen.getByText(/LKR 1,450.00/i)).toBeInTheDocument();
+      expect(screen.getByText('(24)')).toBeInTheDocument();
+      expect(screen.getByText(/Publish Material/i)).toBeInTheDocument();
     });
 
     test('updates search keyword and triggers product fetch', async () => {
@@ -169,7 +209,7 @@ describe('Vidula Product Catalog & Search Components', () => {
       });
     });
 
-    test('renders product specifications, syllabus details, and price summary', async () => {
+    test('renders specifications, related materials, and opens sample preview modal', async () => {
       render(
         <SnackbarProvider>
           <MemoryRouter initialEntries={['/products/prod-uuid-1']}>
@@ -187,6 +227,20 @@ describe('Vidula Product Catalog & Search Components', () => {
       expect(screen.getByText(/Material Specifications/i)).toBeInTheDocument();
       expect(screen.getByText(/EduMart Quality Guarantee/i)).toBeInTheDocument();
       expect(screen.getByText(/Instant Digital PDF Delivery/i)).toBeInTheDocument();
+      expect(screen.getByText(/Related Study Materials/i)).toBeInTheDocument();
+
+      // Click Sample Preview button
+      const previewBtn = screen.getByRole('button', { name: /Sample Preview/i });
+      fireEvent.click(previewBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Material Sample Preview/i)).toBeInTheDocument();
+        expect(screen.getByText(/Table of Contents & Curriculum Structure:/i)).toBeInTheDocument();
+      });
+
+      // Close Preview Dialog
+      const closeBtn = screen.getByRole('button', { name: /Close/i });
+      fireEvent.click(closeBtn);
     });
 
     test('increases and decreases purchase quantity', async () => {
@@ -263,6 +317,46 @@ describe('Vidula Product Catalog & Search Components', () => {
       });
 
       expect(screen.getByText(/Back to Catalog/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('ProductCreate Page', () => {
+    test('renders material upload form and handles submission', async () => {
+      productService.createProduct.mockResolvedValueOnce({
+        success: true,
+        product: { id: 'new-prod-id', title: 'New Test Paper' }
+      });
+
+      render(
+        <SnackbarProvider>
+          <MemoryRouter>
+            <ProductCreate />
+          </MemoryRouter>
+        </SnackbarProvider>
+      );
+
+      expect(screen.getByText(/Publish New Educational Material/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Material Title/i)).toBeInTheDocument();
+
+      const titleInput = screen.getByLabelText(/Material Title/i);
+      const descInput = screen.getByLabelText(/Description & Syllabus Coverage/i);
+      const priceInput = screen.getByLabelText(/Price \(LKR\)/i);
+
+      fireEvent.change(titleInput, { target: { value: '2024 Physics Mechanics Guide' } });
+      fireEvent.change(descInput, { target: { value: 'Complete kinematics and dynamics notes.' } });
+      fireEvent.change(priceInput, { target: { value: '850.00' } });
+
+      const publishBtn = screen.getByRole('button', { name: /Publish Material/i });
+      fireEvent.click(publishBtn);
+
+      await waitFor(() => {
+        expect(productService.createProduct).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: '2024 Physics Mechanics Guide',
+            price: 850.00
+          })
+        );
+      });
     });
   });
 });

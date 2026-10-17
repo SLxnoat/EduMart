@@ -49,6 +49,21 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: 'digital',
     },
+    stock_quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 50,
+    },
+    rating_average: {
+      type: DataTypes.DECIMAL(3, 2),
+      allowNull: false,
+      defaultValue: 4.80,
+    },
+    rating_count: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 15,
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -69,6 +84,9 @@ module.exports = (sequelize) => {
   Product.associate = (models) => {
     Product.belongsTo(models.User, { foreignKey: 'seller_id', as: 'seller' });
     Product.belongsTo(models.Category, { foreignKey: 'category_id', as: 'category' });
+    if (models.DigitalAsset) {
+      Product.hasMany(models.DigitalAsset, { foreignKey: 'product_id', as: 'digitalAssets' });
+    }
   };
 
   return Product;

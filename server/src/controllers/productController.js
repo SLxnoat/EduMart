@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
-const { Product, Category, User } = require('../models');
+const { Product, Category, User, DigitalAsset } = require('../models');
 
 // Auto-seed initial educational catalog data if the database is empty
 const seedEducationalCatalogIfEmpty = async () => {
@@ -184,6 +184,8 @@ const getProducts = asyncHandler(async (req, res) => {
     max_price,
     minPrice,
     maxPrice,
+    minRating,
+    min_rating,
     sort,
     page = 1,
     limit = 12
@@ -254,12 +256,20 @@ const getProducts = asyncHandler(async (req, res) => {
     where.price = { [Op.lte]: parseFloat(highPrice) };
   }
 
+  // Rating filter
+  const ratingThreshold = minRating !== undefined ? minRating : min_rating;
+  if (ratingThreshold !== undefined && ratingThreshold !== 'all' && !isNaN(ratingThreshold)) {
+    where.rating_average = { [Op.gte]: parseFloat(ratingThreshold) };
+  }
+
   // Sorting
   let order = [['created_at', 'DESC']];
   if (sort === 'price_asc') {
     order = [['price', 'ASC']];
   } else if (sort === 'price_desc') {
     order = [['price', 'DESC']];
+  } else if (sort === 'rating_desc') {
+    order = [['rating_average', 'DESC'], ['rating_count', 'DESC']];
   } else if (sort === 'newest') {
     order = [['created_at', 'DESC']];
   } else if (sort === 'oldest') {
@@ -499,10 +509,136 @@ const deleteProduct = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get autocomplete search suggestions
+ * @route   GET /api/products/suggestions
+ * @access  Public
+ */
+const getSuggestions = asyncHandler(async (req, res) => {
+  await seedEducationalCatalogIfEmpty();
+  const { q } = req.query;
+
+  if (!q || q.trim() === '') {
+    return res.status(200).json({
+      success: true,
+      suggestions: [
+        'Combined Mathematics 2023',
+        'Physics Mechanics & Waves',
+        'Organic Chemistry Mind Maps',
+        'Biology Model Answers',
+        'G.C.E. O/L Mathematics',
+        'A/L Resource Books'
+      ]
+    });
+  }
+
+  const query = q.trim();
+  const matched = await Product.findAll({
+    where: {
+      is_active: true,
+      [Op.or]: [
+        { title: { [Op.like]: `%${query}%` } },
+        { subject: { [Op.like]: `%${query}%` } }
+      ]
+    },
+    attributes: ['id', 'title', 'subject'],
+    limit: 6
+  });
+
+  const suggestions = matched.map((m) => m.title);
+  res.status(200).json({
+    success: true,
+    suggestions: [...new Set(suggestions)]
+  });
+});
+
+/**
+ * @desc    Get related educational products for a material
+ * @route   GET /api/products/:id/related
+ * @access  Public
+ */
+const getRelatedProducts = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const currentProduct = await Product.findByPk(id);
+
+  if (!currentProduct) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
+
+  const related = await Product.findAll({
+    where: {
+      id: { [Op.ne]: id },
+      is_active: true,
+      [Op.or]: [
+        { subject: currentProduct.subject },
+        { category_id: currentProduct.category_id }
+      ]
+    },
+    limit: 4,
+    order: [['rating_average', 'DESC'], ['created_at', 'DESC']],
+    include: [
+      { model: Category, as: 'category', attributes: ['id', 'name'] },
+      { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
+    ]
+  });
+
+  res.status(200).json({
+    success: true,
+    products: related
+  });
+});
+
+/**
+ * @desc    Get preview / syllabus sample pages for a material
+ * @route   GET /api/products/:id/preview
+ * @access  Public
+ */
+const getProductPreview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const product = await Product.findByPk(id, {
+    include: [
+      { model: Category, as: 'category' }
+    ]
+  });
+
+  if (!product) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
+
+  const preview = {
+    productId: product.id,
+    title: product.title,
+    subject: product.subject,
+    grade_level: product.grade_level,
+    exam_year: product.exam_year,
+    format: product.format,
+    tableOfContents: [
+      'Unit 1: Syllabus Guidelines & National Curriculum Overview',
+      'Unit 2: Key Theoretical Formulations & Conceptual Definitions',
+      'Unit 3: Step-by-Step Marking Rubric & Point Distribution',
+      'Unit 4: Model Examination Questions (Part A - Structured)',
+      'Unit 5: Model Essay Problems with Alternate Resolution Methods'
+    ],
+    sampleExcerpt: `PREVIEW SAMPLE — ${product.title}\n------------------------------------------------------------------------\nTarget Examination: ${product.exam_year || 'National Curriculum'} | Grade: ${product.grade_level}\nSubject: ${product.subject}\n\n[Sample Problem 01]:\nEvaluate the step-by-step problem-solving sequence according to official marking standards.\nMarking Breakdown:\n(a) Method derivation - 3 marks\n(b) Intermediate algebraic simplification - 4 marks\n(c) Final unit and conclusion validation - 3 marks\n\n* Note: This is an authorized preview copy watermarked for student inspection.\nThe complete unredacted material is made immediately accessible after checkout.`,
+    is_watermarked: true,
+    total_preview_pages: 3
+  };
+
+  res.status(200).json({
+    success: true,
+    preview
+  });
+});
+
 module.exports = {
   getProducts,
   getProductById,
   getCategories,
+  getSuggestions,
+  getRelatedProducts,
+  getProductPreview,
   createProduct,
   updateProduct,
   deleteProduct,

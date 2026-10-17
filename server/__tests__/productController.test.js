@@ -132,6 +132,13 @@ describe('Product & Catalog Controller', () => {
         expect(pricesDesc[i]).toBeGreaterThanOrEqual(pricesDesc[i + 1]);
       }
     });
+
+    it('should sort products by highest rating', async () => {
+      const res = await request(app).get('/api/products?sort=rating_desc');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.products.length).toBeGreaterThan(0);
+    });
   });
 
   describe('GET /api/products/:id', () => {
@@ -161,6 +168,50 @@ describe('Product & Catalog Controller', () => {
       expect(res.body.success).toBe(true);
       expect(Array.isArray(res.body.categories)).toBe(true);
       expect(res.body.categories.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('GET /api/products/suggestions', () => {
+    it('should return trending suggestions when query is empty', async () => {
+      const res = await request(app).get('/api/products/suggestions');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.suggestions)).toBe(true);
+      expect(res.body.suggestions.length).toBeGreaterThan(0);
+    });
+
+    it('should return matching suggestions when query is provided', async () => {
+      const res = await request(app).get('/api/products/suggestions?q=Physics');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.suggestions)).toBe(true);
+    });
+  });
+
+  describe('GET /api/products/:id/related & /preview', () => {
+    it('should return related products within the same subject/category', async () => {
+      const listRes = await request(app).get('/api/products');
+      const targetId = listRes.body.products[0].id;
+
+      const res = await request(app).get(`/api/products/${targetId}/related`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.products)).toBe(true);
+      res.body.products.forEach(p => {
+        expect(p.id).not.toBe(targetId);
+      });
+    });
+
+    it('should return curriculum preview details with watermarked sample excerpt', async () => {
+      const listRes = await request(app).get('/api/products');
+      const targetId = listRes.body.products[0].id;
+
+      const res = await request(app).get(`/api/products/${targetId}/preview`);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.preview).toHaveProperty('tableOfContents');
+      expect(res.body.preview).toHaveProperty('sampleExcerpt');
+      expect(res.body.preview.is_watermarked).toBe(true);
     });
   });
 

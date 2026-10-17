@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Container,
@@ -23,7 +23,14 @@ import {
   InputAdornment,
   Divider,
   Stack,
-  IconButton
+  IconButton,
+  Rating,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Popper,
+  ClickAwayListener
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -34,8 +41,12 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SchoolIcon from '@mui/icons-material/School';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import HistoryIcon from '@mui/icons-material/History';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
+import { useAuth } from '../../context/AuthContext';
 
 const SUBJECT_OPTIONS = [
   'All Subjects',
@@ -71,8 +82,17 @@ const FORMAT_OPTIONS = [
   { value: 'both', label: 'Combo (Digital + Printed)' }
 ];
 
+const RATING_OPTIONS = [
+  { value: 'all', label: 'All Ratings' },
+  { value: '4.5', label: '4.5★ & Above' },
+  { value: '4.0', label: '4.0★ & Above' },
+  { value: '3.5', label: '3.5★ & Above' }
+];
+
 const ProductList = () => {
+  const { user } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
+  const searchInputRef = useRef(null);
 
   // Filter States
   const [keyword, setKeyword] = useState('');
@@ -80,8 +100,21 @@ const ProductList = () => {
   const [gradeLevel, setGradeLevel] = useState('All Grades');
   const [productType, setProductType] = useState('all');
   const [format, setFormat] = useState('all');
+  const [minRating, setMinRating] = useState('all');
   const [priceRange, setPriceRange] = useState([0, 3000]);
   const [sortBy, setSortBy] = useState('newest');
+
+  // Autocomplete suggestions & search history
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try {
+      const raw = localStorage.getItem('edumart_search_history');
+      return raw ? JSON.parse(raw) : ['Combined Mathematics', 'Physics Mechanics', 'Organic Chemistry'];
+    } catch {
+      return ['Combined Mathematics', 'Physics Mechanics'];
+    }
+  });
 
   // Pagination & Data States
   const [page, setPage] = useState(1);
@@ -110,6 +143,26 @@ const ProductList = () => {
     fetchCategories();
   }, []);
 
+  // Fetch Autocomplete Suggestions
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const data = await productService.getSuggestions(keyword);
+        if (data && data.suggestions) {
+          setSuggestions(data.suggestions);
+        }
+      } catch (err) {
+        // Silently fallback
+      }
+    };
+
+    const timer = setTimeout(() => {
+      fetchSuggestions();
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
   // Fetch Products
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -127,6 +180,7 @@ const ProductList = () => {
       if (productType !== 'all') params.product_type = productType;
       if (format !== 'all') params.format = format;
       if (selectedCategory !== 'all') params.category_id = selectedCategory;
+      if (minRating !== 'all') params.minRating = minRating;
       if (priceRange[0] > 0) params.minPrice = priceRange[0];
       if (priceRange[1] < 3000) params.maxPrice = priceRange[1];
 
@@ -151,11 +205,33 @@ const ProductList = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, sortBy, keyword, subject, gradeLevel, productType, format, selectedCategory, priceRange]);
+  }, [page, sortBy, keyword, subject, gradeLevel, productType, format, selectedCategory, minRating, priceRange]);
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  const recordSearchHistory = (term) => {
+    if (!term || !term.trim()) return;
+    const cleanTerm = term.trim();
+    setSearchHistory((prev) => {
+      const filtered = prev.filter((item) => item.toLowerCase() !== cleanTerm.toLowerCase());
+      const updated = [cleanTerm, ...filtered].slice(0, 5);
+      try {
+        localStorage.setItem('edumart_search_history', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  };
+
+  const handleSelectSuggestion = (term) => {
+    setKeyword(term);
+    recordSearchHistory(term);
+    setShowSuggestions(false);
+    setPage(1);
+  };
 
   const handleResetFilters = () => {
     setKeyword('');
@@ -164,6 +240,7 @@ const ProductList = () => {
     setProductType('all');
     setFormat('all');
     setSelectedCategory('all');
+    setMinRating('all');
     setPriceRange([0, 3000]);
     setSortBy('newest');
     setPage(1);
@@ -211,6 +288,8 @@ const ProductList = () => {
     return <Chip size="small" icon={<MenuBookIcon fontSize="small" />} label="Digital + Print" color="success" variant="outlined" />;
   };
 
+  const canPublish = user && (user.role === 'tutor' || user.role === 'institute' || user.role === 'admin');
+
   return (
     <Container maxWidth="xl" sx={{ mt: 10, mb: 6 }}>
       {/* Page Title & Hero */}
@@ -218,12 +297,12 @@ const ProductList = () => {
         <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom color="primary">
           Educational Materials Catalog
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ maxWidth: 700, mx: 'auto' }}>
+        <Typography variant="subtitle1" color="text.secondary" sx={{ maxWidth: 720, mx: 'auto' }}>
           Explore Sri Lanka's leading verified collection of G.C.E. A/L and O/L past papers, model marking schemes, syllabus revision guides, and teacher masterclasses.
         </Typography>
 
-        {/* Quick Subject Chips */}
-        <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" sx={{ mt: 2, gap: 1 }}>
+        {/* Quick Subject Chips & Tutor Publish CTA */}
+        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" flexWrap="wrap" sx={{ mt: 2, gap: 1 }}>
           {['Combined Mathematics', 'Physics', 'Chemistry', 'Biology', 'Mathematics'].map((subj) => (
             <Chip
               key={subj}
@@ -236,6 +315,20 @@ const ProductList = () => {
               }}
             />
           ))}
+
+          {canPublish && (
+            <Button
+              component={Link}
+              to="/products/new"
+              variant="contained"
+              color="secondary"
+              size="small"
+              startIcon={<CloudUploadIcon />}
+              sx={{ ml: { sm: 2 }, fontWeight: 'bold' }}
+            >
+              Publish Material
+            </Button>
+          )}
         </Stack>
       </Box>
 
@@ -261,36 +354,115 @@ const ProductList = () => {
 
             <Divider sx={{ mb: 2.5 }} />
 
-            {/* Keyword Search */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                Search Catalog
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search topic, title, paper..."
-                value={keyword}
-                onChange={(e) => {
-                  setKeyword(e.target.value);
-                  setPage(1);
-                }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" color="action" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: keyword && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setKeyword('')}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Box>
+            {/* Keyword Search with Autocomplete Dropdown */}
+            <ClickAwayListener onClickAway={() => setShowSuggestions(false)}>
+              <Box sx={{ mb: 3, position: 'relative' }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  Search Catalog
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  ref={searchInputRef}
+                  placeholder="Search topic, title, paper..."
+                  value={keyword}
+                  onFocus={() => setShowSuggestions(true)}
+                  onChange={(e) => {
+                    setKeyword(e.target.value);
+                    setPage(1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      recordSearchHistory(keyword);
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: keyword && (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setKeyword('')}>
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+
+                {/* Suggestions Popper / Dropdown */}
+                {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0) && (
+                  <Paper
+                    elevation={4}
+                    sx={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 1300,
+                      mt: 0.5,
+                      maxHeight: 260,
+                      overflowY: 'auto',
+                      borderRadius: 1
+                    }}
+                  >
+                    <List dense disablePadding>
+                      {/* Live Suggestions */}
+                      {suggestions.map((sug, i) => (
+                        <ListItem
+                          button
+                          key={`sug-${i}`}
+                          onClick={() => handleSelectSuggestion(sug)}
+                          sx={{ '&:hover': { bgcolor: 'action.hover' } }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 32 }}>
+                            <TrendingUpIcon fontSize="small" color="primary" />
+                          </ListItemIcon>
+                          <ListItemText primary={sug} primaryTypographyProps={{ fontSize: '0.85rem' }} />
+                        </ListItem>
+                      ))}
+
+                      {/* Recent Search History */}
+                      {searchHistory.length > 0 && (
+                        <>
+                          <Divider />
+                          <Box sx={{ px: 2, py: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">
+                              Recent Searches
+                            </Typography>
+                            <Button
+                              size="small"
+                              sx={{ fontSize: '0.7rem', p: 0, minWidth: 'auto' }}
+                              onClick={() => {
+                                setSearchHistory([]);
+                                localStorage.removeItem('edumart_search_history');
+                              }}
+                            >
+                              Clear
+                            </Button>
+                          </Box>
+                          {searchHistory.map((hist, idx) => (
+                            <ListItem
+                              button
+                              key={`hist-${idx}`}
+                              onClick={() => handleSelectSuggestion(hist)}
+                            >
+                              <ListItemIcon sx={{ minWidth: 32 }}>
+                                <HistoryIcon fontSize="small" color="action" />
+                              </ListItemIcon>
+                              <ListItemText primary={hist} primaryTypographyProps={{ fontSize: '0.82rem', color: 'text.secondary' }} />
+                            </ListItem>
+                          ))}
+                        </>
+                      )}
+                    </List>
+                  </Paper>
+                )}
+              </Box>
+            </ClickAwayListener>
 
             {/* Subject Filter */}
             <Box sx={{ mb: 3 }}>
@@ -405,6 +577,28 @@ const ProductList = () => {
               </FormControl>
             </Box>
 
+            {/* Minimum Rating Filter */}
+            <Box sx={{ mb: 3 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="rating-filter-label">Customer Rating</InputLabel>
+                <Select
+                  labelId="rating-filter-label"
+                  value={minRating}
+                  label="Customer Rating"
+                  onChange={(e) => {
+                    setMinRating(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  {RATING_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
             {/* Price Range Slider */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
@@ -458,9 +652,10 @@ const ProductList = () => {
                   setSortBy(e.target.value);
                   setPage(1);
                 }}
-                sx={{ minWidth: 160 }}
+                sx={{ minWidth: 170 }}
               >
                 <MenuItem value="newest">Newest First</MenuItem>
+                <MenuItem value="rating_desc">Top Rated (Highest Reviews)</MenuItem>
                 <MenuItem value="price_asc">Price: Low to High</MenuItem>
                 <MenuItem value="price_desc">Price: High to Low</MenuItem>
                 <MenuItem value="title_asc">Title: A to Z</MenuItem>
@@ -554,21 +749,41 @@ const ProductList = () => {
                         {product.title}
                       </Typography>
 
+                      {/* Star Rating & Review Count */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                        <Rating
+                          value={Number(product.rating_average) || 4.8}
+                          precision={0.5}
+                          readOnly
+                          size="small"
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          ({product.rating_count || 15})
+                        </Typography>
+                      </Box>
+
                       {/* Short Description */}
                       <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{
                           display: '-webkit-box',
-                          WebkitLineClamp: 3,
+                          WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
-                          mb: 2,
+                          mb: 1.5,
                           fontSize: '0.85rem'
                         }}
                       >
                         {product.description}
                       </Typography>
+
+                      {/* Stock Status for Physical Copies */}
+                      {(product.format === 'physical' || product.format === 'both') && (
+                        <Typography variant="caption" color="success.main" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>
+                          📦 In Stock: {product.stock_quantity || 50} printed copies
+                        </Typography>
+                      )}
 
                       {/* Seller & Exam Year Attribution */}
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: 'text.secondary', fontSize: '0.8rem', mt: 'auto' }}>

@@ -8,6 +8,7 @@ const models = {
   Order: require('./Order')(sequelize),
   OrderItem: require('./OrderItem')(sequelize),
   Payment: require('./Payment')(sequelize),
+  DigitalAsset: require('./DigitalAsset')(sequelize),
   AiInteraction: require('./AiInteraction')(sequelize),
   Session: require('./Session')(sequelize),
 };

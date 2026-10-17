@@ -9,6 +9,7 @@ import ResetPassword from './pages/auth/ResetPassword';
 import VerifyEmail from './pages/auth/VerifyEmail';
 import ProductList from './pages/products/ProductList';
 import ProductDetail from './pages/products/ProductDetail';
+import ProductCreate from './pages/products/ProductCreate';
 import Cart from './pages/cart/Cart';
 import Checkout from './pages/checkout/Checkout';
 import Profile from './pages/profile/Profile';
@@ -43,6 +44,7 @@ const routes = [
   { path: '/reset-password',  element: <ResetPassword /> },
   { path: '/verify-email',    element: <VerifyEmail /> },
   { path: '/products',       element: <ProductList /> },
+  { path: '/products/new',   element: <Guard roles={['tutor', 'institute', 'admin']}><ProductCreate /></Guard> },
   { path: '/products/:id',   element: <ProductDetail /> },
   { path: '/cart',           element: <Cart /> },
   { path: '/checkout',       element: <Checkout /> },
