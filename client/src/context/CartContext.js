@@ -267,6 +267,12 @@ export const CartProvider = ({ children }) => {
     throw new Error('Invalid coupon code');
   };
 
+  const removeFromSavedForLater = (productId) => {
+    setSavedForLater((prev) =>
+      prev.filter((i) => i.product_id !== productId && i.title !== productId)
+    );
+  };
+
   const removeCoupon = () => {
     setAppliedCoupon(null);
     localStorage.removeItem('edumart_cart_coupon');
@@ -289,6 +295,7 @@ export const CartProvider = ({ children }) => {
     removeFromCart,
     clearCart,
     toggleSaveForLater,
+    removeFromSavedForLater,
     applyCoupon,
     removeCoupon,
   };

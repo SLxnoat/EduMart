@@ -54,6 +54,7 @@ const Cart = () => {
     removeFromCart,
     clearCart,
     toggleSaveForLater,
+    removeFromSavedForLater,
     applyCoupon,
     removeCoupon,
   } = useCart();
@@ -278,11 +279,8 @@ const Cart = () => {
                           <IconButton
                             size="small"
                             color="error"
-                            onClick={() =>
-                              setSavedForLater((prev) =>
-                                prev.filter((i) => i.product_id !== saved.product_id)
-                              )
-                            }
+                            aria-label="delete saved item"
+                            onClick={() => removeFromSavedForLater(saved.product_id)}
                           >
                             <Delete fontSize="small" />
                           </IconButton>

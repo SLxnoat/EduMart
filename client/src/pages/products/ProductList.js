@@ -16,7 +16,6 @@ import {
   Chip,
   Box,
   Pagination,
-  CircularProgress,
   Skeleton,
   Alert,
   Slider,
@@ -30,7 +29,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Popper,
   ClickAwayListener
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
