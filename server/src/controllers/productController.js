@@ -800,6 +800,89 @@ const getProductPreview = asyncHandler(async (req, res) => {
   });
 });
 
+const escapePdfText = (str) => {
+  return (str || '').replace(/[\\()]/g, '\\$&');
+};
+
+const generateSamplePreviewPdf = (title, subject, grade, examYear) => {
+  const content = [
+    'BT',
+    '/F1 18 Tf',
+    '50 740 Td',
+    `(${escapePdfText(title || 'Curriculum Sample Preview')}) Tj`,
+    '0 -24 Td',
+    '/F1 11 Tf',
+    `(${escapePdfText(`Subject: ${subject || 'General'} | Standard: ${grade || 'All Grades'} | Exam: ${examYear || 'National Curriculum'}`)}) Tj`,
+    '0 -24 Td',
+    '(*** AUTHORIZED WATERMARKED SAMPLE PREVIEW - EDUMART ***) Tj',
+    '0 -26 Td',
+    '/F1 12 Tf',
+    '(Table of Contents & Curriculum Structure:) Tj',
+    '0 -18 Td',
+    '/F1 10 Tf',
+    '(1. Unit 1: Syllabus Guidelines & National Curriculum Overview) Tj',
+    '0 -16 Td',
+    '(2. Unit 2: Theoretical Formulations & Conceptual Definitions) Tj',
+    '0 -16 Td',
+    '(3. Unit 3: Marking Rubric & Point Distribution) Tj',
+    '0 -16 Td',
+    '(4. Unit 4: Model Examination Questions Part A - Structured) Tj',
+    '0 -16 Td',
+    '(5. Unit 5: Model Essay Problems & Complete Marking Schemes) Tj',
+    '0 -24 Td',
+    '/F1 12 Tf',
+    '(Sample Model Problem & Marking Rubric Excerpt:) Tj',
+    '0 -18 Td',
+    '/F1 10 Tf',
+    '(Sample Question 01: Evaluate the step-by-step problem sequence according to official standards.) Tj',
+    '0 -16 Td',
+    '(Marking Breakdown: (a) Method derivation - 3 marks | (b) Intermediate algebraic step - 4 marks) Tj',
+    '0 -16 Td',
+    '((c) Unit verification and final numerical conclusion - 3 marks) Tj',
+    '0 -26 Td',
+    '(* Note: This is an authorized preview copy watermarked for student syllabus evaluation.) Tj',
+    '0 -16 Td',
+    '(* The complete, unredacted study material is unlocked immediately upon order completion.) Tj',
+    'ET'
+  ].join('\n');
+
+  const streamLength = Buffer.byteLength(content, 'utf8');
+
+  let body = '';
+  const offsets = [];
+
+  function addObj(str) {
+    offsets.push(Buffer.byteLength(body, 'latin1'));
+    body += str;
+  }
+
+  body += '%PDF-1.4\n';
+
+  // Obj 1: Catalog
+  addObj('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+
+  // Obj 2: Pages
+  addObj('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+
+  // Obj 3: Page
+  addObj('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n');
+
+  // Obj 4: Font
+  addObj('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+
+  // Obj 5: Stream
+  addObj(`5 0 obj\n<< /Length ${streamLength} >>\nstream\n${content}\nendstream\nendobj\n`);
+
+  const startxref = Buffer.byteLength(body, 'latin1');
+  let xref = 'xref\n0 6\n0000000000 65535 f \n';
+  for (let i = 0; i < 5; i++) {
+    xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  }
+
+  const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF\n`;
+  return Buffer.from(body + xref + trailer, 'latin1');
+};
+
 /**
  * @desc    Stream or download sample preview document file
  * @route   GET /api/products/:id/preview-file
@@ -821,11 +904,17 @@ const getProductPreviewFile = asyncHandler(async (req, res) => {
   // Fallback watermarked preview buffer
   const product = await Product.findByPk(id);
   const title = product?.title || 'Curriculum Sample Preview';
-  const pdfBytes = Buffer.from(
-    `%PDF-1.4\n% EduMart Sample Preview\nTitle: ${title}\nWatermarked Sample Excerpt for Evaluation\n%%EOF`
+  const pdfBytes = generateSamplePreviewPdf(
+    title,
+    product?.subject,
+    product?.grade_level,
+    product?.exam_year
   );
+
+  const safeFilename = `${title.replace(/[^a-zA-Z0-9_\-]/g, '_')}_preview.pdf`;
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="${title.replace(/[^a-zA-Z0-9_\-]/g, '_')}_preview.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"`);
+  res.setHeader('Content-Length', pdfBytes.length);
   res.status(200).send(pdfBytes);
 });
 

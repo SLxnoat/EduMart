@@ -34,7 +34,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -782,20 +783,37 @@ const ProductList = () => {
                     }}
                   >
                     <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                      {/* Top Chips: Grade & Subject & Format */}
-                      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1.5 }}>
-                        <Chip
-                          size="small"
-                          label={product.subject}
-                          color="primary"
-                          sx={{ fontWeight: 'bold' }}
-                        />
-                        <Chip
-                          size="small"
-                          label={product.grade_level}
-                          variant="outlined"
-                        />
-                        {renderFormatChip(product.format)}
+                      {/* Top Chips: Grade & Subject & Format + Quick Preview Eye Icon */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <Chip
+                            size="small"
+                            label={product.subject}
+                            color="primary"
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                          <Chip
+                            size="small"
+                            label={product.grade_level}
+                            variant="outlined"
+                          />
+                          {renderFormatChip(product.format)}
+                        </Box>
+                        <Tooltip title="Quick Preview Sample">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            aria-label="Quick Preview Sample"
+                            onClick={(e) => handleOpenPreview(e, product)}
+                            sx={{
+                              bgcolor: 'rgba(25, 118, 210, 0.08)',
+                              '&:hover': { bgcolor: 'rgba(25, 118, 210, 0.16)' },
+                              flexShrink: 0
+                            }}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
 
                       {/* Product Title */}
@@ -891,15 +909,6 @@ const ProductList = () => {
                           to={`/products/${product.id}`}
                         >
                           Details
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          startIcon={<VisibilityIcon />}
-                          onClick={(e) => handleOpenPreview(e, product)}
-                        >
-                          Preview
                         </Button>
                         <Button
                           size="small"
@@ -1008,18 +1017,17 @@ const ProductList = () => {
           </DialogContent>
           <DialogActions sx={{ p: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
             <Box>
-              {(previewData?.has_custom_preview || previewProduct?.digitalAssets?.some((a) => a.is_preview)) && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  startIcon={<CloudDownloadIcon />}
-                  href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Download Sample PDF
-                </Button>
-              )}
+              <Button
+                variant="outlined"
+                color="secondary"
+                startIcon={<CloudDownloadIcon />}
+                href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Download Sample PDF
+              </Button>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button onClick={() => setPreviewOpen(false)}>Close</Button>

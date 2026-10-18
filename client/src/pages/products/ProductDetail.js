@@ -384,15 +384,29 @@ const ProductDetail = () => {
                   </Typography>
                 </Box>
               </Box>
-              <Button
-                variant="outlined"
-                color="primary"
-                size="small"
-                startIcon={<VisibilityIcon />}
-                onClick={handleOpenPreview}
-              >
-                Sample Preview
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  startIcon={<VisibilityIcon />}
+                  onClick={handleOpenPreview}
+                >
+                  Sample Preview
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  startIcon={<CloudDownloadIcon />}
+                  href={productService.getPreviewFileUrl(product.id)}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Download Sample PDF
+                </Button>
+              </Box>
             </Paper>
 
             {/* Detailed Description */}
@@ -970,18 +984,17 @@ const ProductDetail = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Box>
-            {(previewData?.has_custom_preview || product?.digitalAssets?.some((a) => a.is_preview)) && (
-              <Button
-                variant="outlined"
-                color="secondary"
-                startIcon={<CloudDownloadIcon />}
-                href={productService.getPreviewFileUrl(product.id)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Download Sample PDF
-              </Button>
-            )}
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<CloudDownloadIcon />}
+              href={productService.getPreviewFileUrl(product.id)}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download Sample PDF
+            </Button>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button onClick={() => setPreviewOpen(false)}>Close</Button>
