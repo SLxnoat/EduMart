@@ -21,16 +21,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   LinearProgress,
   TextField,
-  Avatar,
-  Tabs,
-  Tab
+  Avatar
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -73,7 +66,6 @@ const ProductDetail = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [previewTab, setPreviewTab] = useState(0);
 
   // Related Products State
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -182,7 +174,6 @@ const ProductDetail = () => {
   };
 
   const handleOpenPreview = async () => {
-    setPreviewTab(0);
     setPreviewOpen(true);
     if (!previewData) {
       setLoadingPreview(true);

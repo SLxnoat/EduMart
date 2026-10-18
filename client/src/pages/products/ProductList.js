@@ -33,11 +33,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   CircularProgress,
-  Tooltip,
-  Tabs,
-  Tab
+  Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -53,9 +50,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import { useAuth } from '../../context/AuthContext';
@@ -273,7 +268,6 @@ const ProductList = () => {
       e.stopPropagation();
     }
     setPreviewProduct(prod);
-    setPreviewTab(0);
     setPreviewOpen(true);
     setLoadingPreview(true);
     try {
