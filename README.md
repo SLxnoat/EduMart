@@ -253,6 +253,7 @@ EduMart/
 9. [SQL Implementation Guide](docs/sql_implementation_guide.md) — Detailed guide on database setup and schema execution
 10. [Wireframes Plan](docs/wireframes.md) — UI/UX wireframe planning and screen flows
 11. [Documentation Overview](docs/SUMMARY.md) — High-level summary of project documentation suite
+12. [GitHub + Netlify Deployment Guide](docs/DEPLOYMENT_GUIDE.md) — Complete guide for GitHub Actions, Netlify frontend, and backend secrets configuration
 
 ---
 
