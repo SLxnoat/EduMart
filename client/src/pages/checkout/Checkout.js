@@ -107,22 +107,22 @@ const Checkout = () => {
   // Payment form state
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [cardDetails, setCardDetails] = useState({
-    cardholderName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Charuka Silva',
-    cardNumber: '4242 •••• •••• 4242',
-    expDate: '12/28',
-    cvv: '123',
+    cardholderName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
+    cardNumber: '',
+    expDate: '',
+    cvv: '',
   });
   const [bankDetails, setBankDetails] = useState({
-    slipNumber: 'TXN-98234120',
+    slipNumber: '',
     bankName: 'Commercial Bank of Ceylon',
-    depositorName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Charuka Silva',
+    depositorName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
   });
   const [walletDetails, setWalletDetails] = useState({
     walletType: 'LankaQR',
-    mobileNumber: user?.phone || '0771234567',
+    mobileNumber: user?.phone || '',
   });
   const [paypalDetails, setPaypalDetails] = useState({
-    paypalEmail: user?.email || 'student@edumart.lk',
+    paypalEmail: user?.email || '',
   });
   const [gatewayConfig, setGatewayConfig] = useState(null);
   const [downloadingItemId, setDownloadingItemId] = useState(null);
@@ -227,6 +227,128 @@ const Checkout = () => {
   const totalAmount = parseFloat(
     Math.max(0, subtotal + shippingCost + taxAmount - discountAmount).toFixed(2)
   );
+
+  // Dynamically load & render official PayPal Smart Buttons
+  useEffect(() => {
+    if (activeStep !== 1 || paymentMethod !== 'paypal') return;
+
+    const clientId =
+      process.env.REACT_APP_PAYPAL_CLIENT_ID ||
+      gatewayConfig?.paypal?.clientId ||
+      'BAA_AtjZqnmWQ5AfPYyHTyiQtu8Um9eNwuLK4AQ84Qizt994OsMZgDAXd7fImOPFREwefDNH_c2aY4ZTtA';
+
+    if (!clientId) return;
+
+    let isMounted = true;
+    const scriptId = 'paypal-sdk-script';
+
+    const renderButtons = () => {
+      if (!isMounted) return;
+      const container = document.getElementById('paypal-button-container');
+      if (!container || !window.paypal || container.children.length > 0) return;
+
+      try {
+        window.paypal
+          .Buttons({
+            style: {
+              layout: 'vertical',
+              color: 'gold',
+              shape: 'rect',
+              label: 'paypal',
+              height: 44,
+            },
+            createOrder: async () => {
+              setLoading(true);
+              setError('');
+              try {
+                const orderPayload = {
+                  items,
+                  shipping_address: shippingAddress,
+                  billing_address: shippingAddress,
+                  shipping_cost: shippingCost,
+                  tax_amount: taxAmount,
+                  discount_amount: discountAmount,
+                  coupon_code: appliedCoupon?.code || undefined,
+                  currency: 'LKR',
+                  notes: 'Placed via Web Checkout (PAYPAL_SDK)',
+                };
+                const orderResponse = await orderService.createOrder(orderPayload);
+                const order = orderResponse.data;
+                localStorage.setItem('pendingPayPalOrderId', order.id);
+
+                const ppRes = await paymentService.createPayPalOrder(order.id);
+                return ppRes.paypalOrderId;
+              } catch (err) {
+                console.error('PayPal createOrder error:', err);
+                setError(err.response?.data?.message || err.message || 'Could not initiate PayPal checkout.');
+                throw err;
+              } finally {
+                setLoading(false);
+              }
+            },
+            onApprove: async (data) => {
+              setPaypalProcessing(true);
+              try {
+                const orderId = localStorage.getItem('pendingPayPalOrderId');
+                await paymentService.capturePayPalOrder(orderId, data.orderID);
+                localStorage.removeItem('pendingPayPalOrderId');
+
+                const updatedOrderRes = await orderService.getOrderById(orderId);
+                setPlacedOrder(updatedOrderRes.data);
+                if (clearCart) clearCart();
+                setActiveStep(2);
+              } catch (err) {
+                console.error('PayPal onApprove capture error:', err);
+                setError(err.response?.data?.message || err.message || 'Payment capture failed.');
+              } finally {
+                setPaypalProcessing(false);
+              }
+            },
+            onError: (err) => {
+              console.warn('PayPal Buttons error/closed:', err);
+            },
+          })
+          .render('#paypal-button-container')
+          .catch((err) => {
+            console.warn('Failed rendering PayPal Buttons into DOM:', err);
+          });
+      } catch (err) {
+        console.warn('Could not initialize PayPal Buttons:', err);
+      }
+    };
+
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&intent=capture`;
+      script.async = true;
+      script.onload = () => {
+        renderButtons();
+      };
+      script.onerror = () => {
+        console.warn('PayPal SDK failed to load from CDN. Using standard fallback.');
+      };
+      document.body.appendChild(script);
+    } else if (window.paypal) {
+      renderButtons();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    activeStep,
+    paymentMethod,
+    gatewayConfig,
+    items,
+    shippingAddress,
+    shippingCost,
+    taxAmount,
+    discountAmount,
+    appliedCoupon,
+    clearCart,
+  ]);
 
   // Reset payment method from COD if cart contains digital items or no physical items
   useEffect(() => {
@@ -779,8 +901,8 @@ const Checkout = () => {
 
               {/* Sub-form: PayPal */}
               {paymentMethod === 'paypal' && (
-                <Card variant="outlined" sx={{ p: 2.5, mt: 2, bgcolor: '#f0f9ff', borderRadius: 2, borderColor: '#0284c7' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                <Card variant="outlined" sx={{ p: 2.5, mt: 2, bgcolor: '#f8fafc', borderRadius: 2, borderColor: '#0284c7' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <AccountBalanceWallet sx={{ color: '#0070ba', mr: 1, fontSize: 28 }} />
                       <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#003087' }}>
@@ -789,35 +911,34 @@ const Checkout = () => {
                     </Box>
                     <Chip
                       size="small"
-                      color="primary"
+                      color="info"
                       variant="outlined"
-                      label="Sandbox Mode Active"
-                      sx={{ fontWeight: 'bold' }}
+                      icon={<Lock fontSize="small" />}
+                      label="Buyer Protection Active"
+                      sx={{ fontWeight: 'medium' }}
                     />
                   </Box>
 
-                  <Alert severity="info" sx={{ mb: 2, fontSize: '0.85rem' }}>
-                    <strong>PayPal Sandbox Account Info:</strong>
-                    <Box component="ul" sx={{ pl: 2.5, my: 0.5 }}>
-                      <li>Sandbox Buyer Email: <code>sb-toawx53417309@business.example.com</code></li>
-                      <li>Sandbox Password: <code>rZ3ATz#/</code></li>
-                      <li>Currency Auto-Conversion: LKR {totalAmount.toFixed(2)} ≈ <strong>${(totalAmount / 300).toFixed(2)} USD</strong> (1 USD = 300 LKR)</li>
-                    </Box>
-                    Click <strong>"Pay with PayPal (Sandbox Login)"</strong> to open the real PayPal Sandbox login interface, or choose <strong>"Instant Sandbox Approval"</strong> for one-click checkout.
-                  </Alert>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Safe, high-speed payment. You can pay with your <strong>PayPal account</strong> or use <strong>Debit / Credit Card (PayPal Guest Checkout)</strong>. Order total is converted to USD (approx. <strong>${(totalAmount / 300).toFixed(2)} USD</strong>).
+                  </Typography>
 
                   <TextField
                     fullWidth
                     size="small"
-                    label="PayPal Account / Buyer Email"
+                    label="PayPal Account / Notification Email"
                     name="paypalEmail"
                     value={paypalDetails.paypalEmail}
                     onChange={handlePaypalChange}
+                    placeholder="student@example.com"
                     sx={{ mb: 2 }}
-                    helperText="Notification receipt will also be dispatched to this email upon order confirmation."
+                    helperText="Your payment confirmation receipt will also be sent to this email."
                   />
 
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  {/* PayPal Smart Buttons Container (Rendered by PayPal JS SDK if available) */}
+                  <Box id="paypal-button-container" sx={{ minHeight: 45, mb: 1.5 }} />
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 1 }}>
                     <Button
                       variant="contained"
                       fullWidth
@@ -833,7 +954,7 @@ const Checkout = () => {
                       }}
                       startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <AccountBalanceWallet />}
                     >
-                      {loading ? 'Connecting to PayPal...' : `Pay via PayPal ($${(totalAmount / 300).toFixed(2)} USD)`}
+                      {loading ? 'Connecting to PayPal...' : `Pay with PayPal ($${(totalAmount / 300).toFixed(2)} USD)`}
                     </Button>
 
                     <Button
@@ -845,12 +966,12 @@ const Checkout = () => {
                         borderColor: '#0284c7',
                         color: '#0284c7',
                         py: 1.2,
-                        fontWeight: 'bold',
+                        fontWeight: 'medium',
                         textTransform: 'none',
-                        fontSize: '0.95rem',
+                        fontSize: '0.9rem',
                       }}
                     >
-                      Instant Sandbox Approval (Direct)
+                      Instant Test Payment
                     </Button>
                   </Stack>
                 </Card>
