@@ -41,6 +41,10 @@ const productService = {
     const base = api.defaults.baseURL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
     return `${base}/products/${id}/preview-file`;
   },
+  getPreviewImageUrl: (id, page = 1) => {
+    const base = api.defaults.baseURL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    return `${base}/products/${id}/preview-image/${page}`;
+  },
   deleteProduct: async (id) => {
     const response = await api.delete(`/products/${id}`);
     return response.data;

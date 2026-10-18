@@ -8,6 +8,7 @@ const {
   getRelatedProducts,
   getProductPreview,
   getProductPreviewFile,
+  getProductPreviewImage,
   createProduct,
   updateProduct,
   deleteProduct
@@ -23,6 +24,7 @@ router.get('/:id', getProductById);
 router.get('/:id/related', getRelatedProducts);
 router.get('/:id/preview', getProductPreview);
 router.get('/:id/preview-file', getProductPreviewFile);
+router.get('/:id/preview-image/:page?', getProductPreviewImage);
 
 // Protected tutor/admin operations
 router.post('/', protect, seller, uploadMaterialFiles, createProduct);

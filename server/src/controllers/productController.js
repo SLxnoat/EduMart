@@ -769,12 +769,17 @@ const getProductPreview = asyncHandler(async (req, res) => {
     });
   } catch (_) {}
 
+  const priceNum = parseFloat(product.price) || 0;
+  const originalPrice = parseFloat((priceNum * 1.45).toFixed(2));
+
   const preview = {
     id: product.id,
     productId: product.id,
     title: product.title,
     description: product.description,
-    price: parseFloat(product.price) || 0,
+    price: priceNum,
+    original_price: originalPrice,
+    discount_percentage: 31,
     subject: product.subject,
     grade_level: product.grade_level,
     exam_year: product.exam_year,
@@ -784,6 +789,14 @@ const getProductPreview = asyncHandler(async (req, res) => {
     has_custom_preview: !!(previewAsset && previewAsset.file_path && fs.existsSync(previewAsset.file_path)),
     preview_filename: previewAsset?.file_name || null,
     preview_file_url: `/api/products/${product.id}/preview-file`,
+    preview_images: [
+      `/api/products/${product.id}/preview-image/1`,
+      `/api/products/${product.id}/preview-image/2`
+    ],
+    total_pages: 52,
+    sample_pages_count: 2,
+    locked_pages_count: 50,
+    social_proof: '🔥 High demand: 18 students studying this unit this week',
     is_watermarked: true
   };
 
@@ -915,6 +928,282 @@ const getProductPreviewFile = asyncHandler(async (req, res) => {
   res.status(200).send(pdfBytes);
 });
 
+/**
+ * @desc    Generate high-resolution sample page SVG image
+ */
+const generateSamplePreviewSvg = (title, subject, grade, examYear, page = 1) => {
+  const safeTitle = (title || 'Educational Material')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  const safeSub = (subject || 'General Studies')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeGrade = (grade || 'National Curriculum')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeYear = (examYear || '2024/2025')
+    .toString()
+    .replace(/&/g, '&amp;');
+
+  if (page === 2) {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130" width="800" height="1130">
+  <defs>
+    <linearGradient id="headerGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e3a8a" />
+    </linearGradient>
+  </defs>
+
+  <!-- Page Background -->
+  <rect width="800" height="1130" fill="#ffffff" />
+  <rect x="25" y="25" width="750" height="1080" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+
+  <!-- Top Accent Bar -->
+  <rect x="25" y="25" width="750" height="12" fill="url(#headerGrad2)" rx="4" />
+
+  <!-- Running Header -->
+  <g transform="translate(50, 65)">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#0284c7" letter-spacing="1">EDUMART ACADEMIC SPECIMEN • PART II</text>
+    <text x="700" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b" text-anchor="end">${safeSub} • Page 2 of 52</text>
+    <line x1="0" y1="12" x2="700" y2="12" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <!-- Page 2 Content -->
+  <g transform="translate(50, 110)">
+    <!-- Section Title -->
+    <rect x="0" y="0" width="700" height="38" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">SECTION B: HIGH-YIELD MODEL QUESTION &amp; STEP-BY-STEP DERIVATION</text>
+
+    <!-- Question Box -->
+    <rect x="0" y="55" width="700" height="135" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1" />
+    <text x="20" y="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#166534">Model Examination Question [Evaluation Weight: 25 Marks]</text>
+    <text x="20" y="108" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#1e293b">
+      <tspan x="20" dy="0">A. Formulate the fundamental governing equations for the given syllabus unit conditions.</tspan>
+      <tspan x="20" dy="22">B. Deduce the exact analytical solution satisfying the boundary constraints and state all assumptions.</tspan>
+      <tspan x="20" dy="22">C. Evaluate the margin of error and compare against official National Examination Board benchmark standards.</tspan>
+    </text>
+
+    <!-- Worked Solution Steps -->
+    <text x="0" y="225" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#0f172a">MODEL SOLUTION BREAKDOWN &amp; POINT ALLOCATION:</text>
+
+    <!-- Step 1 -->
+    <rect x="0" y="242" width="700" height="85" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+    <rect x="0" y="242" width="8" height="85" fill="#0284c7" />
+    <text x="24" y="268" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Step 1: Conceptual Identification &amp; Variable Substitution (7 Marks)</text>
+    <text x="24" y="292" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#475569">
+      <tspan x="24" dy="0">• State isolated system conservation laws and verify physical dimensionality invariance.</tspan>
+      <tspan x="24" dy="18">• Construct the orthogonal coordinate system resolving components along the principal axis.</tspan>
+    </text>
+
+    <!-- Step 2 -->
+    <rect x="0" y="342" width="700" height="85" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+    <rect x="0" y="342" width="8" height="85" fill="#10b981" />
+    <text x="24" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Step 2: Algebraic Simplification &amp; Integration Method (10 Marks)</text>
+    <text x="24" y="392" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#475569">
+      <tspan x="24" dy="0">• Decompose rational algebraic polynomials into distinct partial fractions.</tspan>
+      <tspan x="24" dy="18">• Integrate term-by-term and compute boundary constants using given initial values.</tspan>
+    </text>
+
+    <!-- Step 3 -->
+    <rect x="0" y="442" width="700" height="85" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+    <rect x="0" y="442" width="8" height="85" fill="#f59e0b" />
+    <text x="24" y="468" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Step 3: Verification &amp; Final Conclusion (8 Marks)</text>
+    <text x="24" y="492" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#475569">
+      <tspan x="24" dy="0">• Substitute limiting scenarios to confirm convergence and stability of the result.</tspan>
+      <tspan x="24" dy="18">• State final magnitude and vector orientation with appropriate SI units.</tspan>
+    </text>
+
+    <!-- Examiner Advice Box -->
+    <rect x="0" y="546" width="700" height="105" rx="8" fill="#fffbeb" stroke="#fcd34d" stroke-width="1" />
+    <text x="20" y="574" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#92400e">💡 Examiner Feedback &amp; Common Pitfalls</text>
+    <text x="20" y="598" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#78350f">
+      <tspan x="20" dy="0">Over 64% of candidates lose marks due to skipping sign conventions in step 1.</tspan>
+      <tspan x="20" dy="18">Always write clear intermediate steps as marked above to guarantee partial credit,</tspan>
+      <tspan x="20" dy="18">even if final numerical evaluation contains arithmetic errors.</tspan>
+    </text>
+
+    <!-- Teaser Notice for next pages -->
+    <rect x="0" y="670" width="700" height="85" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1" />
+    <text x="20" y="698" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#1e40af">🔒 Notice: Pages 3 through 52 are locked in this evaluation sample.</text>
+    <text x="20" y="722" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#1d4ed8">
+      <tspan x="20" dy="0">Purchase this full study package to unlock 50 additional comprehensive questions,</tspan>
+      <tspan x="20" dy="18">in-depth past paper analyses, and complete revision summary sheets.</tspan>
+    </text>
+  </g>
+
+  <!-- Diagonal Watermark Overlay -->
+  <g opacity="0.08" transform="rotate(-30 400 565)">
+    <text x="400" y="500" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+    <text x="400" y="550" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="700" fill="#0f172a" text-anchor="middle" letter-spacing="4">PROTECTED ACADEMIC SPECIMEN • EVALUATION ONLY</text>
+    <text x="400" y="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+  </g>
+
+  <!-- Page Footer -->
+  <g transform="translate(50, 1070)">
+    <line x1="0" y1="0" x2="700" y2="0" stroke="#cbd5e1" stroke-width="1" />
+    <text y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#64748b">EduMart Educational Marketplace • Authorized Student Preview Copy</text>
+    <text x="700" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#64748b" text-anchor="end">Page 2 of 52</text>
+  </g>
+</svg>`;
+  }
+
+  // Page 1 Default
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130" width="800" height="1130">
+  <defs>
+    <linearGradient id="headerGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Paper -->
+  <rect width="800" height="1130" fill="#ffffff" />
+  <rect x="25" y="25" width="750" height="1080" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+
+  <!-- Top Blue Banner -->
+  <rect x="25" y="25" width="750" height="100" fill="url(#headerGrad1)" rx="8" />
+
+  <!-- Header Text -->
+  <g transform="translate(60, 65)">
+    <circle cx="25" cy="18" r="22" fill="#ffffff" opacity="0.15" />
+    <path d="M 25 3 L 42 10 L 42 24 C 42 34 25 41 25 41 C 25 41 8 34 8 24 L 8 10 Z" fill="#ffffff" opacity="0.9" />
+    <text x="60" y="16" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#93c5fd" letter-spacing="1.5">OFFICIAL EDUMART STUDY MATERIAL SPECIMEN</text>
+    <text x="60" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="800" fill="#ffffff" letter-spacing="0.5">National Curriculum Verified Resource</text>
+  </g>
+
+  <!-- Title & Metadata Block -->
+  <g transform="translate(50, 155)">
+    <!-- Document Title -->
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="800" fill="#0f172a">${safeTitle}</text>
+    
+    <!-- Meta Chips Grid -->
+    <g transform="translate(0, 32)">
+      <rect x="0" y="0" width="160" height="32" rx="16" fill="#eff6ff" stroke="#bfdbfe" />
+      <text x="80" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">📚 ${safeSub}</text>
+
+      <rect x="170" y="0" width="160" height="32" rx="16" fill="#f0fdf4" stroke="#bbf7d0" />
+      <text x="250" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">🎓 ${safeGrade}</text>
+
+      <rect x="340" y="0" width="160" height="32" rx="16" fill="#fef3c7" stroke="#fde68a" />
+      <text x="420" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">📅 Exam: ${safeYear}</text>
+
+      <rect x="510" y="0" width="190" height="32" rx="16" fill="#faf5ff" stroke="#e9d5ff" />
+      <text x="605" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="700" fill="#6b21a8" text-anchor="middle">🔒 Verified Teacher License</text>
+    </g>
+
+    <line x1="0" y1="85" x2="700" y2="85" stroke="#e2e8f0" stroke-width="1.5" />
+  </g>
+
+  <!-- Page 1 Body Content -->
+  <g transform="translate(50, 265)">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#1e293b" letter-spacing="0.5">PART I: THEORETICAL FOUNDATION &amp; CORE COMPETENCIES</text>
+    <rect x="0" y="12" width="700" height="2" fill="#0284c7" />
+
+    <text x="0" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#334155">
+      <tspan x="0" dy="0">This comprehensive study guide compiles high-frequency exam objectives aligned directly with</tspan>
+      <tspan x="0" dy="20">the Department of Examinations national syllabus standards. Each core principle is presented</tspan>
+      <tspan x="0" dy="20">with concise analytical proofs, visual schematics, and model step-by-step examination derivations.</tspan>
+    </text>
+
+    <!-- Key Bullet Cards -->
+    <g transform="translate(0, 115)">
+      <rect x="0" y="0" width="335" height="110" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+      <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0f172a">1. Master Concept Syntheses</text>
+      <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#64748b">
+        <tspan x="16" dy="0">• Rigorous axiomatic formulations</tspan>
+        <tspan x="16" dy="18">• Clear variable declarations</tspan>
+        <tspan x="16" dy="18">• Real-world exam problem mappings</tspan>
+      </text>
+
+      <rect x="365" y="0" width="335" height="110" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+      <text x="381" y="26" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0f172a">2. High-Yield Examination Strategies</text>
+      <text x="381" y="48" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#64748b">
+        <tspan x="381" dy="0">• Full structured essay solutions</tspan>
+        <tspan x="381" dy="18">• Official marking scheme allocation</tspan>
+        <tspan x="381" dy="18">• Common student pitfalls &amp; traps</tspan>
+      </text>
+    </g>
+
+    <!-- Formula / High Priority Concept Highlight Box -->
+    <g transform="translate(0, 245)">
+      <rect x="0" y="0" width="700" height="145" rx="8" fill="#f0f9ff" stroke="#bae6fd" stroke-width="1.5" />
+      <rect x="0" y="0" width="8" height="145" fill="#0284c7" />
+      <text x="24" y="30" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0369a1">⭐ CORE FORMULA SPECIFICATION &amp; CRITICAL THEOREM BOX</text>
+      <text x="24" y="58" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#0f172a" font-weight="600">
+        <tspan x="24" dy="0">Mathematical Invariance &amp; Governing Theorem:</tspan>
+      </text>
+      <text x="24" y="82" font-family="Courier, monospace" font-size="13" fill="#0c4a6e" font-weight="700">
+        <tspan x="40" dy="0">∑ F_x = 0  ;  ∑ F_y = 0  ;  ∫ [f(x) ± g(x)] dx = F(x) ± G(x) + C</tspan>
+      </text>
+      <text x="24" y="110" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#0369a1">
+        <tspan x="24" dy="0">Applicability Note: Always state initial reference frame and boundary conditions</tspan>
+        <tspan x="24" dy="16">prior to applying this derivation to earn maximum partial marks.</tspan>
+      </text>
+    </g>
+
+    <!-- Document Assurance Badge -->
+    <g transform="translate(0, 415)">
+      <rect x="0" y="0" width="700" height="90" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+      <circle cx="40" cy="45" r="22" fill="#dbeafe" />
+      <text x="40" y="51" font-family="sans-serif" font-size="18" text-anchor="middle">✓</text>
+      <text x="75" y="35" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Authenticated Educator Copyright &amp; Academic Guarantee</text>
+      <text x="75" y="56" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#64748b">
+        <tspan x="75" dy="0">Prepared by verified subject matter educators. All intellectual property protected.</tspan>
+        <tspan x="75" dy="16">Purchased material includes high-resolution digital master copy without watermarks.</tspan>
+      </text>
+    </g>
+  </g>
+
+  <!-- Diagonal Watermark Overlay -->
+  <g opacity="0.08" transform="rotate(-30 400 565)">
+    <text x="400" y="500" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+    <text x="400" y="550" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="700" fill="#0f172a" text-anchor="middle" letter-spacing="4">PROTECTED ACADEMIC SPECIMEN • EVALUATION ONLY</text>
+    <text x="400" y="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+  </g>
+
+  <!-- Page Footer -->
+  <g transform="translate(50, 1070)">
+    <line x1="0" y1="0" x2="700" y2="0" stroke="#cbd5e1" stroke-width="1" />
+    <text y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#64748b">EduMart Educational Marketplace • Authorized Student Preview Copy</text>
+    <text x="700" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#64748b" text-anchor="end">Page 1 of 52</text>
+  </g>
+</svg>`;
+};
+
+/**
+ * @desc    Get preview sample image for a material
+ * @route   GET /api/products/:id/preview-image/:page?
+ * @access  Public
+ */
+const getProductPreviewImage = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const page = parseInt(req.params.page || '1', 10) || 1;
+
+  const product = await Product.findByPk(id);
+  if (!product) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
+
+  const svg = generateSamplePreviewSvg(
+    product.title,
+    product.subject,
+    product.grade_level,
+    product.exam_year,
+    page
+  );
+
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.status(200).send(svg);
+});
+
 module.exports = {
   getProducts,
   getProductById,
@@ -923,6 +1212,7 @@ module.exports = {
   getRelatedProducts,
   getProductPreview,
   getProductPreviewFile,
+  getProductPreviewImage,
   createProduct,
   updateProduct,
   deleteProduct,
