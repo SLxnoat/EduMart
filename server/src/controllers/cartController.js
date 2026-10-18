@@ -83,6 +83,7 @@ const getCart = asyncHandler(async (req, res) => {
 const addItem = asyncHandler(async (req, res) => {
   const {
     product_id,
+    productId,
     title,
     price,
     quantity = 1,
@@ -92,7 +93,9 @@ const addItem = asyncHandler(async (req, res) => {
     grade_level = 'All Grades',
   } = req.body;
 
-  if (!product_id && !title) {
+  const targetProductId = product_id || productId;
+
+  if (!targetProductId && !title) {
     res.status(400);
     throw new Error('Product ID or Title is required');
   }
@@ -117,9 +120,9 @@ const addItem = asyncHandler(async (req, res) => {
   let itemIsDigital = !!is_digital;
   let itemIsPhysical = !!is_physical;
 
-  if (product_id) {
+  if (targetProductId) {
     try {
-      const dbProduct = await Product.findByPk(product_id);
+      const dbProduct = await Product.findByPk(targetProductId);
       if (dbProduct) {
         if (isNaN(itemPrice)) itemPrice = parseFloat(dbProduct.price);
         itemTitle = itemTitle || dbProduct.title;
@@ -138,14 +141,14 @@ const addItem = asyncHandler(async (req, res) => {
   }
 
   const existingIndex = currentItems.findIndex(
-    (item) => (product_id && item.product_id === product_id) || item.title === itemTitle
+    (item) => (targetProductId && (item.product_id === targetProductId || item.id === targetProductId)) || item.title === itemTitle
   );
 
   if (existingIndex > -1) {
     currentItems[existingIndex].quantity = (currentItems[existingIndex].quantity || 1) + addQty;
   } else {
     currentItems.push({
-      product_id: product_id || `temp-${Date.now()}`,
+      product_id: targetProductId || `temp-${Date.now()}`,
       title: itemTitle || 'Educational Material',
       price: itemPrice,
       quantity: addQty,
@@ -234,12 +237,19 @@ const removeItem = asyncHandler(async (req, res) => {
   }
 
   let currentItems = safeParseArray(cart.items);
+  let savedForLater = safeParseArray(cart.saved_for_later);
+
   const updatedItems = currentItems.filter(
+    (item) => item.product_id !== id && item.id !== id && item.title !== id
+  );
+  const updatedSaved = savedForLater.filter(
     (item) => item.product_id !== id && item.id !== id && item.title !== id
   );
 
   cart.items = updatedItems;
+  cart.saved_for_later = updatedSaved;
   cart.changed('items', true);
+  cart.changed('saved_for_later', true);
   await cart.save();
 
   const totals = computeCartTotals(updatedItems);
@@ -250,6 +260,7 @@ const removeItem = asyncHandler(async (req, res) => {
     data: {
       id: cart.id,
       items: updatedItems,
+      saved_for_later: updatedSaved,
       ...totals,
     },
   });
@@ -293,12 +304,12 @@ const toggleSaveForLater = asyncHandler(async (req, res) => {
   let items = safeParseArray(cart.items);
   let savedForLater = safeParseArray(cart.saved_for_later);
 
-  const inCartIndex = items.findIndex((i) => i.product_id === id || i.title === id);
+  const inCartIndex = items.findIndex((i) => i.product_id === id || i.id === id || i.title === id);
   if (inCartIndex > -1) {
     const [movedItem] = items.splice(inCartIndex, 1);
     savedForLater.push(movedItem);
   } else {
-    const inSavedIndex = savedForLater.findIndex((i) => i.product_id === id || i.title === id);
+    const inSavedIndex = savedForLater.findIndex((i) => i.product_id === id || i.id === id || i.title === id);
     if (inSavedIndex > -1) {
       const [movedBack] = savedForLater.splice(inSavedIndex, 1);
       items.push(movedBack);

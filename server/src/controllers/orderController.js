@@ -114,6 +114,12 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const hasPhysical = processedItems.some((pi) => pi.is_physical);
   const hasDigital = processedItems.some((pi) => pi.is_digital);
+
+  const paymentMethod = req.body.payment_method || req.body.paymentMethod;
+  if (paymentMethod === 'cash_on_delivery' && hasDigital) {
+    res.status(400);
+    throw new Error('Cash on Delivery (COD) is only permitted for 100% physical goods. Please use an online payment method for orders containing digital materials.');
+  }
   const initialMilestones = [
     {
       status: 'pending',

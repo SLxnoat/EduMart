@@ -358,10 +358,18 @@ export const CartProvider = ({ children }) => {
     throw new Error('Invalid coupon code');
   };
 
-  const removeFromSavedForLater = (productId) => {
+  const removeFromSavedForLater = async (productId) => {
     setSavedForLater((prev) =>
       prev.filter((i) => i.product_id !== productId && i.title !== productId)
     );
+
+    if (user) {
+      try {
+        await cartService.removeItem(productId);
+      } catch (err) {
+        // Fallback
+      }
+    }
   };
 
   const removeCoupon = () => {
