@@ -41,6 +41,10 @@ module.exports = (sequelize) => {
       defaultValue: 0,
       validate: { min: 0 },
     },
+    coupon_code: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
     total_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,

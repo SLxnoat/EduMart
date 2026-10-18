@@ -39,6 +39,7 @@ import {
   LocalAtm,
   Download,
   AccessTime,
+  LocalOffer,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
@@ -71,13 +72,25 @@ const sampleCheckoutItems = [
 
 const Checkout = () => {
   const { user } = useAuth();
-  const { cartItems, clearCart, appliedCoupon, discountAmount: cartDiscountAmount } = useCart();
+  const {
+    cartItems,
+    clearCart,
+    appliedCoupon,
+    discountAmount: cartDiscountAmount,
+    applyCoupon,
+    removeCoupon
+  } = useCart();
   const navigate = useNavigate();
 
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [placedOrder, setPlacedOrder] = useState(null);
+
+  // In-checkout coupon state
+  const [checkoutCouponCode, setCheckoutCouponCode] = useState('');
+  const [couponApplying, setCouponApplying] = useState(false);
+  const [couponFeedback, setCouponFeedback] = useState({ text: '', type: 'success' });
 
   // Shipping form state
   const [shippingAddress, setShippingAddress] = useState({
@@ -229,6 +242,35 @@ const Checkout = () => {
   const handleBack = () => {
     setError('');
     setActiveStep((prev) => prev - 1);
+  };
+
+  const handleApplyCheckoutCoupon = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!checkoutCouponCode.trim()) return;
+    setCouponApplying(true);
+    setCouponFeedback({ text: '', type: 'success' });
+    try {
+      if (applyCoupon) {
+        const normalized = checkoutCouponCode.trim().toUpperCase();
+        await applyCoupon(normalized);
+        setCouponFeedback({ text: `Promotional coupon '${normalized}' applied!`, type: 'success' });
+        setCheckoutCouponCode('');
+      }
+    } catch (err) {
+      setCouponFeedback({
+        text: err.response?.data?.message || err.message || 'Invalid promotional coupon code',
+        type: 'error',
+      });
+    } finally {
+      setCouponApplying(false);
+    }
+  };
+
+  const handleRemoveCheckoutCoupon = () => {
+    if (removeCoupon) {
+      removeCoupon();
+      setCouponFeedback({ text: 'Coupon removed from order', type: 'info' });
+    }
   };
 
   const handleProcessOrderAndPayment = async () => {
@@ -452,11 +494,62 @@ const Checkout = () => {
                     <Typography>LKR {taxAmount.toFixed(2)}</Typography>
                   </Box>
                   <Divider sx={{ my: 1.5 }} />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="h6" fontWeight="bold">Total Amount</Typography>
                     <Typography variant="h6" fontWeight="bold" color="primary">
                       LKR {totalAmount.toFixed(2)}
                     </Typography>
+                  </Box>
+
+                  {/* Promo Code Input Box */}
+                  <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <LocalOffer fontSize="inherit" sx={{ mr: 0.5 }} /> HAVE A PROMOTIONAL CODE?
+                    </Typography>
+                    {appliedCoupon ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#f0fdf4', p: 1, borderRadius: 1.5, border: '1px solid #bbf7d0' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                          <CheckCircle color="success" fontSize="small" />
+                          <div>
+                            <Typography variant="body2" fontWeight="bold" color="success.dark">
+                              {appliedCoupon.code}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {appliedCoupon.description || 'Promotional discount applied'}
+                            </Typography>
+                          </div>
+                        </Box>
+                        <Button size="small" color="error" onClick={handleRemoveCheckoutCoupon}>
+                          Remove
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Box component="form" onSubmit={handleApplyCheckoutCoupon} sx={{ display: 'flex', gap: 1 }}>
+                        <TextField
+                          size="small"
+                          fullWidth
+                          placeholder="e.g. EDUMART10"
+                          value={checkoutCouponCode}
+                          onChange={(e) => setCheckoutCouponCode(e.target.value.toUpperCase())}
+                        />
+                        <Button
+                          variant="outlined"
+                          type="submit"
+                          disabled={couponApplying || !checkoutCouponCode.trim()}
+                        >
+                          Apply
+                        </Button>
+                      </Box>
+                    )}
+                    {couponFeedback.text && (
+                      <Alert
+                        severity={couponFeedback.type}
+                        sx={{ mt: 1, py: 0.2 }}
+                        onClose={() => setCouponFeedback({ text: '', type: 'success' })}
+                      >
+                        {couponFeedback.text}
+                      </Alert>
+                    )}
                   </Box>
                 </CardContent>
               </Card>
@@ -790,6 +883,19 @@ const Checkout = () => {
                       LKR {totalAmount.toFixed(2)}
                     </Typography>
                   </Box>
+                  {appliedCoupon && (
+                    <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: '#f0fdf4', p: 1, borderRadius: 1.5, border: '1px solid #bbf7d0' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                        <CheckCircle color="success" fontSize="small" />
+                        <Typography variant="body2" fontWeight="bold" color="success.dark">
+                          Promo '{appliedCoupon.code}' Applied
+                        </Typography>
+                      </Box>
+                      <Button size="small" color="error" onClick={handleRemoveCheckoutCoupon}>
+                        Remove
+                      </Button>
+                    </Box>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

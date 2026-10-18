@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../server');
-const { User, Category, Product, Order, OrderItem, Payment, Session, Notification } = require('../src/models');
+const { User, Category, Product, Order, OrderItem, Payment, Session, Notification, Coupon } = require('../src/models');
 
 describe('Order Controller', () => {
   let studentToken;
@@ -18,6 +18,7 @@ describe('Order Controller', () => {
     await OrderItem.sync({ force: true });
     await Payment.sync({ force: true });
     await Notification.sync({ force: true });
+    await Coupon.sync({ force: true });
 
     // Register a student
     const studentRes = await request(app)
@@ -67,6 +68,7 @@ describe('Order Controller', () => {
   });
 
   afterAll(async () => {
+    await Coupon.drop();
     await Notification.drop();
     await Payment.drop();
     await OrderItem.drop();
@@ -150,6 +152,102 @@ describe('Order Controller', () => {
         });
 
       expect(res.statusCode).toBe(401);
+    });
+
+    it('should apply valid coupon and recalculate discount and increment used_count in DB', async () => {
+      const dbCoupon = await Coupon.create({
+        code: 'ORDERTEST20',
+        description: '20% off test order discount',
+        discount_type: 'percentage',
+        discount_value: 20,
+        min_purchase: 10,
+        max_discount: 50,
+        used_count: 0,
+        is_active: true,
+      });
+
+      const res = await request(app)
+        .post('/api/orders')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          items: [
+            {
+              product_id: testProduct.id,
+              product_title: 'Mathematics Past Papers 2024',
+              unit_price: 25.0,
+              quantity: 2, // subtotal = 50.0
+            },
+          ],
+          coupon_code: 'ORDERTEST20',
+          shipping_cost: 0,
+          tax_amount: 2.5,
+          shipping_address: {
+            fullName: 'Order Buyer',
+            street: '123 Main Street',
+            city: 'Colombo',
+            postalCode: '00100',
+            country: 'Sri Lanka',
+          },
+        });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(Number(res.body.data.subtotal)).toBe(50.0);
+      expect(Number(res.body.data.discount_amount)).toBe(10.0); // 20% of 50 = 10
+      expect(Number(res.body.data.total_amount)).toBe(42.5); // 50 + 0 + 2.5 - 10 = 42.5
+      expect(res.body.data.coupon_code).toBe('ORDERTEST20');
+
+      // Verify DB redemption counter
+      const refreshedCoupon = await Coupon.findByPk(dbCoupon.id);
+      expect(refreshedCoupon.used_count).toBe(1);
+    });
+
+    it('should reject order creation if coupon min_purchase is not met', async () => {
+      await Coupon.create({
+        code: 'MINORDER100',
+        discount_type: 'fixed',
+        discount_value: 10,
+        min_purchase: 100,
+        is_active: true,
+      });
+
+      const res = await request(app)
+        .post('/api/orders')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          items: [
+            {
+              product_id: testProduct.id,
+              product_title: 'Sample',
+              unit_price: 20.0,
+              quantity: 1, // subtotal = 20 < 100
+            },
+          ],
+          coupon_code: 'MINORDER100',
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('minimum purchase');
+    });
+
+    it('should reject order creation with invalid coupon code', async () => {
+      const res = await request(app)
+        .post('/api/orders')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          items: [
+            {
+              product_id: testProduct.id,
+              product_title: 'Sample',
+              unit_price: 20.0,
+              quantity: 1,
+            },
+          ],
+          coupon_code: 'COMPLETELY_FAKE_PROMO',
+        });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body.message).toContain('Invalid promotional coupon');
     });
   });
 

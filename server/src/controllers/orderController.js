@@ -5,6 +5,7 @@ const { Order, OrderItem, Payment, Product, DigitalAsset, User, Coupon, sequeliz
 const { Op } = require('sequelize');
 const { createNotification } = require('../utils/notificationHelper');
 const { sendOrderConfirmationEmail } = require('../utils/emailService');
+const { BUILT_IN_COUPONS } = require('./couponController');
 
 /**
  * Generate a unique human-readable order number
@@ -104,7 +105,67 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const numShipping = parseFloat(shipping_cost) || 0;
   const numTax = parseFloat(tax_amount) || 0;
-  const numDiscount = parseFloat(discount_amount) || 0;
+
+  // Authoritative server-side coupon validation & discount calculation
+  let numDiscount = 0;
+  let normalizedCouponCode = null;
+  let appliedCouponModel = null;
+
+  const rawCouponCode = req.body.coupon_code || req.body.couponCode;
+  if (rawCouponCode && typeof rawCouponCode === 'string' && rawCouponCode.trim()) {
+    normalizedCouponCode = rawCouponCode.trim().toUpperCase();
+    let coupon = await Coupon.findOne({ where: { code: normalizedCouponCode } });
+    if (!coupon && BUILT_IN_COUPONS && BUILT_IN_COUPONS[normalizedCouponCode]) {
+      coupon = BUILT_IN_COUPONS[normalizedCouponCode];
+    }
+
+    if (coupon) {
+      if (!coupon.is_active) {
+        res.status(400);
+        throw new Error(`Promotional coupon '${normalizedCouponCode}' is no longer active`);
+      }
+
+      const now = new Date();
+      if (coupon.start_date && new Date(coupon.start_date) > now) {
+        res.status(400);
+        throw new Error(`Promotional coupon '${normalizedCouponCode}' is not active yet`);
+      }
+      if (coupon.end_date && new Date(coupon.end_date) < now) {
+        res.status(400);
+        throw new Error(`Promotional coupon '${normalizedCouponCode}' has expired`);
+      }
+      if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) {
+        res.status(400);
+        throw new Error(`Promotional coupon '${normalizedCouponCode}' has reached its maximum usage limit`);
+      }
+
+      const minPurchase = parseFloat(coupon.min_purchase) || 0;
+      if (calculatedSubtotal < minPurchase) {
+        res.status(400);
+        throw new Error(`Coupon '${normalizedCouponCode}' requires a minimum purchase of LKR ${minPurchase.toFixed(2)}`);
+      }
+
+      if (coupon.discount_type === 'percentage') {
+        let disc = (calculatedSubtotal * parseFloat(coupon.discount_value)) / 100;
+        if (coupon.max_discount && disc > parseFloat(coupon.max_discount)) {
+          disc = parseFloat(coupon.max_discount);
+        }
+        numDiscount = parseFloat(disc.toFixed(2));
+      } else {
+        numDiscount = parseFloat(Math.min(calculatedSubtotal, parseFloat(coupon.discount_value) || 0).toFixed(2));
+      }
+
+      if (coupon.id && typeof coupon.save === 'function') {
+        appliedCouponModel = coupon;
+      }
+    } else {
+      res.status(404);
+      throw new Error(`Invalid promotional coupon code '${normalizedCouponCode}'`);
+    }
+  } else if (parseFloat(discount_amount) > 0) {
+    numDiscount = 0; // Disallow arbitrary discount injection without valid coupon code
+  }
+
   const totalAmount = parseFloat(
     Math.max(0, calculatedSubtotal + numShipping + numTax - numDiscount).toFixed(2)
   );
@@ -167,6 +228,7 @@ const createOrder = asyncHandler(async (req, res) => {
     tax_amount: numTax,
     shipping_cost: numShipping,
     discount_amount: numDiscount,
+    coupon_code: normalizedCouponCode || null,
     total_amount: totalAmount,
     currency: currency.toUpperCase(),
     payment_status: 'pending',
@@ -187,16 +249,10 @@ const createOrder = asyncHandler(async (req, res) => {
   const createdItems = await OrderItem.bulkCreate(orderItemsData);
 
   // Increment coupon usage count if applied
-  const couponCode = req.body.coupon_code || req.body.couponCode;
-  if (couponCode && typeof couponCode === 'string') {
+  if (appliedCouponModel) {
     try {
-      const appliedCouponRecord = await Coupon.findOne({
-        where: { code: couponCode.trim().toUpperCase() }
-      });
-      if (appliedCouponRecord) {
-        appliedCouponRecord.used_count = (appliedCouponRecord.used_count || 0) + 1;
-        await appliedCouponRecord.save();
-      }
+      appliedCouponModel.used_count = (appliedCouponModel.used_count || 0) + 1;
+      await appliedCouponModel.save();
     } catch (_) {}
   }
 
