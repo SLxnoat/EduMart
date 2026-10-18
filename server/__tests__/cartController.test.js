@@ -1,9 +1,10 @@
 const request = require('supertest');
 const app = require('../server');
-const { User, Cart, Coupon, Session } = require('../src/models');
+const { User, Cart, Coupon, Session, AdminAction } = require('../src/models');
 
 describe('Shopping Cart & Coupon Controller (Bhanuka)', () => {
   let userToken;
+  let adminToken;
   let testUser;
 
   beforeAll(async () => {
@@ -11,6 +12,7 @@ describe('Shopping Cart & Coupon Controller (Bhanuka)', () => {
     await Session.sync({ force: true });
     await Cart.sync({ force: true });
     await Coupon.sync({ force: true });
+    if (AdminAction) await AdminAction.sync({ force: true });
 
     // Register a student user
     const res = await request(app)
@@ -24,9 +26,22 @@ describe('Shopping Cart & Coupon Controller (Bhanuka)', () => {
       });
     userToken = res.body.token;
     testUser = await User.findOne({ where: { email: 'bhanuka.cart@example.com' } });
+
+    // Register an admin user
+    const adminRes = await request(app)
+      .post('/api/auth/register')
+      .send({
+        firstName: 'Admin',
+        lastName: 'Manager',
+        email: 'admin.coupons@example.com',
+        password: 'password123',
+        role: 'admin',
+      });
+    adminToken = adminRes.body.token;
   });
 
   afterAll(async () => {
+    if (AdminAction) await AdminAction.drop();
     await Coupon.drop();
     await Cart.drop();
     await Session.drop();
@@ -234,6 +249,118 @@ describe('Shopping Cart & Coupon Controller (Bhanuka)', () => {
       expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body.data.length).toBeGreaterThan(0);
       expect(res.body.data.some((c) => c.code === 'EDUMART10')).toBe(true);
+    });
+  });
+
+  describe('Admin Coupon Generation & Management (/api/coupons)', () => {
+    let createdCouponId;
+
+    it('should reject non-admin access to admin coupon routes', async () => {
+      const res = await request(app)
+        .get('/api/coupons/admin')
+        .set('Authorization', `Bearer ${userToken}`);
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('should allow admin to generate a new percentage coupon', async () => {
+      const res = await request(app)
+        .post('/api/coupons')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          code: 'TESTPROMO25',
+          description: '25% test promotional discount',
+          discount_type: 'percentage',
+          discount_value: 25,
+          min_purchase: 10,
+          max_discount: 100,
+          usage_limit: 50,
+        });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.code).toBe('TESTPROMO25');
+      expect(res.body.data.discount_value).toBe(25);
+      createdCouponId = res.body.data.id;
+    });
+
+    it('should reject generating duplicate coupon code', async () => {
+      const res = await request(app)
+        .post('/api/coupons')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          code: 'TESTPROMO25',
+          discount_type: 'percentage',
+          discount_value: 25,
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('already exists');
+    });
+
+    it('should list all coupons with KPI summary via GET /api/coupons/admin', async () => {
+      const res = await request(app)
+        .get('/api/coupons/admin')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.summary).toBeDefined();
+      expect(res.body.summary.total_coupons).toBeGreaterThan(0);
+      expect(res.body.summary.active_coupons).toBeGreaterThan(0);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.some((c) => c.code === 'TESTPROMO25')).toBe(true);
+    });
+
+    it('should validate the newly created coupon via /api/coupons/validate', async () => {
+      const res = await request(app)
+        .post('/api/coupons/validate')
+        .send({
+          code: 'TESTPROMO25',
+          subtotal: 100.0,
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.valid).toBe(true);
+      expect(res.body.data.discount_amount).toBe(25.0);
+      expect(res.body.data.subtotal_after).toBe(75.0);
+    });
+
+    it('should allow admin to update/toggle coupon details via PUT /api/coupons/:id', async () => {
+      const res = await request(app)
+        .put(`/api/coupons/${createdCouponId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          discount_value: 30,
+          is_active: false,
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.discount_value).toBe(30);
+      expect(res.body.data.is_active).toBe(false);
+    });
+
+    it('should reject deactivated coupon in /api/coupons/validate', async () => {
+      const res = await request(app)
+        .post('/api/coupons/validate')
+        .send({
+          code: 'TESTPROMO25',
+          subtotal: 100.0,
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('no longer active');
+    });
+
+    it('should allow admin to delete coupon via DELETE /api/coupons/:id', async () => {
+      const res = await request(app)
+        .delete(`/api/coupons/${createdCouponId}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toContain('deleted successfully');
     });
   });
 });

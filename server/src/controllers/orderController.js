@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const path = require('path');
 const fs = require('fs');
-const { Order, OrderItem, Payment, Product, DigitalAsset, User, sequelize } = require('../models');
+const { Order, OrderItem, Payment, Product, DigitalAsset, User, Coupon, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { createNotification } = require('../utils/notificationHelper');
 const { sendOrderConfirmationEmail } = require('../utils/emailService');
@@ -185,6 +185,20 @@ const createOrder = asyncHandler(async (req, res) => {
   }));
 
   const createdItems = await OrderItem.bulkCreate(orderItemsData);
+
+  // Increment coupon usage count if applied
+  const couponCode = req.body.coupon_code || req.body.couponCode;
+  if (couponCode && typeof couponCode === 'string') {
+    try {
+      const appliedCouponRecord = await Coupon.findOne({
+        where: { code: couponCode.trim().toUpperCase() }
+      });
+      if (appliedCouponRecord) {
+        appliedCouponRecord.used_count = (appliedCouponRecord.used_count || 0) + 1;
+        await appliedCouponRecord.save();
+      }
+    } catch (_) {}
+  }
 
   // Send notification to the customer
   await createNotification({

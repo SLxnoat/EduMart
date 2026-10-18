@@ -58,6 +58,38 @@ const adminService = {
     const query = new URLSearchParams(params).toString();
     const response = await api.get(`/admin/logs${query ? `?${query}` : ''}`);
     return response.data;
+  },
+
+  /**
+   * Get all coupons for admin
+   */
+  getAllCoupons: async () => {
+    const response = await api.get('/coupons/admin');
+    return response.data;
+  },
+
+  /**
+   * Generate / Create new promotional coupon
+   */
+  createCoupon: async (couponData) => {
+    const response = await api.post('/coupons', couponData);
+    return response.data;
+  },
+
+  /**
+   * Update coupon
+   */
+  updateCoupon: async (id, couponData) => {
+    const response = await api.put(`/coupons/${id}`, couponData);
+    return response.data;
+  },
+
+  /**
+   * Delete coupon
+   */
+  deleteCoupon: async (id) => {
+    const response = await api.delete(`/coupons/${id}`);
+    return response.data;
   }
 };
 

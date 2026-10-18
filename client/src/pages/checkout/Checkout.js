@@ -71,7 +71,7 @@ const sampleCheckoutItems = [
 
 const Checkout = () => {
   const { user } = useAuth();
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart, appliedCoupon, discountAmount: cartDiscountAmount } = useCart();
   const navigate = useNavigate();
 
   const [activeStep, setActiveStep] = useState(0);
@@ -153,7 +153,26 @@ const Checkout = () => {
   const isCodAllowed = hasPhysical && !hasDigital;
   const shippingCost = hasPhysical ? 4.5 : 0.0;
   const taxAmount = parseFloat((subtotal * 0.05).toFixed(2));
-  const totalAmount = parseFloat((subtotal + shippingCost + taxAmount).toFixed(2));
+
+  // Compute coupon discount
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discount_type === 'percentage') {
+      discountAmount = (subtotal * parseFloat(appliedCoupon.discount_value)) / 100;
+      if (appliedCoupon.max_discount && discountAmount > parseFloat(appliedCoupon.max_discount)) {
+        discountAmount = parseFloat(appliedCoupon.max_discount);
+      }
+    } else {
+      discountAmount = Math.min(subtotal, parseFloat(appliedCoupon.discount_value) || 0);
+    }
+    discountAmount = parseFloat(discountAmount.toFixed(2));
+  } else if (cartDiscountAmount) {
+    discountAmount = parseFloat(cartDiscountAmount) || 0;
+  }
+
+  const totalAmount = parseFloat(
+    Math.max(0, subtotal + shippingCost + taxAmount - discountAmount).toFixed(2)
+  );
 
   // Reset payment method from COD if cart contains digital items or no physical items
   useEffect(() => {
@@ -246,7 +265,8 @@ const Checkout = () => {
         billing_address: shippingAddress,
         shipping_cost: shippingCost,
         tax_amount: taxAmount,
-        discount_amount: 0,
+        discount_amount: discountAmount,
+        coupon_code: appliedCoupon?.code || undefined,
         currency: 'LKR',
         notes: `Placed via Web Checkout (${normalizedMethod.toUpperCase()})`,
       };
@@ -413,6 +433,16 @@ const Checkout = () => {
                     <Typography color="text.secondary">Subtotal</Typography>
                     <Typography>LKR {subtotal.toFixed(2)}</Typography>
                   </Box>
+                  {discountAmount > 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography color="success.main" fontWeight="medium">
+                        Promotional Discount ({appliedCoupon?.code || 'COUPON'})
+                      </Typography>
+                      <Typography color="success.main" fontWeight="bold">
+                        -LKR {discountAmount.toFixed(2)}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography color="text.secondary">Shipping Cost</Typography>
                     <Typography>{shippingCost > 0 ? `LKR ${shippingCost.toFixed(2)}` : 'FREE'}</Typography>
@@ -744,6 +774,16 @@ const Checkout = () => {
                   </Typography>
 
                   <Divider sx={{ my: 2 }} />
+                  {discountAmount > 0 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography color="success.main" variant="body2" fontWeight="medium">
+                        Promotional Discount ({appliedCoupon?.code || 'COUPON'}):
+                      </Typography>
+                      <Typography color="success.main" variant="body2" fontWeight="bold">
+                        -LKR {discountAmount.toFixed(2)}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography color="text.secondary">Total Payable:</Typography>
                     <Typography variant="h6" color="primary" fontWeight="bold">

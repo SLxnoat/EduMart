@@ -28,7 +28,11 @@ import {
   DialogContentText,
   DialogActions,
   Rating,
-  Pagination
+  Pagination,
+  InputAdornment,
+  Stack,
+  Tooltip,
+  Switch
 } from '@mui/material';
 import {
   People,
@@ -43,7 +47,12 @@ import {
   Search,
   Refresh,
   Warning,
-  Security
+  Security,
+  LocalOffer,
+  Add,
+  ContentCopy,
+  Casino,
+  Done
 } from '@mui/icons-material';
 import adminService from '../../services/adminService';
 import reviewService from '../../services/reviewService';
@@ -89,6 +98,67 @@ const AdminDashboard = () => {
   // Audit Logs Tab State
   const [logs, setLogs] = useState([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // Coupons Tab State
+  const [coupons, setCoupons] = useState([]);
+  const [couponSummary, setCouponSummary] = useState({ total_coupons: 0, active_coupons: 0, total_redemptions: 0 });
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    description: '',
+    discount_type: 'percentage',
+    discount_value: 15,
+    min_purchase: 0,
+    max_discount: '',
+    usage_limit: '',
+    end_date: '',
+    is_active: true,
+  });
+  const [submittingCoupon, setSubmittingCoupon] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(null);
+
+  const couponPresets = [
+    {
+      title: '⚡ 10% Flash Sale',
+      codePrefix: 'FLASH10-',
+      description: '10% Flash discount on all educational resources',
+      discount_type: 'percentage',
+      discount_value: 10,
+      min_purchase: 0,
+      max_discount: 100,
+      usage_limit: 50,
+    },
+    {
+      title: '🎒 20% Semester Kickoff',
+      codePrefix: 'KICKOFF20-',
+      description: '20% off for semester kickoff exams',
+      discount_type: 'percentage',
+      discount_value: 20,
+      min_purchase: 50,
+      max_discount: 250,
+      usage_limit: 100,
+    },
+    {
+      title: '🎁 LKR 500 Welcome Discount',
+      codePrefix: 'WELCOME500-',
+      description: 'LKR 500 flat discount for registered students',
+      discount_type: 'fixed',
+      discount_value: 500,
+      min_purchase: 2000,
+      usage_limit: 200,
+    },
+    {
+      title: '🔥 50% Top Student Voucher',
+      codePrefix: 'TOP50-',
+      description: '50% exclusive scholar bursary voucher',
+      discount_type: 'percentage',
+      discount_value: 50,
+      min_purchase: 100,
+      max_discount: 500,
+      usage_limit: 25,
+    },
+  ];
 
   // Fetch KPI Metrics
   const fetchMetrics = useCallback(async () => {
@@ -161,6 +231,22 @@ const AdminDashboard = () => {
     }
   }, []);
 
+  // Fetch Coupons
+  const fetchCoupons = useCallback(async () => {
+    setLoadingCoupons(true);
+    try {
+      const res = await adminService.getAllCoupons();
+      setCoupons(res.data || []);
+      if (res.summary) {
+        setCouponSummary(res.summary);
+      }
+    } catch (err) {
+      setFeedbackMsg({ text: 'Failed to retrieve promotional coupons', type: 'error' });
+    } finally {
+      setLoadingCoupons(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMetrics();
   }, [fetchMetrics]);
@@ -170,7 +256,8 @@ const AdminDashboard = () => {
     if (activeTab === 2) fetchModerationProducts();
     if (activeTab === 3) fetchModerationReviews();
     if (activeTab === 5) fetchLogs();
-  }, [activeTab, fetchUsers, fetchModerationProducts, fetchModerationReviews, fetchLogs]);
+    if (activeTab === 6) fetchCoupons();
+  }, [activeTab, fetchUsers, fetchModerationProducts, fetchModerationReviews, fetchLogs, fetchCoupons]);
 
   // Handle User Status toggle
   const handleConfirmStatusToggle = async () => {
@@ -262,6 +349,98 @@ const AdminDashboard = () => {
     }
   };
 
+  // Handle Coupon Actions
+  const handleGenerateRandomCode = () => {
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const randomAlpha = Math.random().toString(36).substring(2, 5).toUpperCase();
+    setCouponForm((prev) => ({ ...prev, code: `EDU-${randomAlpha}${randomDigits}` }));
+  };
+
+  const handleApplyPreset = (preset) => {
+    const randomDigits = Math.floor(100 + Math.random() * 900);
+    setCouponForm((prev) => ({
+      ...prev,
+      code: preset.codePrefix ? `${preset.codePrefix}${randomDigits}` : prev.code,
+      description: preset.description,
+      discount_type: preset.discount_type,
+      discount_value: preset.discount_value,
+      min_purchase: preset.min_purchase,
+      max_discount: preset.max_discount || '',
+      usage_limit: preset.usage_limit || '',
+    }));
+  };
+
+  const handleCreateCoupon = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!couponForm.code || !couponForm.code.trim()) {
+      setFeedbackMsg({ text: 'Please provide or generate a coupon code', type: 'error' });
+      return;
+    }
+    setSubmittingCoupon(true);
+    try {
+      const payload = {
+        ...couponForm,
+        code: couponForm.code.trim().toUpperCase(),
+        discount_value: parseFloat(couponForm.discount_value),
+        min_purchase: parseFloat(couponForm.min_purchase) || 0,
+        max_discount: couponForm.max_discount ? parseFloat(couponForm.max_discount) : null,
+        usage_limit: couponForm.usage_limit ? parseInt(couponForm.usage_limit, 10) : null,
+        end_date: couponForm.end_date ? new Date(couponForm.end_date).toISOString() : null,
+      };
+      await adminService.createCoupon(payload);
+      setFeedbackMsg({ text: `Promotional coupon '${payload.code}' generated successfully!`, type: 'success' });
+      setCouponModalOpen(false);
+      setCouponForm({
+        code: '',
+        description: '',
+        discount_type: 'percentage',
+        discount_value: 15,
+        min_purchase: 0,
+        max_discount: '',
+        usage_limit: '',
+        end_date: '',
+        is_active: true,
+      });
+      fetchCoupons();
+    } catch (err) {
+      setFeedbackMsg({ text: err.response?.data?.message || 'Failed to create coupon', type: 'error' });
+    } finally {
+      setSubmittingCoupon(false);
+    }
+  };
+
+  const handleToggleCouponStatus = async (coupon) => {
+    try {
+      await adminService.updateCoupon(coupon.id, { is_active: !coupon.is_active });
+      setFeedbackMsg({
+        text: `Coupon '${coupon.code}' is now ${!coupon.is_active ? 'Active' : 'Disabled'}`,
+        type: 'success',
+      });
+      fetchCoupons();
+    } catch (err) {
+      setFeedbackMsg({ text: err.response?.data?.message || 'Failed to update coupon status', type: 'error' });
+    }
+  };
+
+  const handleDeleteCoupon = async (coupon) => {
+    if (!window.confirm(`Are you sure you want to delete coupon '${coupon.code}'?`)) return;
+    try {
+      await adminService.deleteCoupon(coupon.id);
+      setFeedbackMsg({ text: `Coupon '${coupon.code}' deleted successfully`, type: 'success' });
+      fetchCoupons();
+    } catch (err) {
+      setFeedbackMsg({ text: err.response?.data?.message || 'Failed to delete coupon', type: 'error' });
+    }
+  };
+
+  const handleCopyCode = (code) => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    }
+  };
+
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 6 }}>
       {/* Header */}
@@ -283,6 +462,7 @@ const AdminDashboard = () => {
             if (activeTab === 2) fetchModerationProducts();
             if (activeTab === 3) fetchModerationReviews();
             if (activeTab === 5) fetchLogs();
+            if (activeTab === 6) fetchCoupons();
           }}
         >
           Refresh Data
@@ -319,6 +499,7 @@ const AdminDashboard = () => {
           <Tab icon={<Star />} iconPosition="start" label="Review Moderation" />
           <Tab icon={<Campaign />} iconPosition="start" label="Broadcast Announcement" />
           <Tab icon={<HistoryEdu />} iconPosition="start" label="Audit Trail" />
+          <Tab icon={<LocalOffer />} iconPosition="start" label="Promotions & Coupons" />
         </Tabs>
       </Paper>
 
@@ -898,6 +1079,213 @@ const AdminDashboard = () => {
         </Paper>
       )}
 
+      {/* Tab 6: Promotions & Coupons */}
+      {activeTab === 6 && (
+        <Box>
+          {/* Top KPI statistics */}
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Card sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', borderRadius: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="overline">Total Coupons</Typography>
+                    <LocalOffer fontSize="medium" />
+                  </Box>
+                  <Typography variant="h3" fontWeight="bold">
+                    {couponSummary.total_coupons}
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    Active campaigns & system defaults
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Card sx={{ bgcolor: 'success.main', color: 'success.contrastText', borderRadius: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="overline">Active Promotions</Typography>
+                    <CheckCircle fontSize="medium" />
+                  </Box>
+                  <Typography variant="h3" fontWeight="bold">
+                    {couponSummary.active_coupons}
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    Available for checkout redemption
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <Card sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText', borderRadius: 2 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="overline">Total Redemptions</Typography>
+                    <Receipt fontSize="medium" />
+                  </Box>
+                  <Typography variant="h3" fontWeight="bold">
+                    {couponSummary.total_redemptions}
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    Applied across learner orders
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Coupon Management Table Paper */}
+          <Paper sx={{ p: 3, borderRadius: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+              <div>
+                <Typography variant="h6" fontWeight="bold">
+                  Promotional Coupons & Voucher Codes
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Create, configure, and manage discount codes for marketing campaigns and student incentives.
+                </Typography>
+              </div>
+              <Stack direction="row" spacing={1.5}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={fetchCoupons}
+                  disabled={loadingCoupons}
+                >
+                  Refresh
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<Add />}
+                  onClick={() => setCouponModalOpen(true)}
+                >
+                  Generate New Coupon
+                </Button>
+              </Stack>
+            </Box>
+
+            {loadingCoupons ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : coupons.length === 0 ? (
+              <Alert severity="info">No promotional coupons configured yet. Click "Generate New Coupon" to create one.</Alert>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Coupon Code</strong></TableCell>
+                      <TableCell><strong>Description</strong></TableCell>
+                      <TableCell><strong>Discount</strong></TableCell>
+                      <TableCell><strong>Min Order</strong></TableCell>
+                      <TableCell><strong>Usage Limit</strong></TableCell>
+                      <TableCell><strong>Redemptions</strong></TableCell>
+                      <TableCell><strong>Validity</strong></TableCell>
+                      <TableCell><strong>Status</strong></TableCell>
+                      <TableCell align="right"><strong>Actions</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {coupons.map((coupon) => {
+                      const isExpired = coupon.end_date && new Date(coupon.end_date) < new Date();
+                      const isLimitReached = coupon.usage_limit && coupon.used_count >= coupon.usage_limit;
+                      return (
+                        <TableRow key={coupon.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Chip
+                                label={coupon.code}
+                                color={coupon.is_active && !isExpired && !isLimitReached ? 'primary' : 'default'}
+                                variant={coupon.is_active ? 'filled' : 'outlined'}
+                                sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}
+                              />
+                              <Tooltip title={copiedCode === coupon.code ? 'Copied!' : 'Copy Code'}>
+                                <IconButton size="small" onClick={() => handleCopyCode(coupon.code)}>
+                                  {copiedCode === coupon.code ? <Done color="success" fontSize="small" /> : <ContentCopy fontSize="small" />}
+                                </IconButton>
+                              </Tooltip>
+                              {coupon.is_builtin && (
+                                <Chip label="System Default" size="small" variant="outlined" color="info" />
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">{coupon.description || '-'}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold" color="primary.main">
+                              {coupon.discount_type === 'percentage'
+                                ? `${coupon.discount_value}% OFF`
+                                : `LKR ${parseFloat(coupon.discount_value).toFixed(2)} FLAT`}
+                            </Typography>
+                            {coupon.max_discount && (
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                Max LKR {parseFloat(coupon.max_discount).toFixed(2)}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {coupon.min_purchase > 0 ? `LKR ${parseFloat(coupon.min_purchase).toFixed(2)}` : 'None'}
+                          </TableCell>
+                          <TableCell>
+                            {coupon.usage_limit ? `${coupon.usage_limit} uses` : 'Unlimited'}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold">
+                              {coupon.used_count || 0}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {coupon.end_date ? (
+                              <Box>
+                                <Typography variant="caption" display="block">
+                                  Until {new Date(coupon.end_date).toLocaleDateString()}
+                                </Typography>
+                                {isExpired && <Chip label="Expired" size="small" color="error" variant="outlined" />}
+                              </Box>
+                            ) : (
+                              <Typography variant="caption" color="text.secondary">No Expiry</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Switch
+                                size="small"
+                                checked={!!coupon.is_active}
+                                onChange={() => handleToggleCouponStatus(coupon)}
+                                color="success"
+                              />
+                              <Typography variant="caption" sx={{ ml: 0.5 }}>
+                                {coupon.is_active ? 'Active' : 'Disabled'}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Delete Coupon">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDeleteCoupon(coupon)}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Paper>
+        </Box>
+      )}
+
       {/* Suspend / Reactivate User Confirmation Dialog */}
       <Dialog open={statusDialog.open} onClose={() => setStatusDialog({ open: false, user: null, reason: '' })}>
         <DialogTitle>
@@ -958,6 +1346,183 @@ const AdminDashboard = () => {
             Reject Listing
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Generate Promotional Coupon Dialog */}
+      <Dialog
+        open={couponModalOpen}
+        onClose={() => !submittingCoupon && setCouponModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LocalOffer color="primary" /> Generate Promotional Coupon
+        </DialogTitle>
+        <form onSubmit={handleCreateCoupon}>
+          <DialogContent dividers>
+            {/* Quick Presets */}
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              ⚡ Quick Promotion Presets:
+            </Typography>
+            <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
+              {couponPresets.map((preset, idx) => (
+                <Chip
+                  key={idx}
+                  label={preset.title}
+                  onClick={() => handleApplyPreset(preset)}
+                  clickable
+                  color="primary"
+                  variant="outlined"
+                  sx={{ py: 1 }}
+                />
+              ))}
+            </Stack>
+
+            <Grid container spacing={2}>
+              {/* Coupon Code with Random Generator Button */}
+              <Grid size={{ xs: 12, sm: 8 }}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Coupon Code"
+                  placeholder="e.g. EXAM2024 or EDU-FLASH"
+                  value={couponForm.code}
+                  onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+                  slotProps={{
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<Casino />}
+                            onClick={handleGenerateRandomCode}
+                            sx={{ textTransform: 'none' }}
+                          >
+                            Generate Random
+                          </Button>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  helperText="Alphanumeric promo code that learners will enter at checkout."
+                />
+              </Grid>
+
+              {/* Discount Type */}
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Discount Type"
+                  value={couponForm.discount_type}
+                  onChange={(e) => setCouponForm({ ...couponForm, discount_type: e.target.value })}
+                >
+                  <MenuItem value="percentage">Percentage (%)</MenuItem>
+                  <MenuItem value="fixed">Fixed Amount (LKR)</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Description */}
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  fullWidth
+                  label="Campaign Description"
+                  placeholder="e.g. 20% discount on Advanced Level study materials"
+                  value={couponForm.description}
+                  onChange={(e) => setCouponForm({ ...couponForm, description: e.target.value })}
+                />
+              </Grid>
+
+              {/* Discount Value */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  required
+                  type="number"
+                  label={couponForm.discount_type === 'percentage' ? 'Discount Percentage (%)' : 'Discount Amount (LKR)'}
+                  value={couponForm.discount_value}
+                  onChange={(e) => setCouponForm({ ...couponForm, discount_value: e.target.value })}
+                  slotProps={{
+                    htmlInput: { min: 1, max: couponForm.discount_type === 'percentage' ? 100 : 100000, step: 0.1 }
+                  }}
+                />
+              </Grid>
+
+              {/* Maximum Discount Cap (for percentage) */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Maximum Discount Cap (LKR)"
+                  placeholder="Optional limit (e.g. 250)"
+                  disabled={couponForm.discount_type !== 'percentage'}
+                  value={couponForm.max_discount}
+                  onChange={(e) => setCouponForm({ ...couponForm, max_discount: e.target.value })}
+                  helperText={couponForm.discount_type === 'percentage' ? 'Max savings cap per order' : 'N/A for fixed amount'}
+                />
+              </Grid>
+
+              {/* Minimum Purchase */}
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Min Purchase Order (LKR)"
+                  value={couponForm.min_purchase}
+                  onChange={(e) => setCouponForm({ ...couponForm, min_purchase: e.target.value })}
+                  slotProps={{
+                    htmlInput: { min: 0 }
+                  }}
+                  helperText="0 for no minimum"
+                />
+              </Grid>
+
+              {/* Usage Limit */}
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Total Usage Limit"
+                  placeholder="Unlimited if empty"
+                  value={couponForm.usage_limit}
+                  onChange={(e) => setCouponForm({ ...couponForm, usage_limit: e.target.value })}
+                  slotProps={{
+                    htmlInput: { min: 1 }
+                  }}
+                  helperText="Max redemptions overall"
+                />
+              </Grid>
+
+              {/* Expiry Date */}
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Expiry Date"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  value={couponForm.end_date}
+                  onChange={(e) => setCouponForm({ ...couponForm, end_date: e.target.value })}
+                  helperText="Leave empty for permanent"
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={() => setCouponModalOpen(false)} disabled={submittingCoupon}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={submittingCoupon}
+              startIcon={submittingCoupon ? <CircularProgress size={20} color="inherit" /> : <Add />}
+            >
+              {submittingCoupon ? 'Generating Coupon...' : 'Create & Activate Coupon'}
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
     </Container>
   );
