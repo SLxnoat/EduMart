@@ -105,9 +105,29 @@ const startServer = async () => {
     console.log(`${dialectName} models synchronized.`);
 
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
+
+    const gracefulShutdown = (signal) => {
+      console.log(`Received ${signal}. Gracefully shutting down HTTP server...`);
+      server.close(async () => {
+        try {
+          await sequelize.close();
+          console.log('Database connections closed.');
+        } catch (e) {
+          console.error('Error closing database connections:', e.message);
+        }
+        process.exit(0);
+      });
+      setTimeout(() => {
+        console.error('Forcing shutdown after timeout.');
+        process.exit(1);
+      }, 4000).unref();
+    };
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
   } catch (error) {
     console.error('Unable to connect to the database:', error.message);
     const dialect = typeof sequelize.getDialect === 'function' ? sequelize.getDialect() : 'mysql';

@@ -10,8 +10,8 @@ services:
       MYSQL_USER: ${DB_USER:-edumart_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-edumart_secure_pass_2026}
     ports:
-      # Defaults host to port 3308 to avoid colliding with any host MySQL running on 3306
-      - "${MYSQL_HOST_PORT:-3308}:3306"
+      # Defaults host to port 3308 on localhost to avoid public exposure and host port collisions
+      - "127.0.0.1:${MYSQL_HOST_PORT:-3308}:3306"
     volumes:
       - db_data:/var/lib/mysql
       - ./sql/database_schema.sql:/docker-entrypoint-initdb.d/01_database_schema.sql:ro
