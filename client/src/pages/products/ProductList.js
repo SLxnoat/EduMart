@@ -35,7 +35,9 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  Tooltip
+  Tooltip,
+  Tabs,
+  Tab
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -52,6 +54,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import { useAuth } from '../../context/AuthContext';
@@ -141,6 +145,7 @@ const ProductList = () => {
   const [previewProduct, setPreviewProduct] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewTab, setPreviewTab] = useState(0);
 
   // Fetch Categories on mount
   useEffect(() => {
@@ -268,6 +273,7 @@ const ProductList = () => {
       e.stopPropagation();
     }
     setPreviewProduct(prod);
+    setPreviewTab(0);
     setPreviewOpen(true);
     setLoadingPreview(true);
     try {
@@ -955,59 +961,119 @@ const ProductList = () => {
           maxWidth="md"
           fullWidth
         >
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <MenuBookIcon color="primary" />
-              <Typography variant="h6" fontWeight="bold">
-                Material Sample Preview
-              </Typography>
+              <Box>
+                <Typography variant="h6" fontWeight="bold" lineHeight={1.2}>
+                  Material Sample Preview
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {previewData?.title || previewProduct?.title}
+                </Typography>
+              </Box>
             </Box>
             <IconButton onClick={() => setPreviewOpen(false)} size="small">
               <CloseIcon />
             </IconButton>
           </DialogTitle>
-          <DialogContent dividers>
+
+          <Box sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs
+              value={previewTab}
+              onChange={(e, val) => setPreviewTab(val)}
+              textColor="primary"
+              indicatorColor="primary"
+            >
+              <Tab icon={<PictureAsPdfIcon fontSize="small" />} iconPosition="start" label="Interactive Document Reader" />
+              <Tab icon={<MenuBookIcon fontSize="small" />} iconPosition="start" label="Curriculum & Table of Contents" />
+            </Tabs>
+          </Box>
+
+          <DialogContent dividers sx={{ p: 2.5 }}>
             {loadingPreview ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
                 <CircularProgress />
               </Box>
             ) : previewData ? (
               <Box>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  🔒 This watermarked sample preview allows students to review syllabus coverage before purchasing.
-                </Alert>
+                {/* Tab 0: Interactive PDF Document Reader */}
+                <Box sx={{ display: previewTab === 0 ? 'block' : 'none' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                    <Alert severity="info" sx={{ flexGrow: 1, py: 0.5, fontSize: '0.85rem' }}>
+                      🔒 Official Watermarked Sample Document: Zoom, scroll, and evaluate the curriculum pages directly in the viewer.
+                    </Alert>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<OpenInNewIcon />}
+                      href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open in New Tab
+                    </Button>
+                  </Box>
 
-                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  {previewData.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                  Subject: {previewData.subject} • Target: {previewData.exam_year || 'National Syllabus'} • Standard: {previewData.grade_level}
-                </Typography>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: { xs: '450px', sm: '550px', md: '580px' },
+                      borderRadius: 1.5,
+                      overflow: 'hidden',
+                      border: '1px solid #d0d7de',
+                      bgcolor: '#525659'
+                    }}
+                  >
+                    <iframe
+                      src={`${productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}#toolbar=1&navpanes=0`}
+                      title={`Sample Document Preview - ${previewData?.title || previewProduct?.title || 'Study Material'}`}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 'none', display: 'block' }}
+                    />
+                  </Box>
+                </Box>
 
-                <Divider sx={{ my: 2 }} />
+                {/* Tab 1: Curriculum & Table of Contents */}
+                <Box sx={{ display: previewTab === 1 ? 'block' : 'none' }}>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    🔒 Review syllabus coverage, model question derivations, and official marking standards before purchasing.
+                  </Alert>
 
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  Table of Contents & Curriculum Structure:
-                </Typography>
-                <List dense>
-                  {previewData.tableOfContents?.map((item, idx) => (
-                    <ListItem key={idx}>
-                      <ListItemIcon sx={{ minWidth: 28 }}>
-                        <CheckCircleIcon color="primary" fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText primary={item} primaryTypographyProps={{ fontSize: '0.9rem' }} />
-                    </ListItem>
-                  ))}
-                </List>
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                    {previewData.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                    Subject: {previewData.subject} • Target Exam: {previewData.exam_year || 'National Syllabus'} • Standard: {previewData.grade_level}
+                  </Typography>
 
-                <Divider sx={{ my: 2 }} />
+                  <Divider sx={{ my: 2 }} />
 
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                  Sample Question & Model Derivation Excerpt:
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fcfcfc', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-                  {previewData.sampleExcerpt}
-                </Paper>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    Table of Contents & Curriculum Structure:
+                  </Typography>
+                  <List dense>
+                    {previewData.tableOfContents?.map((item, idx) => (
+                      <ListItem key={idx}>
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          <CheckCircleIcon color="primary" fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText primary={item} primaryTypographyProps={{ fontSize: '0.9rem' }} />
+                      </ListItem>
+                    ))}
+                  </List>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    Sample Question & Model Derivation Excerpt:
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fcfcfc', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+                    {previewData.sampleExcerpt}
+                  </Paper>
+                </Box>
               </Box>
             ) : (
               <Typography variant="body2" color="text.secondary">
@@ -1021,7 +1087,7 @@ const ProductList = () => {
                 variant="outlined"
                 color="secondary"
                 startIcon={<CloudDownloadIcon />}
-                href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
+                href={`${productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}?download=1`}
                 download
                 target="_blank"
                 rel="noopener noreferrer"
