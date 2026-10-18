@@ -8,6 +8,8 @@
     "dev": "nodemon server.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "make:admin": "node src/scripts/makeAdmin.js",
+    "db:reset": "node src/scripts/resetDatabase.js",
+    "db:seed": "node src/scripts/resetDatabase.js",
     "test": "jest --detectOpenHandles --forceExit",
     "test:watch": "jest --watch",
     "lint": "eslint .",
