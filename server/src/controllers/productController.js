@@ -4,8 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const { Product, Category, User, DigitalAsset } = require('../models');
 
-// Auto-seed initial educational catalog data if the database is empty
+// Auto-seed initial educational catalog data if the database is empty (only in test environment or when explicitly enabled)
 const seedEducationalCatalogIfEmpty = async () => {
+  if (process.env.AUTO_SEED !== 'true' && process.env.NODE_ENV !== 'test') {
+    return;
+  }
+
   try {
     const productCount = await Product.count();
     if (productCount > 0) return;
