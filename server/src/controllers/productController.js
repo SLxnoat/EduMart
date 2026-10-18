@@ -770,12 +770,16 @@ const getProductPreview = asyncHandler(async (req, res) => {
   } catch (_) {}
 
   const preview = {
+    id: product.id,
     productId: product.id,
     title: product.title,
+    price: parseFloat(product.price) || 0,
     subject: product.subject,
     grade_level: product.grade_level,
     exam_year: product.exam_year,
     format: product.format,
+    is_digital: product.format === 'digital' || product.format === 'both',
+    is_physical: product.format === 'physical' || product.format === 'both',
     has_custom_preview: !!(previewAsset && previewAsset.file_path && fs.existsSync(previewAsset.file_path)),
     preview_filename: previewAsset?.file_name || null,
     tableOfContents: [

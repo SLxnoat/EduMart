@@ -198,32 +198,47 @@ const ProductDetail = () => {
     setQuantity((prev) => Math.max(1, Math.min(10, prev + delta)));
   };
 
-  const handleAddToCart = () => {
-    if (!product) return;
+  const handleAddToCart = async (customProduct = null) => {
+    const isEvent = customProduct && (customProduct.nativeEvent || customProduct.preventDefault);
+    const candidate = isEvent ? null : customProduct;
+    const item = candidate || product || previewData;
+    if (!item) return;
     try {
-      addToCart(product, quantity);
+      const itemToCart = {
+        id: item.id || item.productId || item.product_id,
+        product_id: item.id || item.productId || item.product_id,
+        title: item.title,
+        price: parseFloat(item.price !== undefined ? item.price : product?.price || 0),
+        format: item.format || product?.format || 'digital',
+        is_digital: item.is_digital !== undefined ? item.is_digital : (item.format !== 'physical'),
+        is_physical: item.is_physical !== undefined ? item.is_physical : (item.format === 'physical' || item.format === 'both'),
+        subject: item.subject || product?.subject || 'General Education',
+        grade_level: item.grade_level || product?.grade_level || 'All Grades',
+      };
 
       try {
         const raw = localStorage.getItem('cart');
         const cart = raw ? JSON.parse(raw) : [];
-        const idx = cart.findIndex((i) => i.id === product.id);
+        const idx = cart.findIndex((i) => i.id === itemToCart.id);
         if (idx > -1) {
           cart[idx].quantity += quantity;
         } else {
           cart.push({
-            id: product.id,
-            title: product.title,
-            price: parseFloat(product.price),
-            format: product.format,
-            subject: product.subject,
-            grade_level: product.grade_level,
+            id: itemToCart.id,
+            title: itemToCart.title,
+            price: itemToCart.price,
+            format: itemToCart.format,
+            subject: itemToCart.subject,
+            grade_level: itemToCart.grade_level,
             quantity
           });
         }
         localStorage.setItem('cart', JSON.stringify(cart));
       } catch (_) {}
 
-      enqueueSnackbar(`Added ${quantity} × "${product.title}" to cart!`, { variant: 'success' });
+      addToCart(itemToCart, quantity);
+
+      enqueueSnackbar(`Added ${quantity} × "${itemToCart.title}" to cart!`, { variant: 'success' });
     } catch (err) {
       enqueueSnackbar('Could not add item to cart', { variant: 'error' });
     }
@@ -974,8 +989,8 @@ const ProductDetail = () => {
               variant="contained"
               color="primary"
               startIcon={<ShoppingCartIcon />}
-              onClick={() => {
-                handleAddToCart();
+              onClick={async () => {
+                await handleAddToCart(product || previewData);
                 setPreviewOpen(false);
               }}
             >

@@ -29,7 +29,12 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  ClickAwayListener
+  ClickAwayListener,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -43,6 +48,9 @@ import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import HistoryIcon from '@mui/icons-material/History';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import { useAuth } from '../../context/AuthContext';
@@ -126,6 +134,12 @@ const ProductList = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Sample Preview Modal States
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewProduct, setPreviewProduct] = useState(null);
+  const [previewData, setPreviewData] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Fetch Categories on mount
   useEffect(() => {
@@ -247,34 +261,72 @@ const ProductList = () => {
     setPage(1);
   };
 
-  const handleAddToCart = (e, product) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleOpenPreview = async (e, prod) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setPreviewProduct(prod);
+    setPreviewOpen(true);
+    setLoadingPreview(true);
     try {
-      if (addToCart) {
-        addToCart(product, 1);
+      const res = await productService.getProductPreview(prod.id);
+      if (res && res.preview) {
+        setPreviewData(res.preview);
       }
+    } catch (err) {
+      console.error('Failed to load preview', err);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleAddToCart = async (e, product) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const item = product || previewProduct || previewData;
+    if (!item) return;
+
+    try {
+      const itemToCart = {
+        id: item.id || item.productId || item.product_id,
+        product_id: item.id || item.productId || item.product_id,
+        title: item.title,
+        price: parseFloat(item.price || 0),
+        format: item.format || 'digital',
+        is_digital: item.is_digital !== undefined ? item.is_digital : (item.format !== 'physical'),
+        is_physical: item.is_physical !== undefined ? item.is_physical : (item.format === 'physical' || item.format === 'both'),
+        subject: item.subject || 'General Education',
+        grade_level: item.grade_level || 'All Grades',
+      };
+
       try {
         const raw = localStorage.getItem('cart');
         const cart = raw ? JSON.parse(raw) : [];
-        const idx = cart.findIndex((i) => i.id === product.id);
+        const idx = cart.findIndex((i) => i.id === itemToCart.id);
         if (idx > -1) {
           cart[idx].quantity += 1;
         } else {
           cart.push({
-            id: product.id,
-            title: product.title,
-            price: parseFloat(product.price),
-            format: product.format,
-            subject: product.subject,
-            grade_level: product.grade_level,
+            id: itemToCart.id,
+            title: itemToCart.title,
+            price: itemToCart.price,
+            format: itemToCart.format,
+            subject: itemToCart.subject,
+            grade_level: itemToCart.grade_level,
             quantity: 1
           });
         }
         localStorage.setItem('cart', JSON.stringify(cart));
       } catch (_) {}
 
-      enqueueSnackbar(`"${product.title}" added to cart!`, { variant: 'success' });
+      if (addToCart) {
+        addToCart(itemToCart, 1);
+      }
+
+      enqueueSnackbar(`"${itemToCart.title}" added to cart!`, { variant: 'success' });
     } catch (err) {
       enqueueSnackbar('Could not add item to cart', { variant: 'error' });
     }
@@ -842,6 +894,15 @@ const ProductList = () => {
                         </Button>
                         <Button
                           size="small"
+                          variant="outlined"
+                          color="secondary"
+                          startIcon={<VisibilityIcon />}
+                          onClick={(e) => handleOpenPreview(e, product)}
+                        >
+                          Preview
+                        </Button>
+                        <Button
+                          size="small"
                           variant="contained"
                           color="primary"
                           startIcon={<ShoppingCartIcon />}
@@ -876,6 +937,119 @@ const ProductList = () => {
           )}
         </Grid>
       </Grid>
+
+      {/* Material Sample Preview Modal Dialog */}
+      {previewOpen && (
+        <Dialog
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <MenuBookIcon color="primary" />
+              <Typography variant="h6" fontWeight="bold">
+                Material Sample Preview
+              </Typography>
+            </Box>
+            <IconButton onClick={() => setPreviewOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            {loadingPreview ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : previewData ? (
+              <Box>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  🔒 This watermarked sample preview allows students to review syllabus coverage before purchasing.
+                </Alert>
+
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  {previewData.title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                  Subject: {previewData.subject} • Target: {previewData.exam_year || 'National Syllabus'} • Standard: {previewData.grade_level}
+                </Typography>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  Table of Contents & Curriculum Structure:
+                </Typography>
+                <List dense>
+                  {previewData.tableOfContents?.map((item, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemIcon sx={{ minWidth: 28 }}>
+                        <CheckCircleIcon color="primary" fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText primary={item} primaryTypographyProps={{ fontSize: '0.9rem' }} />
+                    </ListItem>
+                  ))}
+                </List>
+
+                <Divider sx={{ my: 2 }} />
+
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  Sample Question & Model Derivation Excerpt:
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fcfcfc', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+                  {previewData.sampleExcerpt}
+                </Paper>
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Preview currently unavailable for this study item.
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Box>
+              {(previewData?.has_custom_preview || previewProduct?.digitalAssets?.some((a) => a.is_preview)) && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<CloudDownloadIcon />}
+                  href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Download Sample PDF
+                </Button>
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button onClick={() => setPreviewOpen(false)}>Close</Button>
+              <Button
+                variant="outlined"
+                color="primary"
+                component={Link}
+                to="/cart"
+                onClick={() => setPreviewOpen(false)}
+              >
+                View Cart
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<ShoppingCartIcon />}
+                onClick={async (e) => {
+                  const target = previewProduct || previewData;
+                  if (target) {
+                    await handleAddToCart(e, target);
+                  }
+                  setPreviewOpen(false);
+                }}
+              >
+                Add to Cart
+              </Button>
+            </Box>
+          </DialogActions>
+        </Dialog>
+      )}
     </Container>
   );
 };
