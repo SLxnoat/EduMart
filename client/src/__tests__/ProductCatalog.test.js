@@ -81,8 +81,7 @@ const mockPreview = {
   subject: 'Combined Mathematics',
   grade_level: 'A/L Grade 13',
   exam_year: 2023,
-  tableOfContents: ['Unit 1: Pure Mathematics', 'Unit 2: Applied Mathematics'],
-  sampleExcerpt: 'Evaluation of step-by-step problem-solving sequence.',
+  preview_file_url: '/api/products/prod-uuid-1/preview-file',
   is_watermarked: true
 };
 
@@ -234,12 +233,11 @@ describe('Vidula Product Catalog & Search Components', () => {
       fireEvent.click(previewBtn);
 
       await waitFor(() => {
-        expect(screen.getByText(/Material Sample Preview/i)).toBeInTheDocument();
-        expect(screen.getByText(/Table of Contents & Curriculum Structure:/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Material Sample Preview' })).toBeInTheDocument();
       });
 
       // Close Preview Dialog
-      const closeBtn = screen.getByRole('button', { name: /Close/i });
+      const closeBtn = await screen.findByRole('button', { name: /Close/i });
       fireEvent.click(closeBtn);
     });
 

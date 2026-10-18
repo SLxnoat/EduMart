@@ -743,68 +743,8 @@ const getRelatedProducts = asyncHandler(async (req, res) => {
   });
 });
 
-const getSubjectCurriculum = (subject, title) => {
-  const sub = (subject || '').toLowerCase();
-  if (sub.includes('chem')) {
-    return {
-      toc: [
-        'Unit 1: Atomic Structure, Chemical Bonding & Periodicity',
-        'Unit 2: Chemical Energetics, Kinetics & Phase Equilibria',
-        'Unit 3: Acid-Base & Redox Equilibrium in Aqueous Systems',
-        'Unit 4: Organic Chemistry: Hydrocarbons, Carbonyls & Aromatics',
-        'Unit 5: Environmental Chemistry & Analytical Spectroscopy'
-      ],
-      excerpt: `Sample Question 01 [Structured Essay - 10 Marks]:\n(a) Write the equilibrium expression for the dissociation of weak acid HA in aqueous solution.\n(b) A 0.05 mol/dm3 solution has a pH of 3.12. Calculate the acid dissociation constant (Ka).\n(c) Calculate the pH shift upon adding 0.01 moles of solid NaA to 500 mL of this solution.\n\nOfficial Marking Rubric:\n- [Part a]: 2 marks for equilibrium constant formulation with correct state symbols.\n- [Part b]: 4 marks (2 marks for [H+] derivation + 2 marks for Ka calculation with units).\n- [Part c]: 4 marks for Henderson-Hasselbalch substitution and final pH.`
-    };
-  } else if (sub.includes('math')) {
-    return {
-      toc: [
-        'Unit 1: Polynomials, Mathematical Induction & Complex Numbers',
-        'Unit 2: Calculus: Integration by Substitution & Definite Integrals',
-        'Unit 3: Matrices, Determinants & 3D Vector Geometry',
-        'Unit 4: Coplanar Forces, Friction & Equilibrium of Rigid Rods',
-        'Unit 5: Projectiles, Relative Velocity & Work-Energy Theorem'
-      ],
-      excerpt: `Sample Question 01 [Pure Mathematics - 25 Marks]:\n(a) Show that (x - 2) is a factor of f(x) = 2x^3 - 5x^2 + x + 2.\n(b) Hence evaluate the definite integral from 0 to 1 of 1/(2x^3 - 5x^2 + x + 2) dx.\n\nOfficial Marking Scheme:\n- [Part a]: 5 marks (Factor theorem verification + remainder validation).\n- [Part b]: 10 marks for partial fractions decomposition: A/(x-2) + B/(2x+1) + C/(x-1).\n- 10 marks for logarithmic integration, constant evaluation, and limits substitution.`
-    };
-  } else if (sub.includes('phys')) {
-    return {
-      toc: [
-        'Unit 1: Measurement, Dimensional Analysis & Precision Standards',
-        'Unit 2: Mechanics: Newton Laws, Circular Motion & Simple Harmonics',
-        'Unit 3: Wave Phenomena, Acoustics & Physical/Ray Optics',
-        'Unit 4: Electrostatic Fields, Current Electricity & Circuit Laws',
-        'Unit 5: Electromagnetism, Electronics & Modern Quantum Physics'
-      ],
-      excerpt: `Sample Question 01 [Applied Mechanics & Energy - 15 Marks]:\n(a) State the principle of conservation of linear momentum and conditions for elastic collision.\n(b) A sphere of mass m moving at velocity u collides obliquely with an identical stationary sphere.\n    Determine the angle between velocities after collision if restitution coefficient e = 1.\n\nMarking Breakdown:\n- [Part a]: 3 marks for rigorous definition of isolated system momentum invariance.\n- [Part b]: 6 marks for resolving equations along and perpendicular to line of impact.\n- 6 marks for trigonometric proof showing final angle is exactly 90 degrees.`
-    };
-  } else if (sub.includes('bio')) {
-    return {
-      toc: [
-        'Unit 1: Chemical & Cellular Foundations of Living Organisms',
-        'Unit 2: Genetics, DNA Replication, Transcription & Translation',
-        'Unit 3: Plant Form & Physiology: Photosynthesis & Mineral Transport',
-        'Unit 4: Animal Physiology: Cardiac Cycle, Nerve Impulses & Homeostasis',
-        'Unit 5: Ecology, Biodiversity Conservation & Sri Lankan Biomes'
-      ],
-      excerpt: `Sample Question 01 [Cell Biology & Physiology - 15 Marks]:\n(a) Differentiate between C3, C4, and CAM pathways in terms of primary CO2 acceptor and anatomy.\n(b) Explain the role of RuBisCO oxygenase activity in photorespiration under drought stress.\n\nMarking Breakdown:\n- [Part a]: 8 marks (Kranz anatomy diagram + PEP carboxylase vs RuBisCO comparative matrix).\n- [Part b]: 7 marks for metabolic pathway explanation and ATP/NADPH wastage analysis.`
-    };
-  } else {
-    return {
-      toc: [
-        'Unit 1: National Curriculum Guidelines & Core Competencies',
-        'Unit 2: Fundamental Principles, Key Terminology & Definitions',
-        'Unit 3: Structured Examination Techniques & Rubric Breakdown',
-        'Unit 4: Model Examination Specimen Paper (Part A)',
-        'Unit 5: Model Essay Problems with Alternate Resolution Methods'
-      ],
-      excerpt: `Sample Question 01 [Model Specimen Problem - 10 Marks]:\nEvaluate the core concepts presented in Unit 1 and apply them to solve the practical scenario.\n\nMarking Scheme:\n- 3 marks: Conceptual formulation and initial hypothesis.\n- 4 marks: Application of standard analytical methodology.\n- 3 marks: Synthesis, validation, and final recommendations.`
-    };
-  }
-};
-
 /**
- * @desc    Get preview / syllabus sample pages for a material
+ * @desc    Get preview details for a material
  * @route   GET /api/products/:id/preview
  * @access  Public
  */
@@ -829,12 +769,11 @@ const getProductPreview = asyncHandler(async (req, res) => {
     });
   } catch (_) {}
 
-  const curr = getSubjectCurriculum(product.subject, product.title);
-
   const preview = {
     id: product.id,
     productId: product.id,
     title: product.title,
+    description: product.description,
     price: parseFloat(product.price) || 0,
     subject: product.subject,
     grade_level: product.grade_level,
@@ -845,11 +784,7 @@ const getProductPreview = asyncHandler(async (req, res) => {
     has_custom_preview: !!(previewAsset && previewAsset.file_path && fs.existsSync(previewAsset.file_path)),
     preview_filename: previewAsset?.file_name || null,
     preview_file_url: `/api/products/${product.id}/preview-file`,
-    preview_download_url: `/api/products/${product.id}/preview-file?download=1`,
-    tableOfContents: curr.toc,
-    sampleExcerpt: curr.excerpt,
-    is_watermarked: true,
-    total_preview_pages: 3
+    is_watermarked: true
   };
 
   res.status(200).json({
@@ -863,52 +798,39 @@ const escapePdfText = (str) => {
 };
 
 const generateSamplePreviewPdf = (title, subject, grade, examYear) => {
-  const curr = getSubjectCurriculum(subject, title);
   const lines = [
     'BT',
     '/F1 18 Tf',
     '50 750 Td',
-    `(${escapePdfText(title || 'Curriculum Sample Preview')}) Tj`,
-    '0 -22 Td',
-    '/F1 11 Tf',
-    `(${escapePdfText(`Subject: ${subject || 'General'} | Grade: ${grade || 'All Grades'} | Exam: ${examYear || 'National Curriculum'}`)}) Tj`,
-    '0 -20 Td',
-    '(*** AUTHORIZED WATERMARKED SAMPLE PREVIEW - EDUMART MARKETPLACE ***) Tj',
+    `(${escapePdfText(title || 'Study Material Sample Preview')}) Tj`,
     '0 -26 Td',
-    '/F1 13 Tf',
-    '(Curriculum Structure & Table of Contents:) Tj',
+    '/F1 11 Tf',
+    `(${escapePdfText(`Subject: ${subject || 'General'} | Standard: ${grade || 'All Grades'} | Exam Year: ${examYear || 'National Curriculum'}`)}) Tj`,
+    '0 -28 Td',
+    '(-----------------------------------------------------------------------------------------------------) Tj',
+    '0 -20 Td',
+    '/F1 12 Tf',
+    '(*** AUTHORIZED STUDY MATERIAL SPECIMEN - WATERMARKED PREVIEW ***) Tj',
+    '0 -20 Td',
+    '(-----------------------------------------------------------------------------------------------------) Tj',
+    '0 -32 Td',
+    '/F1 11 Tf',
+    '(1. Verified Academic Material authenticated by registered educators on EduMart.) Tj',
+    '0 -22 Td',
+    '(2. Full contents including complete theory, exercise questions, and model derivations) Tj',
     '0 -18 Td',
-    '/F1 10 Tf'
-  ];
-
-  curr.toc.forEach((item) => {
-    lines.push(`(${escapePdfText(item)}) Tj`, '0 -16 Td');
-  });
-
-  lines.push(
-    '0 -10 Td',
-    '/F1 13 Tf',
-    '(Model Examination Question & Marking Rubric Excerpt:) Tj',
-    '0 -18 Td',
-    '/F1 9 Tf'
-  );
-
-  curr.excerpt.split('\n').forEach((exLine) => {
-    if (exLine.trim() === '') {
-      lines.push('0 -10 Td');
-    } else {
-      lines.push(`(${escapePdfText(exLine)}) Tj`, '0 -14 Td');
-    }
-  });
-
-  lines.push(
+    '(   are unlocked and made immediately downloadable upon completing checkout.) Tj',
+    '0 -24 Td',
+    '(3. Instant digital delivery with license encryption and verified payment receipt.) Tj',
+    '0 -24 Td',
+    '(4. Official curriculum alignment with Sri Lankan national educational standards.) Tj',
+    '0 -36 Td',
+    '/F1 10 Tf',
+    '(* Note: This document is a protected sample preview for evaluation purposes only.) Tj',
     '0 -16 Td',
-    '/F1 9 Tf',
-    '(* Note: This is an authorized preview copy watermarked for student syllabus evaluation.) Tj',
-    '0 -14 Td',
-    '(* The complete unredacted material is made immediately accessible after checkout.) Tj',
+    '(* To access the complete unabridged material, add to cart and proceed to checkout.) Tj',
     'ET'
-  );
+  ];
 
   const content = lines.join('\n');
   const streamLength = Buffer.byteLength(content, 'utf8');

@@ -145,7 +145,7 @@ const ProductList = () => {
   const [previewProduct, setPreviewProduct] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const [previewTab, setPreviewTab] = useState(0);
+
 
   // Fetch Categories on mount
   useEffect(() => {
@@ -958,170 +958,195 @@ const ProductList = () => {
         <Dialog
           open={previewOpen}
           onClose={() => setPreviewOpen(false)}
-          maxWidth="md"
+          maxWidth="lg"
           fullWidth
         >
-          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1.5, borderBottom: 1, borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <MenuBookIcon color="primary" />
+              <MenuBookIcon color="primary" sx={{ fontSize: 26 }} />
               <Box>
                 <Typography variant="h6" fontWeight="bold" lineHeight={1.2}>
                   Material Sample Preview
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {previewData?.title || previewProduct?.title}
+                  {previewProduct?.title || previewData?.title}
                 </Typography>
               </Box>
             </Box>
-            <IconButton onClick={() => setPreviewOpen(false)} size="small">
-              <CloseIcon />
-            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                color="primary"
+                startIcon={<OpenInNewIcon />}
+                href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open Fullscreen
+              </Button>
+              <IconButton onClick={() => setPreviewOpen(false)} size="small">
+                <CloseIcon />
+              </IconButton>
+            </Box>
           </DialogTitle>
 
-          <Box sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs
-              value={previewTab}
-              onChange={(e, val) => setPreviewTab(val)}
-              textColor="primary"
-              indicatorColor="primary"
-            >
-              <Tab icon={<PictureAsPdfIcon fontSize="small" />} iconPosition="start" label="Interactive Document Reader" />
-              <Tab icon={<MenuBookIcon fontSize="small" />} iconPosition="start" label="Curriculum & Table of Contents" />
-            </Tabs>
-          </Box>
-
-          <DialogContent dividers sx={{ p: 2.5 }}>
+          <DialogContent sx={{ p: { xs: 1.5, sm: 2.5 }, bgcolor: '#f8fafc' }}>
             {loadingPreview ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
                 <CircularProgress />
               </Box>
-            ) : previewData ? (
-              <Box>
-                {/* Tab 0: Interactive PDF Document Reader */}
-                <Box sx={{ display: previewTab === 0 ? 'block' : 'none' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-                    <Alert severity="info" sx={{ flexGrow: 1, py: 0.5, fontSize: '0.85rem' }}>
-                      🔒 Official Watermarked Sample Document: Zoom, scroll, and evaluate the curriculum pages directly in the viewer.
-                    </Alert>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<OpenInNewIcon />}
-                      href={productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Open in New Tab
-                    </Button>
+            ) : (
+              <Grid container spacing={2.5}>
+                {/* Left Column: Interactive Document Viewer */}
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, px: 0.5 }}>
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                      🔒 READ-ONLY PREVIEW • WATERMARKED SPECIMEN
+                    </Typography>
+                    <Typography variant="caption" color="primary.main">
+                      Interactive PDF document viewer
+                    </Typography>
                   </Box>
-
                   <Box
                     sx={{
                       width: '100%',
-                      height: { xs: '450px', sm: '550px', md: '580px' },
-                      borderRadius: 1.5,
+                      height: { xs: '450px', sm: '550px', md: '640px' },
+                      borderRadius: 2,
                       overflow: 'hidden',
                       border: '1px solid #d0d7de',
-                      bgcolor: '#525659'
+                      bgcolor: '#525659',
+                      boxShadow: 2
                     }}
                   >
                     <iframe
                       src={`${productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}#toolbar=1&navpanes=0`}
-                      title={`Sample Document Preview - ${previewData?.title || previewProduct?.title || 'Study Material'}`}
+                      title={`Sample Document Preview - ${previewProduct?.title || previewData?.title || 'Study Material'}`}
                       width="100%"
                       height="100%"
                       style={{ border: 'none', display: 'block' }}
                     />
                   </Box>
-                </Box>
+                </Grid>
 
-                {/* Tab 1: Curriculum & Table of Contents */}
-                <Box sx={{ display: previewTab === 1 ? 'block' : 'none' }}>
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    🔒 Review syllabus coverage, model question derivations, and official marking standards before purchasing.
-                  </Alert>
+                {/* Right Column: Product Overview & Actions */}
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2.5,
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      borderRadius: 2,
+                      bgcolor: '#ffffff'
+                    }}
+                  >
+                    {/* Specification Chips */}
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1.5 }}>
+                      <Chip size="small" label={previewProduct?.subject || previewData?.subject} color="primary" sx={{ fontWeight: 'bold' }} />
+                      <Chip size="small" label={previewProduct?.grade_level || previewData?.grade_level} variant="outlined" />
+                      <Chip size="small" label={(previewProduct?.format || previewData?.format || 'digital').toUpperCase()} color="info" variant="outlined" />
+                    </Box>
 
-                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                    {previewData.title}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                    Subject: {previewData.subject} • Target Exam: {previewData.exam_year || 'National Syllabus'} • Standard: {previewData.grade_level}
-                  </Typography>
+                    {/* Title */}
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
+                      {previewProduct?.title || previewData?.title}
+                    </Typography>
 
-                  <Divider sx={{ my: 2 }} />
+                    {/* Rating */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                      <Rating value={Number(previewProduct?.rating_average || previewData?.rating_average || 4.8)} precision={0.5} readOnly size="small" />
+                      <Typography variant="caption" color="text.secondary">
+                        ({previewProduct?.rating_count || previewData?.rating_count || 15} reviews)
+                      </Typography>
+                    </Box>
 
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                    Table of Contents & Curriculum Structure:
-                  </Typography>
-                  <List dense>
-                    {previewData.tableOfContents?.map((item, idx) => (
-                      <ListItem key={idx}>
-                        <ListItemIcon sx={{ minWidth: 28 }}>
-                          <CheckCircleIcon color="primary" fontSize="small" />
-                        </ListItemIcon>
-                        <ListItemText primary={item} primaryTypographyProps={{ fontSize: '0.9rem' }} />
-                      </ListItem>
-                    ))}
-                  </List>
+                    <Divider sx={{ my: 1.5 }} />
 
-                  <Divider sx={{ my: 2 }} />
+                    {/* Price */}
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Price
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold" color="primary.main">
+                        {formatPrice(previewProduct?.price || previewData?.price)}
+                      </Typography>
+                    </Box>
 
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                    Sample Question & Model Derivation Excerpt:
-                  </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fcfcfc', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-                    {previewData.sampleExcerpt}
+                    {/* Author / Exam Year */}
+                    {(previewProduct?.seller || previewData?.seller) && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                        Published by: <strong>{previewProduct?.seller?.first_name ? `${previewProduct.seller.first_name} ${previewProduct.seller.last_name || ''}` : 'Verified Tutor'}</strong>
+                      </Typography>
+                    )}
+                    {(previewProduct?.exam_year || previewData?.exam_year) && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 2 }}>
+                        Target Examination: <strong>{previewProduct?.exam_year || previewData?.exam_year}</strong>
+                      </Typography>
+                    )}
+
+                    {/* Description */}
+                    <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', mb: 2.5, fontSize: '0.85rem' }}>
+                      {previewProduct?.description || previewData?.description}
+                    </Typography>
+
+                    {/* Value Highlights */}
+                    <Box sx={{ bgcolor: '#f4f9fd', p: 1.5, borderRadius: 1.5, mb: 'auto' }}>
+                      <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
+                        ⚡ Instant digital download upon checkout
+                      </Typography>
+                      <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
+                        🔒 Secure verified academic licensing
+                      </Typography>
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        🛡️ 100% Quality Guaranteed by EduMart
+                      </Typography>
+                    </Box>
+
+                    {/* Action Buttons */}
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="large"
+                        fullWidth
+                        startIcon={<ShoppingCartIcon />}
+                        onClick={async (e) => {
+                          const target = previewProduct || previewData;
+                          if (target) {
+                            await handleAddToCart(e, target);
+                          }
+                          setPreviewOpen(false);
+                        }}
+                      >
+                        Add to Cart
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        component={Link}
+                        to="/cart"
+                        onClick={() => setPreviewOpen(false)}
+                        fullWidth
+                      >
+                        View Cart
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        fullWidth
+                        onClick={() => setPreviewOpen(false)}
+                      >
+                        Close
+                      </Button>
+                    </Box>
                   </Paper>
-                </Box>
-              </Box>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Preview currently unavailable for this study item.
-              </Typography>
+                </Grid>
+              </Grid>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 2, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-            <Box>
-              <Button
-                variant="outlined"
-                color="secondary"
-                startIcon={<CloudDownloadIcon />}
-                href={`${productService.getPreviewFileUrl(previewProduct?.id || previewData?.id || previewData?.productId)}?download=1`}
-                download
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Download Sample PDF
-              </Button>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button onClick={() => setPreviewOpen(false)}>Close</Button>
-              <Button
-                variant="outlined"
-                color="primary"
-                component={Link}
-                to="/cart"
-                onClick={() => setPreviewOpen(false)}
-              >
-                View Cart
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<ShoppingCartIcon />}
-                onClick={async (e) => {
-                  const target = previewProduct || previewData;
-                  if (target) {
-                    await handleAddToCart(e, target);
-                  }
-                  setPreviewOpen(false);
-                }}
-              >
-                Add to Cart
-              </Button>
-            </Box>
-          </DialogActions>
         </Dialog>
       )}
     </Container>
