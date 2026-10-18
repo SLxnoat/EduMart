@@ -57,6 +57,7 @@ app.use('/api/admin', require('./src/routes/adminRoutes'));
 app.use('/api/reviews', require('./src/routes/reviewRoutes'));
 app.use('/api/notifications', require('./src/routes/notificationRoutes'));
 app.use('/api/seller', require('./src/routes/sellerRoutes'));
+app.use('/api/email', require('./src/routes/emailRoutes'));
 app.use('/api/categories', (req, res, next) => {
   const { getCategories } = require('./src/controllers/productController');
   getCategories(req, res, next);
