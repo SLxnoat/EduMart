@@ -73,6 +73,17 @@ describe('Order & Checkout Modules (Charuka)', () => {
           status: 'paid',
           payment_status: 'paid',
           total_amount: 50.18,
+          items: [
+            {
+              id: 'item-dl-1',
+              product_title: 'Instant Download Physics Notes',
+              product_subject: 'Physics',
+              product_grade_level: 'A/L',
+              is_digital: true,
+              is_physical: false,
+              unit_price: 25.0,
+            },
+          ],
         },
       });
 
@@ -94,9 +105,12 @@ describe('Order & Checkout Modules (Charuka)', () => {
       // Submit payment
       fireEvent.click(payNowBtn);
 
-      // Step 3: Success Confirmation
-      expect(await screen.findByText(/Payment Successful!/i)).toBeInTheDocument();
+      // Step 3: Success Confirmation & Instant Download
+      expect(await screen.findByText(/Payment Successful/i)).toBeInTheDocument();
       expect(screen.getByText(/EDM-20261017-123456/i)).toBeInTheDocument();
+      expect(screen.getByText(/Instant Digital Downloads/i)).toBeInTheDocument();
+      expect(screen.getByText('Instant Download Physics Notes')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /download pdf/i })).toBeInTheDocument();
       expect(screen.getByText(/View Order Details/i)).toBeInTheDocument();
     });
   });
@@ -110,7 +124,7 @@ describe('Order & Checkout Modules (Charuka)', () => {
             order_number: 'EDM-101',
             created_at: '2026-10-17T10:00:00Z',
             total_amount: 43.5,
-            currency: 'USD',
+            currency: 'LKR',
             status: 'paid',
             payment_status: 'paid',
             items: [{ id: 'item-1' }],
@@ -126,44 +140,62 @@ describe('Order & Checkout Modules (Charuka)', () => {
       );
 
       expect(await screen.findByText('EDM-101')).toBeInTheDocument();
-      expect(screen.getByText(/\$43.50 USD/i)).toBeInTheDocument();
+      expect(screen.getByText(/LKR\s*43\.50/i)).toBeInTheDocument();
       expect(screen.getByText(/View Details/i)).toBeInTheDocument();
     });
   });
 
   describe('OrderDetail Component', () => {
+    const mockDetailOrder = {
+      id: 'order-1',
+      order_number: 'EDM-101',
+      invoice_number: 'INV-20261017-9912',
+      created_at: '2026-10-17T10:00:00Z',
+      total_amount: 45.0,
+      subtotal: 40.0,
+      shipping_cost: 5.0,
+      tax_amount: 0,
+      discount_amount: 0,
+      status: 'paid',
+      payment_status: 'paid',
+      carrier: 'PromptX Courier',
+      tracking_number: 'PRX-88291-LK',
+      estimated_delivery: '2026-10-21T10:00:00Z',
+      shipping_address: {
+        fullName: 'Charuka Silva',
+        street: '75 Galle Road',
+        city: 'Colombo',
+        country: 'Sri Lanka',
+      },
+      items: [
+        {
+          id: 'item-1',
+          product_title: 'Mathematics Pure Notes',
+          product_subject: 'Mathematics',
+          product_grade_level: 'A/L',
+          is_digital: true,
+          is_physical: false,
+          unit_price: 20.0,
+          quantity: 1,
+          total_price: 20.0,
+        },
+        {
+          id: 'item-2',
+          product_title: 'Physical Past Paper Book Pack',
+          product_subject: 'Mathematics',
+          product_grade_level: 'A/L',
+          is_digital: false,
+          is_physical: true,
+          unit_price: 20.0,
+          quantity: 1,
+          total_price: 20.0,
+        },
+      ],
+    };
+
     it('renders full order details, line items, and digital download option', async () => {
       orderService.getOrderById.mockResolvedValue({
-        data: {
-          id: 'order-1',
-          order_number: 'EDM-101',
-          created_at: '2026-10-17T10:00:00Z',
-          total_amount: 25.0,
-          subtotal: 25.0,
-          shipping_cost: 0,
-          tax_amount: 0,
-          discount_amount: 0,
-          status: 'paid',
-          payment_status: 'paid',
-          shipping_address: {
-            fullName: 'Charuka Silva',
-            street: '75 Galle Road',
-            city: 'Colombo',
-            country: 'Sri Lanka',
-          },
-          items: [
-            {
-              id: 'item-1',
-              product_title: 'Mathematics Pure Notes',
-              product_subject: 'Mathematics',
-              product_grade_level: 'A/L',
-              is_digital: true,
-              unit_price: 25.0,
-              quantity: 1,
-              total_price: 25.0,
-            },
-          ],
-        },
+        data: mockDetailOrder,
       });
 
       render(
@@ -175,9 +207,129 @@ describe('Order & Checkout Modules (Charuka)', () => {
       );
 
       expect(await screen.findByText(/Order #EDM-101/i)).toBeInTheDocument();
-      expect(screen.getByText(/Mathematics Pure Notes/i)).toBeInTheDocument();
-      expect(screen.getByText(/Download PDF/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Mathematics Pure Notes/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Download PDF/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Payment Breakdown/i)).toBeInTheDocument();
+      expect(screen.getByText(/Parcel Delivery Tracking/i)).toBeInTheDocument();
+      expect(screen.getByText(/PromptX Courier/i)).toBeInTheDocument();
+    });
+
+    it('triggers secure digital download when Download PDF is clicked', async () => {
+      orderService.getOrderById.mockResolvedValue({
+        data: mockDetailOrder,
+      });
+      orderService.downloadDigitalItem.mockResolvedValue(true);
+
+      render(
+        <MemoryRouter initialEntries={['/orders/order-1']}>
+          <Routes>
+            <Route path="/orders/:id" element={<OrderDetail />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const downloadBtns = await screen.findAllByRole('button', { name: /download pdf/i });
+      fireEvent.click(downloadBtns[0]);
+
+      await waitFor(() => {
+        expect(orderService.downloadDigitalItem).toHaveBeenCalledWith(
+          'order-1',
+          'item-1',
+          'Mathematics Pure Notes'
+        );
+      });
+    });
+
+    it('opens tax invoice dialog and displays official receipt details', async () => {
+      orderService.getOrderById.mockResolvedValue({
+        data: mockDetailOrder,
+      });
+      orderService.getOrderInvoice.mockResolvedValue({
+        data: {
+          invoice_number: 'INV-20261017-9912',
+          order_number: 'EDM-101',
+          issue_date: '2026-10-17T10:00:00Z',
+          currency: 'LKR',
+          seller: {
+            company_name: 'EduMart Marketplace Platform Ltd.',
+            tax_id: 'LK-VAT-992384',
+            address: 'Colombo, Sri Lanka',
+          },
+          customer: {
+            name: 'Charuka Silva',
+            email: 'charuka@example.com',
+          },
+          items: [
+            {
+              title: 'Mathematics Pure Notes',
+              subject: 'Mathematics',
+              type: 'Digital E-Material',
+              quantity: 1,
+              unit_price: 20.0,
+              total_price: 20.0,
+            },
+          ],
+          financials: {
+            subtotal: 40.0,
+            tax_amount: 0,
+            shipping_cost: 5.0,
+            discount_amount: 0,
+            total_amount: 45.0,
+          },
+        },
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/orders/order-1']}>
+          <Routes>
+            <Route path="/orders/:id" element={<OrderDetail />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const invoiceBtn = await screen.findByRole('button', { name: /view tax invoice/i });
+      fireEvent.click(invoiceBtn);
+
+      await waitFor(() => {
+        expect(orderService.getOrderInvoice).toHaveBeenCalledWith('order-1');
+        expect(screen.getByText(/Official Tax Invoice & Receipt/i)).toBeInTheDocument();
+        expect(screen.getByText(/EduMart Marketplace Platform Ltd\./i)).toBeInTheDocument();
+      });
+    });
+
+    it('allows admin or seller to open shipment tracking modal and update courier dispatch', async () => {
+      useAuth.mockReturnValue({
+        user: { id: 'admin-1', firstName: 'Admin', role: 'admin' },
+        loading: false,
+      });
+
+      orderService.getOrderById.mockResolvedValue({
+        data: mockDetailOrder,
+      });
+      orderService.updateOrderTracking.mockResolvedValue({
+        success: true,
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/orders/order-1']}>
+          <Routes>
+            <Route path="/orders/:id" element={<OrderDetail />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const trackingBtn = await screen.findByRole('button', { name: /update tracking/i });
+      expect(trackingBtn).toBeInTheDocument();
+      fireEvent.click(trackingBtn);
+
+      expect(screen.getByText(/Update Shipment & Delivery Tracking/i)).toBeInTheDocument();
+      const saveBtn = screen.getByRole('button', { name: /save & append milestone/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(orderService.updateOrderTracking).toHaveBeenCalled();
+      });
     });
   });
 });
+

@@ -24,12 +24,26 @@ const productService = {
     return response.data;
   },
   createProduct: async (productData) => {
-    const response = await api.post('/products', productData);
+    const isFormData = typeof FormData !== 'undefined' && productData instanceof FormData;
+    const response = await api.post('/products', productData, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
     return response.data;
   },
   updateProduct: async (id, productData) => {
-    const response = await api.put(`/products/${id}`, productData);
+    const isFormData = typeof FormData !== 'undefined' && productData instanceof FormData;
+    const response = await api.put(`/products/${id}`, productData, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
     return response.data;
+  },
+  getPreviewFileUrl: (id) => {
+    const base = api.defaults.baseURL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    return `${base}/products/${id}/preview-file`;
+  },
+  getPreviewImageUrl: (id, page = 1) => {
+    const base = api.defaults.baseURL || process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    return `${base}/products/${id}/preview-image/${page}`;
   },
   deleteProduct: async (id) => {
     const response = await api.delete(`/products/${id}`);

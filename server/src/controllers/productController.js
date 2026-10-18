@@ -1,5 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
 const { Product, Category, User, DigitalAsset } = require('../models');
 
 // Auto-seed initial educational catalog data if the database is empty
@@ -319,20 +321,43 @@ const getProducts = asyncHandler(async (req, res) => {
 const getProductById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const product = await Product.findByPk(id, {
-    include: [
-      {
-        model: Category,
-        as: 'category',
-        attributes: ['id', 'name', 'description']
-      },
-      {
-        model: User,
-        as: 'seller',
-        attributes: ['id', 'first_name', 'last_name', 'email', 'institution']
-      }
-    ]
-  });
+  let product;
+  try {
+    product = await Product.findByPk(id, {
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name', 'description']
+        },
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'institution']
+        },
+        {
+          model: DigitalAsset,
+          as: 'digitalAssets',
+          attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count', 'created_at']
+        }
+      ]
+    });
+  } catch (err) {
+    product = await Product.findByPk(id, {
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name', 'description']
+        },
+        {
+          model: User,
+          as: 'seller',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'institution']
+        }
+      ]
+    });
+  }
 
   if (!product) {
     res.status(404);
@@ -379,7 +404,8 @@ const createProduct = asyncHandler(async (req, res) => {
     exam_year,
     product_type,
     format = 'digital',
-    category_id
+    category_id,
+    stock_quantity
   } = req.body;
 
   if (!title || !description || price === undefined || !subject || !grade_level || !product_type || !category_id) {
@@ -405,16 +431,60 @@ const createProduct = asyncHandler(async (req, res) => {
     exam_year: exam_year ? parseInt(exam_year, 10) : null,
     product_type,
     format,
+    stock_quantity: stock_quantity !== undefined && !isNaN(stock_quantity) ? parseInt(stock_quantity, 10) : (format === 'digital' ? 0 : 50),
     is_active: true,
     is_approved: true // Approved for verified tutors/admins
   });
 
-  const createdProduct = await Product.findByPk(product.id, {
-    include: [
-      { model: Category, as: 'category', attributes: ['id', 'name'] },
-      { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
-    ]
-  });
+  // Attach uploaded main study material file if present
+  if (req.files && req.files.material_file && req.files.material_file.length > 0) {
+    try {
+      const file = req.files.material_file[0];
+      await DigitalAsset.create({
+        product_id: product.id,
+        file_name: file.originalname,
+        file_path: file.path,
+        file_size: Math.max(1, Math.round(file.size / 1024)),
+        mime_type: file.mimetype,
+        is_preview: false,
+        sort_order: 1
+      });
+    } catch (_) {}
+  }
+
+  // Attach uploaded curriculum sample preview file if present
+  if (req.files && req.files.preview_file && req.files.preview_file.length > 0) {
+    try {
+      const pFile = req.files.preview_file[0];
+      await DigitalAsset.create({
+        product_id: product.id,
+        file_name: pFile.originalname,
+        file_path: pFile.path,
+        file_size: Math.max(1, Math.round(pFile.size / 1024)),
+        mime_type: pFile.mimetype,
+        is_preview: true,
+        sort_order: 0
+      });
+    } catch (_) {}
+  }
+
+  let createdProduct;
+  try {
+    createdProduct = await Product.findByPk(product.id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] },
+        { model: DigitalAsset, as: 'digitalAssets', attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count'] }
+      ]
+    });
+  } catch (_) {
+    createdProduct = await Product.findByPk(product.id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
+      ]
+    });
+  }
 
   res.status(201).json({
     success: true,
@@ -452,6 +522,7 @@ const updateProduct = asyncHandler(async (req, res) => {
     product_type,
     format,
     category_id,
+    stock_quantity,
     is_active
   } = req.body;
 
@@ -464,16 +535,88 @@ const updateProduct = asyncHandler(async (req, res) => {
   if (product_type) product.product_type = product_type;
   if (format) product.format = format;
   if (category_id) product.category_id = category_id;
+  if (stock_quantity !== undefined && !isNaN(stock_quantity)) {
+    product.stock_quantity = parseInt(stock_quantity, 10);
+  }
   if (is_active !== undefined) product.is_active = is_active;
 
   await product.save();
 
-  const updatedProduct = await Product.findByPk(id, {
-    include: [
-      { model: Category, as: 'category', attributes: ['id', 'name'] },
-      { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
-    ]
-  });
+  // Handle uploaded main study material file replacement
+  if (req.files && req.files.material_file && req.files.material_file.length > 0) {
+    const file = req.files.material_file[0];
+    const existingAsset = await DigitalAsset.findOne({
+      where: { product_id: product.id, is_preview: false }
+    });
+    if (existingAsset) {
+      if (existingAsset.file_path && fs.existsSync(existingAsset.file_path)) {
+        try { fs.unlinkSync(existingAsset.file_path); } catch (e) {}
+      }
+      existingAsset.file_name = file.originalname;
+      existingAsset.file_path = file.path;
+      existingAsset.file_size = Math.max(1, Math.round(file.size / 1024));
+      existingAsset.mime_type = file.mimetype;
+      await existingAsset.save();
+    } else {
+      await DigitalAsset.create({
+        product_id: product.id,
+        file_name: file.originalname,
+        file_path: file.path,
+        file_size: Math.max(1, Math.round(file.size / 1024)),
+        mime_type: file.mimetype,
+        is_preview: false,
+        sort_order: 1
+      });
+    }
+  }
+
+  // Handle uploaded sample preview file replacement
+  if (req.files && req.files.preview_file && req.files.preview_file.length > 0) {
+    try {
+      const pFile = req.files.preview_file[0];
+      const existingPreview = await DigitalAsset.findOne({
+        where: { product_id: product.id, is_preview: true }
+      });
+      if (existingPreview) {
+        if (existingPreview.file_path && fs.existsSync(existingPreview.file_path)) {
+          try { fs.unlinkSync(existingPreview.file_path); } catch (e) {}
+        }
+        existingPreview.file_name = pFile.originalname;
+        existingPreview.file_path = pFile.path;
+        existingPreview.file_size = Math.max(1, Math.round(pFile.size / 1024));
+        existingPreview.mime_type = pFile.mimetype;
+        await existingPreview.save();
+      } else {
+        await DigitalAsset.create({
+          product_id: product.id,
+          file_name: pFile.originalname,
+          file_path: pFile.path,
+          file_size: Math.max(1, Math.round(pFile.size / 1024)),
+          mime_type: pFile.mimetype,
+          is_preview: true,
+          sort_order: 0
+        });
+      }
+    } catch (_) {}
+  }
+
+  let updatedProduct;
+  try {
+    updatedProduct = await Product.findByPk(id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] },
+        { model: DigitalAsset, as: 'digitalAssets', attributes: ['id', 'file_name', 'file_size', 'mime_type', 'is_preview', 'download_count'] }
+      ]
+    });
+  } catch (_) {
+    updatedProduct = await Product.findByPk(id, {
+      include: [
+        { model: Category, as: 'category', attributes: ['id', 'name'] },
+        { model: User, as: 'seller', attributes: ['id', 'first_name', 'last_name', 'institution'] }
+      ]
+    });
+  }
 
   res.status(200).json({
     success: true,
@@ -500,6 +643,17 @@ const deleteProduct = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error('Not authorized to delete this product');
   }
+
+  // Remove physical files and records
+  try {
+    const assets = await DigitalAsset.findAll({ where: { product_id: id } });
+    for (const asset of assets) {
+      if (asset.file_path && fs.existsSync(asset.file_path)) {
+        try { fs.unlinkSync(asset.file_path); } catch (e) {}
+      }
+      await asset.destroy();
+    }
+  } catch (_) {}
 
   await product.destroy();
 
@@ -590,7 +744,7 @@ const getRelatedProducts = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get preview / syllabus sample pages for a material
+ * @desc    Get preview details for a material
  * @route   GET /api/products/:id/preview
  * @access  Public
  */
@@ -607,29 +761,447 @@ const getProductPreview = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
+  // Check if a custom preview asset was uploaded
+  let previewAsset = null;
+  try {
+    previewAsset = await DigitalAsset.findOne({
+      where: { product_id: id, is_preview: true }
+    });
+  } catch (_) {}
+
+  const priceNum = parseFloat(product.price) || 0;
+  const originalPrice = parseFloat((priceNum * 1.45).toFixed(2));
+
   const preview = {
+    id: product.id,
     productId: product.id,
     title: product.title,
+    description: product.description,
+    price: priceNum,
+    original_price: originalPrice,
+    discount_percentage: 31,
     subject: product.subject,
     grade_level: product.grade_level,
     exam_year: product.exam_year,
     format: product.format,
-    tableOfContents: [
-      'Unit 1: Syllabus Guidelines & National Curriculum Overview',
-      'Unit 2: Key Theoretical Formulations & Conceptual Definitions',
-      'Unit 3: Step-by-Step Marking Rubric & Point Distribution',
-      'Unit 4: Model Examination Questions (Part A - Structured)',
-      'Unit 5: Model Essay Problems with Alternate Resolution Methods'
+    is_digital: product.format === 'digital' || product.format === 'both',
+    is_physical: product.format === 'physical' || product.format === 'both',
+    has_custom_preview: !!(previewAsset && previewAsset.file_path && fs.existsSync(previewAsset.file_path)),
+    preview_filename: previewAsset?.file_name || null,
+    preview_file_url: `/api/products/${product.id}/preview-file`,
+    preview_images: [
+      `/api/products/${product.id}/preview-image/1`,
+      `/api/products/${product.id}/preview-image/2`
     ],
-    sampleExcerpt: `PREVIEW SAMPLE — ${product.title}\n------------------------------------------------------------------------\nTarget Examination: ${product.exam_year || 'National Curriculum'} | Grade: ${product.grade_level}\nSubject: ${product.subject}\n\n[Sample Problem 01]:\nEvaluate the step-by-step problem-solving sequence according to official marking standards.\nMarking Breakdown:\n(a) Method derivation - 3 marks\n(b) Intermediate algebraic simplification - 4 marks\n(c) Final unit and conclusion validation - 3 marks\n\n* Note: This is an authorized preview copy watermarked for student inspection.\nThe complete unredacted material is made immediately accessible after checkout.`,
-    is_watermarked: true,
-    total_preview_pages: 3
+    total_pages: 52,
+    sample_pages_count: 2,
+    locked_pages_count: 50,
+    social_proof: '🔥 High demand: 18 students studying this unit this week',
+    is_watermarked: true
   };
 
   res.status(200).json({
     success: true,
     preview
   });
+});
+
+const escapePdfText = (str) => {
+  return (str || '').replace(/[\\()]/g, '\\$&');
+};
+
+const generateSamplePreviewPdf = (title, subject, grade, examYear) => {
+  const lines = [
+    'BT',
+    '/F1 18 Tf',
+    '50 750 Td',
+    `(${escapePdfText(title || 'Study Material Sample Preview')}) Tj`,
+    '0 -26 Td',
+    '/F1 11 Tf',
+    `(${escapePdfText(`Subject: ${subject || 'General'} | Standard: ${grade || 'All Grades'} | Exam Year: ${examYear || 'National Curriculum'}`)}) Tj`,
+    '0 -28 Td',
+    '(-----------------------------------------------------------------------------------------------------) Tj',
+    '0 -20 Td',
+    '/F1 12 Tf',
+    '(*** AUTHORIZED STUDY MATERIAL SPECIMEN - WATERMARKED PREVIEW ***) Tj',
+    '0 -20 Td',
+    '(-----------------------------------------------------------------------------------------------------) Tj',
+    '0 -32 Td',
+    '/F1 11 Tf',
+    '(1. Verified Academic Material authenticated by registered educators on EduMart.) Tj',
+    '0 -22 Td',
+    '(2. Full contents including complete theory, exercise questions, and model derivations) Tj',
+    '0 -18 Td',
+    '(   are unlocked and made immediately downloadable upon completing checkout.) Tj',
+    '0 -24 Td',
+    '(3. Instant digital delivery with license encryption and verified payment receipt.) Tj',
+    '0 -24 Td',
+    '(4. Official curriculum alignment with Sri Lankan national educational standards.) Tj',
+    '0 -36 Td',
+    '/F1 10 Tf',
+    '(* Note: This document is a protected sample preview for evaluation purposes only.) Tj',
+    '0 -16 Td',
+    '(* To access the complete unabridged material, add to cart and proceed to checkout.) Tj',
+    'ET'
+  ];
+
+  const content = lines.join('\n');
+  const streamLength = Buffer.byteLength(content, 'utf8');
+
+  let body = '';
+  const offsets = [];
+
+  function addObj(str) {
+    offsets.push(Buffer.byteLength(body, 'latin1'));
+    body += str;
+  }
+
+  body += '%PDF-1.4\n';
+
+  // Obj 1: Catalog
+  addObj('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+
+  // Obj 2: Pages
+  addObj('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+
+  // Obj 3: Page
+  addObj('3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n');
+
+  // Obj 4: Font
+  addObj('4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n');
+
+  // Obj 5: Stream
+  addObj(`5 0 obj\n<< /Length ${streamLength} >>\nstream\n${content}\nendstream\nendobj\n`);
+
+  const startxref = Buffer.byteLength(body, 'latin1');
+  let xref = 'xref\n0 6\n0000000000 65535 f \n';
+  for (let i = 0; i < 5; i++) {
+    xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  }
+
+  const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${startxref}\n%%EOF\n`;
+  return Buffer.from(body + xref + trailer, 'latin1');
+};
+
+/**
+ * @desc    Stream or download sample preview document file
+ * @route   GET /api/products/:id/preview-file
+ * @access  Public
+ */
+const getProductPreviewFile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const isDownload = req.query.download === '1' || req.query.attachment === 'true';
+
+  let asset = null;
+  try {
+    asset = await DigitalAsset.findOne({
+      where: { product_id: id, is_preview: true }
+    });
+  } catch (_) {}
+
+  if (asset && asset.file_path && fs.existsSync(asset.file_path)) {
+    if (isDownload) {
+      return res.download(path.resolve(asset.file_path), asset.file_name);
+    } else {
+      res.setHeader('Content-Type', asset.mime_type || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${asset.file_name}"`);
+      return fs.createReadStream(path.resolve(asset.file_path)).pipe(res);
+    }
+  }
+
+  // Fallback watermarked preview buffer
+  const product = await Product.findByPk(id);
+  const title = product?.title || 'Curriculum Sample Preview';
+  const pdfBytes = generateSamplePreviewPdf(
+    title,
+    product?.subject,
+    product?.grade_level,
+    product?.exam_year
+  );
+
+  const safeFilename = `${title.replace(/[^a-zA-Z0-9_\-]/g, '_')}_preview.pdf`;
+  const disposition = isDownload ? 'attachment' : 'inline';
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `${disposition}; filename="${safeFilename}"`);
+  res.setHeader('Content-Length', pdfBytes.length);
+  res.status(200).send(pdfBytes);
+});
+
+/**
+ * @desc    Generate high-resolution sample page SVG image
+ */
+const generateSamplePreviewSvg = (title, subject, grade, examYear, page = 1) => {
+  const safeTitle = (title || 'Educational Material')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  const safeSub = (subject || 'General Studies')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeGrade = (grade || 'National Curriculum')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeYear = (examYear || '2024/2025')
+    .toString()
+    .replace(/&/g, '&amp;');
+
+  if (page === 2) {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130" width="800" height="1130">
+  <defs>
+    <linearGradient id="headerGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e3a8a" />
+    </linearGradient>
+  </defs>
+
+  <!-- Page Background -->
+  <rect width="800" height="1130" fill="#ffffff" />
+  <rect x="25" y="25" width="750" height="1080" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+
+  <!-- Top Accent Bar -->
+  <rect x="25" y="25" width="750" height="12" fill="url(#headerGrad2)" rx="4" />
+
+  <!-- Running Header -->
+  <g transform="translate(50, 65)">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#0284c7" letter-spacing="1">EDUMART ACADEMIC SPECIMEN • PART II</text>
+    <text x="700" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b" text-anchor="end">${safeSub} • Page 2 of 52</text>
+    <line x1="0" y1="12" x2="700" y2="12" stroke="#e2e8f0" stroke-width="1" />
+  </g>
+
+  <!-- Page 2 Content -->
+  <g transform="translate(50, 110)">
+    <!-- Section Title -->
+    <rect x="0" y="0" width="700" height="38" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">SECTION B: HIGH-YIELD MODEL QUESTION &amp; STEP-BY-STEP DERIVATION</text>
+
+    <!-- Question Box -->
+    <rect x="0" y="55" width="700" height="135" rx="8" fill="#f0fdf4" stroke="#86efac" stroke-width="1" />
+    <text x="20" y="82" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#166534">Model Examination Question [Evaluation Weight: 25 Marks]</text>
+    <text x="20" y="108" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#1e293b">
+      <tspan x="20" dy="0">A. Formulate the fundamental governing equations for the given syllabus unit conditions.</tspan>
+      <tspan x="20" dy="22">B. Deduce the exact analytical solution satisfying the boundary constraints and state all assumptions.</tspan>
+      <tspan x="20" dy="22">C. Evaluate the margin of error and compare against official National Examination Board benchmark standards.</tspan>
+    </text>
+
+    <!-- Worked Solution Steps -->
+    <text x="0" y="225" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#0f172a">MODEL SOLUTION BREAKDOWN &amp; POINT ALLOCATION:</text>
+
+    <!-- Step 1 -->
+    <rect x="0" y="242" width="700" height="85" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+    <rect x="0" y="242" width="8" height="85" fill="#0284c7" />
+    <text x="24" y="268" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Step 1: Conceptual Identification &amp; Variable Substitution (7 Marks)</text>
+    <text x="24" y="292" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#475569">
+      <tspan x="24" dy="0">• State isolated system conservation laws and verify physical dimensionality invariance.</tspan>
+      <tspan x="24" dy="18">• Construct the orthogonal coordinate system resolving components along the principal axis.</tspan>
+    </text>
+
+    <!-- Step 2 -->
+    <rect x="0" y="342" width="700" height="85" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+    <rect x="0" y="342" width="8" height="85" fill="#10b981" />
+    <text x="24" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Step 2: Algebraic Simplification &amp; Integration Method (10 Marks)</text>
+    <text x="24" y="392" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#475569">
+      <tspan x="24" dy="0">• Decompose rational algebraic polynomials into distinct partial fractions.</tspan>
+      <tspan x="24" dy="18">• Integrate term-by-term and compute boundary constants using given initial values.</tspan>
+    </text>
+
+    <!-- Step 3 -->
+    <rect x="0" y="442" width="700" height="85" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+    <rect x="0" y="442" width="8" height="85" fill="#f59e0b" />
+    <text x="24" y="468" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Step 3: Verification &amp; Final Conclusion (8 Marks)</text>
+    <text x="24" y="492" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#475569">
+      <tspan x="24" dy="0">• Substitute limiting scenarios to confirm convergence and stability of the result.</tspan>
+      <tspan x="24" dy="18">• State final magnitude and vector orientation with appropriate SI units.</tspan>
+    </text>
+
+    <!-- Examiner Advice Box -->
+    <rect x="0" y="546" width="700" height="105" rx="8" fill="#fffbeb" stroke="#fcd34d" stroke-width="1" />
+    <text x="20" y="574" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#92400e">💡 Examiner Feedback &amp; Common Pitfalls</text>
+    <text x="20" y="598" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#78350f">
+      <tspan x="20" dy="0">Over 64% of candidates lose marks due to skipping sign conventions in step 1.</tspan>
+      <tspan x="20" dy="18">Always write clear intermediate steps as marked above to guarantee partial credit,</tspan>
+      <tspan x="20" dy="18">even if final numerical evaluation contains arithmetic errors.</tspan>
+    </text>
+
+    <!-- Teaser Notice for next pages -->
+    <rect x="0" y="670" width="700" height="85" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1" />
+    <text x="20" y="698" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#1e40af">🔒 Notice: Pages 3 through 52 are locked in this evaluation sample.</text>
+    <text x="20" y="722" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#1d4ed8">
+      <tspan x="20" dy="0">Purchase this full study package to unlock 50 additional comprehensive questions,</tspan>
+      <tspan x="20" dy="18">in-depth past paper analyses, and complete revision summary sheets.</tspan>
+    </text>
+  </g>
+
+  <!-- Diagonal Watermark Overlay -->
+  <g opacity="0.08" transform="rotate(-30 400 565)">
+    <text x="400" y="500" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+    <text x="400" y="550" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="700" fill="#0f172a" text-anchor="middle" letter-spacing="4">PROTECTED ACADEMIC SPECIMEN • EVALUATION ONLY</text>
+    <text x="400" y="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+  </g>
+
+  <!-- Page Footer -->
+  <g transform="translate(50, 1070)">
+    <line x1="0" y1="0" x2="700" y2="0" stroke="#cbd5e1" stroke-width="1" />
+    <text y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#64748b">EduMart Educational Marketplace • Authorized Student Preview Copy</text>
+    <text x="700" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#64748b" text-anchor="end">Page 2 of 52</text>
+  </g>
+</svg>`;
+  }
+
+  // Page 1 Default
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1130" width="800" height="1130">
+  <defs>
+    <linearGradient id="headerGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Paper -->
+  <rect width="800" height="1130" fill="#ffffff" />
+  <rect x="25" y="25" width="750" height="1080" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+
+  <!-- Top Blue Banner -->
+  <rect x="25" y="25" width="750" height="100" fill="url(#headerGrad1)" rx="8" />
+
+  <!-- Header Text -->
+  <g transform="translate(60, 65)">
+    <circle cx="25" cy="18" r="22" fill="#ffffff" opacity="0.15" />
+    <path d="M 25 3 L 42 10 L 42 24 C 42 34 25 41 25 41 C 25 41 8 34 8 24 L 8 10 Z" fill="#ffffff" opacity="0.9" />
+    <text x="60" y="16" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#93c5fd" letter-spacing="1.5">OFFICIAL EDUMART STUDY MATERIAL SPECIMEN</text>
+    <text x="60" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="800" fill="#ffffff" letter-spacing="0.5">National Curriculum Verified Resource</text>
+  </g>
+
+  <!-- Title & Metadata Block -->
+  <g transform="translate(50, 155)">
+    <!-- Document Title -->
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="800" fill="#0f172a">${safeTitle}</text>
+    
+    <!-- Meta Chips Grid -->
+    <g transform="translate(0, 32)">
+      <rect x="0" y="0" width="160" height="32" rx="16" fill="#eff6ff" stroke="#bfdbfe" />
+      <text x="80" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">📚 ${safeSub}</text>
+
+      <rect x="170" y="0" width="160" height="32" rx="16" fill="#f0fdf4" stroke="#bbf7d0" />
+      <text x="250" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="#166534" text-anchor="middle">🎓 ${safeGrade}</text>
+
+      <rect x="340" y="0" width="160" height="32" rx="16" fill="#fef3c7" stroke="#fde68a" />
+      <text x="420" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">📅 Exam: ${safeYear}</text>
+
+      <rect x="510" y="0" width="190" height="32" rx="16" fill="#faf5ff" stroke="#e9d5ff" />
+      <text x="605" y="20" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="700" fill="#6b21a8" text-anchor="middle">🔒 Verified Teacher License</text>
+    </g>
+
+    <line x1="0" y1="85" x2="700" y2="85" stroke="#e2e8f0" stroke-width="1.5" />
+  </g>
+
+  <!-- Page 1 Body Content -->
+  <g transform="translate(50, 265)">
+    <text font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="800" fill="#1e293b" letter-spacing="0.5">PART I: THEORETICAL FOUNDATION &amp; CORE COMPETENCIES</text>
+    <rect x="0" y="12" width="700" height="2" fill="#0284c7" />
+
+    <text x="0" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#334155">
+      <tspan x="0" dy="0">This comprehensive study guide compiles high-frequency exam objectives aligned directly with</tspan>
+      <tspan x="0" dy="20">the Department of Examinations national syllabus standards. Each core principle is presented</tspan>
+      <tspan x="0" dy="20">with concise analytical proofs, visual schematics, and model step-by-step examination derivations.</tspan>
+    </text>
+
+    <!-- Key Bullet Cards -->
+    <g transform="translate(0, 115)">
+      <rect x="0" y="0" width="335" height="110" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+      <text x="16" y="26" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0f172a">1. Master Concept Syntheses</text>
+      <text x="16" y="48" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#64748b">
+        <tspan x="16" dy="0">• Rigorous axiomatic formulations</tspan>
+        <tspan x="16" dy="18">• Clear variable declarations</tspan>
+        <tspan x="16" dy="18">• Real-world exam problem mappings</tspan>
+      </text>
+
+      <rect x="365" y="0" width="335" height="110" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+      <text x="381" y="26" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0f172a">2. High-Yield Examination Strategies</text>
+      <text x="381" y="48" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#64748b">
+        <tspan x="381" dy="0">• Full structured essay solutions</tspan>
+        <tspan x="381" dy="18">• Official marking scheme allocation</tspan>
+        <tspan x="381" dy="18">• Common student pitfalls &amp; traps</tspan>
+      </text>
+    </g>
+
+    <!-- Formula / High Priority Concept Highlight Box -->
+    <g transform="translate(0, 245)">
+      <rect x="0" y="0" width="700" height="145" rx="8" fill="#f0f9ff" stroke="#bae6fd" stroke-width="1.5" />
+      <rect x="0" y="0" width="8" height="145" fill="#0284c7" />
+      <text x="24" y="30" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0369a1">⭐ CORE FORMULA SPECIFICATION &amp; CRITICAL THEOREM BOX</text>
+      <text x="24" y="58" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="12" fill="#0f172a" font-weight="600">
+        <tspan x="24" dy="0">Mathematical Invariance &amp; Governing Theorem:</tspan>
+      </text>
+      <text x="24" y="82" font-family="Courier, monospace" font-size="13" fill="#0c4a6e" font-weight="700">
+        <tspan x="40" dy="0">∑ F_x = 0  ;  ∑ F_y = 0  ;  ∫ [f(x) ± g(x)] dx = F(x) ± G(x) + C</tspan>
+      </text>
+      <text x="24" y="110" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#0369a1">
+        <tspan x="24" dy="0">Applicability Note: Always state initial reference frame and boundary conditions</tspan>
+        <tspan x="24" dy="16">prior to applying this derivation to earn maximum partial marks.</tspan>
+      </text>
+    </g>
+
+    <!-- Document Assurance Badge -->
+    <g transform="translate(0, 415)">
+      <rect x="0" y="0" width="700" height="90" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+      <circle cx="40" cy="45" r="22" fill="#dbeafe" />
+      <text x="40" y="51" font-family="sans-serif" font-size="18" text-anchor="middle">✓</text>
+      <text x="75" y="35" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="13" font-weight="700" fill="#0f172a">Authenticated Educator Copyright &amp; Academic Guarantee</text>
+      <text x="75" y="56" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11.5" fill="#64748b">
+        <tspan x="75" dy="0">Prepared by verified subject matter educators. All intellectual property protected.</tspan>
+        <tspan x="75" dy="16">Purchased material includes high-resolution digital master copy without watermarks.</tspan>
+      </text>
+    </g>
+  </g>
+
+  <!-- Diagonal Watermark Overlay -->
+  <g opacity="0.08" transform="rotate(-30 400 565)">
+    <text x="400" y="500" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+    <text x="400" y="550" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="20" font-weight="700" fill="#0f172a" text-anchor="middle" letter-spacing="4">PROTECTED ACADEMIC SPECIMEN • EVALUATION ONLY</text>
+    <text x="400" y="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="34" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="6">EDUMART SAMPLE PREVIEW</text>
+  </g>
+
+  <!-- Page Footer -->
+  <g transform="translate(50, 1070)">
+    <line x1="0" y1="0" x2="700" y2="0" stroke="#cbd5e1" stroke-width="1" />
+    <text y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" fill="#64748b">EduMart Educational Marketplace • Authorized Student Preview Copy</text>
+    <text x="700" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#64748b" text-anchor="end">Page 1 of 52</text>
+  </g>
+</svg>`;
+};
+
+/**
+ * @desc    Get preview sample image for a material
+ * @route   GET /api/products/:id/preview-image/:page?
+ * @access  Public
+ */
+const getProductPreviewImage = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const page = parseInt(req.params.page || '1', 10) || 1;
+
+  const product = await Product.findByPk(id);
+  if (!product) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
+
+  const svg = generateSamplePreviewSvg(
+    product.title,
+    product.subject,
+    product.grade_level,
+    product.exam_year,
+    page
+  );
+
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.status(200).send(svg);
 });
 
 module.exports = {
@@ -639,6 +1211,8 @@ module.exports = {
   getSuggestions,
   getRelatedProducts,
   getProductPreview,
+  getProductPreviewFile,
+  getProductPreviewImage,
   createProduct,
   updateProduct,
   deleteProduct,

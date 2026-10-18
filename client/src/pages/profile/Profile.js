@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Card,
@@ -14,18 +14,49 @@ import {
   Tab,
   LinearProgress,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import PersonIcon from '@mui/icons-material/Person';
 import SecurityIcon from '@mui/icons-material/Security';
 import InfoIcon from '@mui/icons-material/Info';
 import VerifiedIcon from '@mui/icons-material/Verified';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import DevicesIcon from '@mui/icons-material/Devices';
+import PrivacyTipIcon from '@mui/icons-material/PrivacyTip';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
 
 const Profile = () => {
-  const { user, updateProfile, changePassword, resendVerification, refreshProfile } = useAuth();
+  const {
+    user,
+    updateProfile,
+    changePassword,
+    resendVerification,
+    refreshProfile,
+    getUserSessions,
+    revokeOtherSessions,
+    exportUserData,
+    deleteAccount
+  } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   const [activeTab, setActiveTab] = useState(0);
@@ -42,8 +73,22 @@ const Profile = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [changingPass, setChangingPass] = useState(false);
   const [passError, setPassError] = useState('');
+
+  // Sessions State
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingSessions, setRevokingSessions] = useState(false);
+
+  // Data Privacy & Deactivation State
+  const [exportingData, setExportingData] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -123,6 +168,78 @@ const Profile = () => {
     }
   };
 
+  const fetchSessions = useCallback(async () => {
+    try {
+      setLoadingSessions(true);
+      const res = await getUserSessions();
+      setSessions(res?.sessions || []);
+    } catch (err) {
+      console.error(err);
+      enqueueSnackbar('Failed to load active sessions.', { variant: 'error' });
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [enqueueSnackbar, getUserSessions]);
+
+  useEffect(() => {
+    if (activeTab === 2) {
+      fetchSessions();
+    }
+  }, [activeTab, fetchSessions]);
+
+  const handleRevokeSessions = async () => {
+    try {
+      setRevokingSessions(true);
+      const res = await revokeOtherSessions();
+      enqueueSnackbar(res?.message || 'Logged out from all other devices.', { variant: 'success' });
+      await fetchSessions();
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to revoke other sessions.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setRevokingSessions(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      setExportingData(true);
+      const data = await exportUserData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `edumart-my-data-${user?.id || user?._id || 'export'}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      enqueueSnackbar('Personal data downloaded successfully.', { variant: 'success' });
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to export personal data.';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      enqueueSnackbar('Please enter your password to confirm.', { variant: 'error' });
+      return;
+    }
+    try {
+      setDeletingAccount(true);
+      await deleteAccount(deletePassword);
+      enqueueSnackbar('Your account has been deactivated.', { variant: 'info' });
+      setDeleteDialogOpen(false);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to deactivate account. Incorrect password?';
+      enqueueSnackbar(msg, { variant: 'error' });
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   const completionScore = user?.profileCompletion || 60;
 
   const missingTips = [];
@@ -156,8 +273,8 @@ const Profile = () => {
       {/* Header Profile Card */}
       <Card elevation={2} sx={{ mb: 4, borderRadius: 2 }}>
         <CardContent sx={{ p: 4 }}>
-          <Grid container spacing={3} alignItems="center">
-            <Grid item>
+          <Grid container spacing={3} sx={{ alignItems: 'center' }}>
+            <Grid>
               <Avatar
                 sx={{
                   width: 80,
@@ -170,7 +287,7 @@ const Profile = () => {
                 {user?.firstName?.[0] || 'U'}
               </Avatar>
             </Grid>
-            <Grid item xs>
+            <Grid size={{ xs: true }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
                 <Typography variant="h5" fontWeight="bold">
                   {user?.firstName} {user?.lastName}
@@ -237,10 +354,14 @@ const Profile = () => {
             onChange={(e, val) => setActiveTab(val)}
             textColor="primary"
             indicatorColor="primary"
+            variant="scrollable"
+            scrollButtons="auto"
           >
             <Tab icon={<PersonIcon />} iconPosition="start" label="Personal Details" />
             <Tab icon={<SecurityIcon />} iconPosition="start" label="Security & Password" />
-            <Tab icon={<InfoIcon />} iconPosition="start" label="Account Information" />
+            <Tab icon={<DevicesIcon />} iconPosition="start" label="Active Sessions" />
+            <Tab icon={<PrivacyTipIcon />} iconPosition="start" label="Privacy & GDPR" />
+            <Tab icon={<InfoIcon />} iconPosition="start" label="Account Overview" />
           </Tabs>
         </Box>
 
@@ -256,37 +377,73 @@ const Profile = () => {
               </Typography>
 
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="First Name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Last Name"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PersonIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Phone Number"
                     placeholder="+94 77 123 4567"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <PhoneOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="School / University / Institute"
                     value={institution}
                     onChange={(e) => setInstitution(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <BusinessOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -321,34 +478,97 @@ const Profile = () => {
               )}
 
               <Grid container spacing={2} maxWidth="sm">
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     required
-                    type="password"
+                    type={showCurrentPass ? 'text' : 'password'}
                     label="Current Password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle current password visibility"
+                              onClick={() => setShowCurrentPass(!showCurrentPass)}
+                              edge="end"
+                              size="small"
+                            >
+                              {showCurrentPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     required
-                    type="password"
+                    type={showNewPass ? 'text' : 'password'}
                     label="New Password (min 8 characters)"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle new password visibility"
+                              onClick={() => setShowNewPass(!showNewPass)}
+                              edge="end"
+                              size="small"
+                            >
+                              {showNewPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                   <TextField
                     fullWidth
                     required
-                    type="password"
+                    type={showConfirmPass ? 'text' : 'password'}
                     label="Confirm New Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon color="action" fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle confirm new password visibility"
+                              onClick={() => setShowConfirmPass(!showConfirmPass)}
+                              edge="end"
+                              size="small"
+                            >
+                              {showConfirmPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
                   />
                 </Grid>
               </Grid>
@@ -366,60 +586,241 @@ const Profile = () => {
             </Box>
           )}
 
-          {/* Tab 2: Account Information */}
+          {/* Tab 2: Active Sessions */}
           {activeTab === 2 && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Active Login Sessions
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Review and manage all devices and browsers currently logged into your account.
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<DevicesIcon />}
+                  disabled={revokingSessions || sessions.length <= 1}
+                  onClick={handleRevokeSessions}
+                >
+                  {revokingSessions ? <CircularProgress size={20} color="inherit" /> : 'Log Out Other Devices'}
+                </Button>
+              </Box>
+
+              {loadingSessions ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Device / Client</strong></TableCell>
+                        <TableCell><strong>IP Address</strong></TableCell>
+                        <TableCell><strong>Started</strong></TableCell>
+                        <TableCell><strong>Expires</strong></TableCell>
+                        <TableCell align="right"><strong>Status</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {sessions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                            No active sessions found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        sessions.map((sess) => (
+                          <TableRow key={sess.id} sx={{ bgcolor: sess.is_current ? 'action.hover' : 'inherit' }}>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={sess.is_current ? 'bold' : 'normal'}>
+                                {sess.device_info || 'Web Browser'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>{sess.ip_address || '127.0.0.1'}</TableCell>
+                            <TableCell>{sess.created_at ? new Date(sess.created_at).toLocaleString() : 'N/A'}</TableCell>
+                            <TableCell>{sess.expires_at ? new Date(sess.expires_at).toLocaleDateString() : 'N/A'}</TableCell>
+                            <TableCell align="right">
+                              {sess.is_current ? (
+                                <Chip label="Current Session" color="success" size="small" />
+                              ) : (
+                                <Chip label="Active" color="default" size="small" />
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </Box>
+          )}
+
+          {/* Tab 3: Privacy & GDPR */}
+          {activeTab === 3 && (
+            <Box>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Data Privacy & GDPR Rights
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                EduMart adheres to international data protection principles. You retain full control over your personal data and account lifecycle.
+              </Typography>
+
+              {/* Data Portability */}
+              <Card variant="outlined" sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                  <Box sx={{ maxWidth: 500 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Right to Data Portability (GDPR Art. 20)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Download a complete copy of your personal data, including your profile information, order history, active sessions, and notifications in standard JSON format.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleExportData}
+                    disabled={exportingData}
+                  >
+                    {exportingData ? <CircularProgress size={20} color="inherit" /> : 'Download My Data (JSON)'}
+                  </Button>
+                </Box>
+              </Card>
+
+              {/* Account Deactivation */}
+              <Card variant="outlined" sx={{ p: 3, borderRadius: 2, borderColor: 'error.light' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                  <Box sx={{ maxWidth: 500 }}>
+                    <Typography variant="subtitle1" fontWeight="bold" color="error.main">
+                      Deactivate Account (Right to Erasure)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Deactivating your account will instantly log you out, revoke all active sessions, and disable your profile. You may contact support if you ever wish to reactivate.
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<DeleteForeverIcon />}
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    Deactivate Account
+                  </Button>
+                </Box>
+              </Card>
+
+              {/* Confirmation Dialog for Deactivation */}
+              <Dialog
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+              >
+                <DialogTitle sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                  Deactivate Your Account?
+                </DialogTitle>
+                <DialogContent>
+                  <DialogContentText sx={{ mb: 2 }}>
+                    This action will immediately terminate all active sessions and disable your access to EduMart. To confirm this security action, please enter your current account password.
+                  </DialogContentText>
+                  <TextField
+                    autoFocus
+                    fullWidth
+                    type="password"
+                    label="Account Password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    margin="dense"
+                  />
+                </DialogContent>
+                <DialogActions sx={{ p: 2, pt: 0 }}>
+                  <Button onClick={() => setDeleteDialogOpen(false)} disabled={deletingAccount}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDeleteAccount}
+                    color="error"
+                    variant="contained"
+                    disabled={deletingAccount || !deletePassword}
+                  >
+                    {deletingAccount ? <CircularProgress size={20} color="inherit" /> : 'Confirm Deactivation'}
+                  </Button>
+                </DialogActions>
+              </Dialog>
+            </Box>
+          )}
+
+          {/* Tab 4: Account Overview */}
+          {activeTab === 4 && (
             <Box>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 Account Overview
               </Typography>
               <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Registered Email
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {user?.email}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Registered Email
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {user?.email}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Account Role
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {user?.role?.toUpperCase()}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Account Role
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {user?.role?.toUpperCase()}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Account Status
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium" color={user?.isVerified ? 'success.main' : 'warning.main'}>
-                    {user?.isVerified ? 'Email Verified' : 'Pending Verification'}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Account Status
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" color={user?.isVerified ? 'success.main' : 'warning.main'}>
+                      {user?.isVerified ? 'Email Verified' : 'Pending Verification'}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    User ID
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                    {user?._id || user?.id}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      User ID
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      {user?._id || user?.id}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Joined Date
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Active Member'}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Joined Date
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Active Member'}
+                    </Typography>
+                  </Box>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Last Login
-                  </Typography>
-                  <Typography variant="body2" fontWeight="medium">
-                    {user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Current Session'}
-                  </Typography>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Last Login
+                    </Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      {user?.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Current Session'}
+                    </Typography>
+                  </Box>
                 </Grid>
               </Grid>
             </Box>

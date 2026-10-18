@@ -16,12 +16,18 @@ import {
   Alert,
   CircularProgress,
   Stack,
-  Breadcrumbs
+  Breadcrumbs,
+  InputAdornment,
+  IconButton
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
 import { useAuth } from '../../context/AuthContext';
@@ -77,6 +83,41 @@ const ProductCreate = () => {
     stock_quantity: 50
   });
 
+  const [materialFile, setMaterialFile] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleMaterialFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 50 * 1024 * 1024) {
+        setError('Study material file exceeds maximum permitted limit (50 MB).');
+        return;
+      }
+      setMaterialFile(file);
+      setError(null);
+    }
+  };
+
+  const handlePreviewFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        setError('Sample preview file exceeds maximum permitted limit (20 MB).');
+        return;
+      }
+      setPreviewFile(file);
+      setError(null);
+    }
+  };
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -131,7 +172,24 @@ const ProductCreate = () => {
         stock_quantity: parseInt(formData.stock_quantity, 10) || 50
       };
 
-      const res = await productService.createProduct(payload);
+      let submissionData = payload;
+      if (materialFile || previewFile) {
+        const data = new FormData();
+        Object.keys(payload).forEach((key) => {
+          if (payload[key] !== null && payload[key] !== undefined) {
+            data.append(key, payload[key]);
+          }
+        });
+        if (materialFile) {
+          data.append('material_file', materialFile);
+        }
+        if (previewFile) {
+          data.append('preview_file', previewFile);
+        }
+        submissionData = data;
+      }
+
+      const res = await productService.createProduct(submissionData);
       enqueueSnackbar('Educational material published successfully!', { variant: 'success' });
       if (res && res.product && res.product.id) {
         navigate(`/products/${res.product.id}`);
@@ -187,8 +245,16 @@ const ProductCreate = () => {
 
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
+            {/* Section 1: Basic Information */}
+            <Grid size={{ xs: 12 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                1. Resource Details
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
             {/* Title */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <TextField
                 fullWidth
                 label="Material Title"
@@ -200,8 +266,31 @@ const ProductCreate = () => {
               />
             </Grid>
 
+            {/* Description */}
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Description & Syllabus Coverage"
+                name="description"
+                placeholder="Detail key chapters covered, marking methodology, solution styles, and teacher tips..."
+                value={formData.description}
+                onChange={handleChange}
+                required
+              />
+            </Grid>
+
+            {/* Section 2: Curriculum & Classification */}
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                2. Academic Classification
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
             {/* Subject */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="subject-label">Subject</InputLabel>
                 <Select
@@ -221,7 +310,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Grade Level */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="grade-label">Grade / Standard</InputLabel>
                 <Select
@@ -241,7 +330,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Category */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth disabled={loadingCategories}>
                 <InputLabel id="category-label">Curriculum Category</InputLabel>
                 <Select
@@ -262,7 +351,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Material Type */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="type-label">Material Type</InputLabel>
                 <Select
@@ -282,7 +371,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Delivery Format */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth>
                 <InputLabel id="format-label">Delivery Format</InputLabel>
                 <Select
@@ -300,7 +389,7 @@ const ProductCreate = () => {
             </Grid>
 
             {/* Exam Year */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Examination Year"
@@ -312,8 +401,16 @@ const ProductCreate = () => {
               />
             </Grid>
 
+            {/* Section 3: Pricing & Inventory */}
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                3. Pricing & Fulfillment
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+
             {/* Price (LKR) */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Price (LKR)"
@@ -323,12 +420,17 @@ const ProductCreate = () => {
                 value={formData.price}
                 onChange={handleChange}
                 required
-                inputProps={{ step: '0.01', min: '0' }}
+                slotProps={{
+                  input: {
+                    startAdornment: <InputAdornment position="start">LKR</InputAdornment>,
+                  },
+                  htmlInput: { step: '0.01', min: '0' }
+                }}
               />
             </Grid>
 
             {/* Physical Stock Quantity */}
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Inventory Stock Quantity"
@@ -337,42 +439,162 @@ const ProductCreate = () => {
                 value={formData.stock_quantity}
                 onChange={handleChange}
                 helperText="Available physical copies for islandwide shipping"
-                inputProps={{ min: '0' }}
+                slotProps={{
+                  htmlInput: { min: '0' }
+                }}
               />
             </Grid>
 
-            {/* Description */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                label="Description & Syllabus Coverage"
-                name="description"
-                placeholder="Detail key chapters covered, marking methodology, solution styles, and teacher tips..."
-                value={formData.description}
-                onChange={handleChange}
-                required
-              />
+            {/* Section 4: Study Material File Upload */}
+            <Grid size={{ xs: 12 }} sx={{ mt: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em', mb: 0.5 }}>
+                4. Study Material File & Curriculum Preview
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                Upload the complete document/resource for students to download upon purchase. Supported: PDF, Word, PPT, ZIP, EPUB (Max 50MB).
+              </Typography>
+            </Grid>
+
+            {/* Main Study Material File */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderStyle: materialFile ? 'solid' : 'dashed',
+                  borderWidth: 2,
+                  borderColor: materialFile ? 'success.main' : 'primary.light',
+                  bgcolor: materialFile ? 'rgba(34, 197, 94, 0.04)' : '#fafbff',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                {materialFile ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                      <PictureAsPdfIcon color="error" sx={{ fontSize: 36 }} />
+                      <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                          {materialFile.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatFileSize(materialFile.size)} • Ready for upload
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <IconButton size="small" color="error" onClick={() => setMaterialFile(null)} aria-label="remove material file">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box>
+                    <CloudUploadIcon color="primary" sx={{ fontSize: 40, mb: 1, opacity: 0.8 }} />
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      Upload Primary Study Material
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Full curriculum paper, notes, or model answer guide
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      size="small"
+                      startIcon={<AttachFileIcon />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Browse File
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.epub,.txt,.jpg,.jpeg,.png"
+                        onChange={handleMaterialFileChange}
+                      />
+                    </Button>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* Optional Sample Preview File */}
+            <Grid size={{ xs: 12, md: 6 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2.5,
+                  borderStyle: previewFile ? 'solid' : 'dashed',
+                  borderWidth: 2,
+                  borderColor: previewFile ? 'info.main' : '#cbd5e1',
+                  bgcolor: previewFile ? 'rgba(56, 189, 248, 0.04)' : '#f8fafc',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                {previewFile ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                      <DescriptionIcon color="info" sx={{ fontSize: 36 }} />
+                      <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                          {previewFile.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatFileSize(previewFile.size)} • Sample Preview
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <IconButton size="small" color="error" onClick={() => setPreviewFile(null)} aria-label="remove preview file">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box>
+                    <DescriptionIcon color="action" sx={{ fontSize: 40, mb: 1, opacity: 0.8 }} />
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      Upload Sample Preview (Optional)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                      Watermarked sample or first 2–3 pages for students to inspect
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      component="label"
+                      size="small"
+                      startIcon={<AttachFileIcon />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Browse Preview
+                      <input
+                        type="file"
+                        hidden
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        onChange={handlePreviewFileChange}
+                      />
+                    </Button>
+                  </Box>
+                )}
+              </Paper>
             </Grid>
 
             {/* Publisher attribution */}
-            <Grid item xs={12}>
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fbfcfd' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Grid size={{ xs: 12 }}>
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <CheckCircleIcon color="success" fontSize="small" />
                   <Typography variant="body2" color="text.secondary">
-                    Listing will be published under tutor account: <strong>{user?.firstName} {user?.lastName}</strong> ({user?.institution || 'Registered Tutor'})
+                    Listing will be published under verified educator profile: <strong>{user?.firstName} {user?.lastName}</strong> ({user?.institution || 'Registered Educator'})
                   </Typography>
                 </Box>
               </Paper>
             </Grid>
 
             {/* Action Buttons */}
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Divider sx={{ my: 1 }} />
-              <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ mt: 2 }}>
-                <Button component={Link} to="/products" variant="outlined">
+              <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: 'flex-end' }}>
+                <Button component={Link} to="/products" variant="outlined" sx={{ px: 3, fontWeight: 600 }}>
                   Cancel
                 </Button>
                 <Button
@@ -382,6 +604,7 @@ const ProductCreate = () => {
                   size="large"
                   disabled={submitting}
                   startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <CloudUploadIcon />}
+                  sx={{ px: 4, py: 1.2, fontWeight: 700, boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)' }}
                 >
                   {submitting ? 'Publishing...' : 'Publish Material'}
                 </Button>

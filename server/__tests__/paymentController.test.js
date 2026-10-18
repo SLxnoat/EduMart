@@ -1,15 +1,18 @@
 const request = require('supertest');
 const app = require('../server');
-const { User, Order, OrderItem, Payment, Session } = require('../src/models');
+const { User, Order, OrderItem, Payment, Session, Category, Product } = require('../src/models');
 
 describe('Payment Controller', () => {
   let userToken;
   let testUser;
   let testOrder;
+  let testDigitalProduct;
 
   beforeAll(async () => {
     await User.sync({ force: true });
     await Session.sync({ force: true });
+    await Category.sync({ force: true });
+    await Product.sync({ force: true });
     await Order.sync({ force: true });
     await OrderItem.sync({ force: true });
     await Payment.sync({ force: true });
@@ -27,6 +30,25 @@ describe('Payment Controller', () => {
     userToken = res.body.token;
     testUser = await User.findOne({ where: { email: 'payment.tester@example.com' } });
 
+    const testCategory = await Category.create({
+      name: 'Digital Testing Category',
+      slug: 'digital-testing-category',
+    });
+    testDigitalProduct = await Product.create({
+      title: 'Digital Calculus Notes',
+      description: 'Calculus notes',
+      price: 25.0,
+      category_id: testCategory.id,
+      seller_id: testUser.id,
+      subject: 'Mathematics',
+      grade_level: 'A/L',
+      product_type: 'revision_notes',
+      format: 'digital',
+      stock_quantity: 999,
+      is_digital: true,
+      is_physical: false,
+    });
+
     // Create an order for testing
     testOrder = await Order.create({
       user_id: testUser.id,
@@ -37,7 +59,7 @@ describe('Payment Controller', () => {
       shipping_cost: 0,
       discount_amount: 0,
       total_amount: 45.0,
-      currency: 'USD',
+      currency: 'LKR',
       payment_status: 'pending',
     });
   });
@@ -46,6 +68,8 @@ describe('Payment Controller', () => {
     await Payment.drop();
     await OrderItem.drop();
     await Order.drop();
+    await Product.drop();
+    await Category.drop();
     await Session.drop();
     await User.drop();
   });
@@ -130,7 +154,7 @@ describe('Payment Controller', () => {
         status: 'pending',
         subtotal: 30.0,
         total_amount: 30.0,
-        currency: 'USD',
+        currency: 'LKR',
         payment_status: 'pending',
       });
 
@@ -140,7 +164,7 @@ describe('Payment Controller', () => {
           object: {
             id: 'pi_test_webhook_success_99',
             amount: 3000,
-            currency: 'usd',
+            currency: 'lkr',
             metadata: {
               order_id: webhookOrder.id,
             },
@@ -174,7 +198,7 @@ describe('Payment Controller', () => {
         status: 'pending',
         subtotal: 25.0,
         total_amount: 25.0,
-        currency: 'USD',
+        currency: 'LKR',
         payment_status: 'pending',
       });
 
@@ -184,7 +208,7 @@ describe('Payment Controller', () => {
           object: {
             id: 'pi_test_webhook_failed_88',
             amount: 2500,
-            currency: 'usd',
+            currency: 'lkr',
             metadata: {
               order_id: failOrder.id,
             },
@@ -204,4 +228,191 @@ describe('Payment Controller', () => {
       expect(refreshedOrder.payment_status).toBe('failed');
     });
   });
+
+  describe('GET /api/payments/config', () => {
+    it('should return client-safe gateway configuration without leaking secret keys', async () => {
+      const res = await request(app).get('/api/payments/config');
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('stripe');
+      expect(res.body.data).toHaveProperty('paypal');
+      expect(res.body.data).toHaveProperty('bankTransfer');
+      expect(res.body.data).toHaveProperty('digitalWallet');
+      expect(res.body.data).toHaveProperty('cod');
+      expect(res.body.data.stripe).not.toHaveProperty('secretKey');
+    });
+  });
+
+  describe('POST /api/payments/process & PayPal Endpoints', () => {
+    it('should process payment across different payment methods', async () => {
+      const order2 = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-MULTI-PAY',
+        status: 'pending',
+        subtotal: 75.0,
+        total_amount: 75.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/process')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: order2.id,
+          paymentMethod: 'bank_transfer',
+          paymentDetails: {
+            slipNumber: 'TXN-BANK-12345',
+            bankName: 'Commercial Bank',
+            depositorName: 'Charuka Silva',
+          },
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.paymentMethod).toBe('bank_transfer');
+
+      const refreshed = await Order.findByPk(order2.id);
+      expect(refreshed).not.toBeNull();
+    });
+
+    it('should reject Cash on Delivery (COD) if order contains digital items', async () => {
+      const digitalOrder = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-COD-DIGITAL',
+        status: 'pending',
+        subtotal: 25.0,
+        total_amount: 25.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+      await OrderItem.create({
+        order_id: digitalOrder.id,
+        product_id: testDigitalProduct.id,
+        product_title: 'Digital Calculus Notes',
+        product_subject: 'Mathematics',
+        product_grade_level: 'A/L',
+        quantity: 1,
+        unit_price: 25.0,
+        total_price: 25.0,
+        is_digital: true,
+        is_physical: false,
+      });
+
+      const res = await request(app)
+        .post('/api/payments/process')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: digitalOrder.id,
+          paymentMethod: 'cash_on_delivery',
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('Cash on Delivery (COD) is only permitted for 100% physical goods');
+    });
+
+    it('should create a PayPal order via /api/payments/paypal/create-order', async () => {
+      const payPalOrder = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-PAYPAL-1',
+        status: 'pending',
+        subtotal: 60.0,
+        total_amount: 60.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/paypal/create-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ orderId: payPalOrder.id });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body).toHaveProperty('paypalOrderId');
+      expect(res.body).toHaveProperty('approvalUrl');
+      expect(res.body).toHaveProperty('currency');
+      expect(res.body).toHaveProperty('amount');
+    });
+
+    it('should capture a PayPal order via /api/payments/paypal/capture-order and mark order as paid', async () => {
+      const payPalOrder2 = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-PAYPAL-CAPTURE-1',
+        status: 'pending',
+        subtotal: 120.0,
+        total_amount: 120.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/paypal/capture-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: payPalOrder2.id,
+          paypalOrderId: 'PAYID-SANDBOX-TEST-123456',
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.paymentMethod).toBe('paypal');
+      expect(res.body.status).toBe('completed');
+
+      const updated = await Order.findByPk(payPalOrder2.id);
+      expect(updated.status).toBe('paid');
+      expect(updated.payment_status).toBe('paid');
+
+      const payment = await Payment.findOne({ where: { order_id: payPalOrder2.id } });
+      expect(payment).not.toBeNull();
+      expect(payment.payment_method).toBe('paypal');
+      expect(payment.status).toBe('completed');
+
+      // Test idempotency: capturing already paid order returns completed without error
+      const idempotencyRes = await request(app)
+        .post('/api/payments/paypal/capture-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: payPalOrder2.id,
+          paypalOrderId: 'PAYID-SANDBOX-TEST-123456',
+        });
+
+      expect(idempotencyRes.statusCode).toBe(200);
+      expect(idempotencyRes.body.success).toBe(true);
+      expect(idempotencyRes.body.alreadyPaid).toBe(true);
+    });
+
+    it('should process PayPal payment via /api/payments/process with sandbox fallback', async () => {
+      const payPalOrder3 = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-PAYPAL-PROCESS-1',
+        status: 'pending',
+        subtotal: 85.0,
+        total_amount: 85.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/process')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: payPalOrder3.id,
+          paymentMethod: 'paypal',
+          paymentDetails: {
+            paypalEmail: 'student.paypal@example.com',
+          },
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.paymentMethod).toBe('paypal');
+      expect(res.body.status).toBe('completed');
+
+      const updated = await Order.findByPk(payPalOrder3.id);
+      expect(updated.status).toBe('paid');
+      expect(updated.payment_status).toBe('paid');
+    });
+  });
 });
+

@@ -202,15 +202,16 @@ describe('Product & Catalog Controller', () => {
       });
     });
 
-    it('should return curriculum preview details with watermarked sample excerpt', async () => {
+    it('should return product preview details with document preview link', async () => {
       const listRes = await request(app).get('/api/products');
       const targetId = listRes.body.products[0].id;
 
       const res = await request(app).get(`/api/products/${targetId}/preview`);
       expect(res.statusCode).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.preview).toHaveProperty('tableOfContents');
-      expect(res.body.preview).toHaveProperty('sampleExcerpt');
+      expect(res.body.preview).toHaveProperty('id');
+      expect(res.body.preview).toHaveProperty('title');
+      expect(res.body.preview).toHaveProperty('preview_file_url');
       expect(res.body.preview.is_watermarked).toBe(true);
     });
   });

@@ -75,8 +75,8 @@ describe('Shopping Cart & Coupon Component (Bhanuka)', () => {
     expect(await screen.findByText('Combined Maths Revision Notes')).toBeInTheDocument();
     expect(screen.getByText('Physics Practical Parcel')).toBeInTheDocument();
     expect(screen.getByText(/Subtotal/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$40\.00/i)).toBeInTheDocument(); // 25 + 15 = 40
-    expect(screen.getByText(/\$4\.50/i)).toBeInTheDocument(); // Physical shipping
+    expect(screen.getByText(/40\.00/i)).toBeInTheDocument(); // 25 + 15 = 40
+    expect(screen.getByText(/4\.50/i)).toBeInTheDocument(); // Physical shipping
     expect(screen.getByText(/Proceed to Checkout/i)).toBeInTheDocument();
   });
 
@@ -122,6 +122,6 @@ describe('Shopping Cart & Coupon Component (Bhanuka)', () => {
 
     expect(await screen.findByText(/Applied coupon 'EDUMART10'/i)).toBeInTheDocument();
     expect(screen.getByText(/Promo \(EDUMART10\)/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/-\$3\.00/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/-.*3\.00/i).length).toBeGreaterThan(0);
   });
 });

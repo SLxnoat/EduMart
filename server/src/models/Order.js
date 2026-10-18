@@ -41,6 +41,10 @@ module.exports = (sequelize) => {
       defaultValue: 0,
       validate: { min: 0 },
     },
+    coupon_code: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
     total_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
@@ -48,7 +52,7 @@ module.exports = (sequelize) => {
     },
     currency: {
       type: DataTypes.STRING(3),
-      defaultValue: 'USD',
+      defaultValue: 'LKR',
     },
     payment_status: {
       type: DataTypes.ENUM('pending', 'processing', 'paid', 'failed', 'refunded', 'partially_refunded'),
@@ -65,6 +69,26 @@ module.exports = (sequelize) => {
     },
     notes: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    carrier: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    tracking_number: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    estimated_delivery: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    delivery_milestones: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    invoice_number: {
+      type: DataTypes.STRING(50),
       allowNull: true,
     },
   }, {

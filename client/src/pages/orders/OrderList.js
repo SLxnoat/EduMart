@@ -16,15 +16,11 @@ import {
   CircularProgress,
   Alert,
   Pagination,
-  Card,
-  CardContent,
-  Divider,
 } from '@mui/material';
 import {
   ReceiptLong,
   Visibility,
   ShoppingBag,
-  ArrowForward,
 } from '@mui/icons-material';
 import orderService from '../../services/orderService';
 
@@ -79,7 +75,7 @@ const OrderList = () => {
     <Container maxWidth="lg" sx={{ my: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <div>
-          <Typography variant="h4" component="h1" fontWeight="bold" display="flex" alignItems="center">
+          <Typography variant="h4" component="h1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
             <ReceiptLong sx={{ mr: 1, fontSize: 36 }} color="primary" /> My Purchase History
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -154,7 +150,7 @@ const OrderList = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="bold">
-                          ${parseFloat(order.total_amount).toFixed(2)} {order.currency || 'USD'}
+                          {order.currency || 'LKR'} {parseFloat(order.total_amount).toFixed(2)}
                         </Typography>
                       </TableCell>
                       <TableCell>

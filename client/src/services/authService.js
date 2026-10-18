@@ -49,6 +49,22 @@ const authService = {
   changePassword: async (passwords) => {
     const response = await api.put('/users/change-password', passwords);
     return response.data;
+  },
+  getUserSessions: async () => {
+    const response = await api.get('/users/sessions');
+    return response.data;
+  },
+  revokeOtherSessions: async () => {
+    const response = await api.delete('/users/sessions');
+    return response.data;
+  },
+  exportUserData: async () => {
+    const response = await api.get('/users/export-data');
+    return response.data;
+  },
+  deleteAccount: async (password) => {
+    const response = await api.delete('/users/profile', { data: { password } });
+    return response.data;
   }
 };
 

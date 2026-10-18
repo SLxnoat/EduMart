@@ -22,10 +22,10 @@ module.exports = (sequelize) => {
     },
     currency: {
       type: DataTypes.STRING(3),
-      defaultValue: 'USD',
+      defaultValue: 'LKR',
     },
     payment_method: {
-      type: DataTypes.ENUM('credit_card', 'paypal', 'bank_transfer', 'digital_wallet'),
+      type: DataTypes.ENUM('credit_card', 'paypal', 'bank_transfer', 'digital_wallet', 'cash_on_delivery'),
       allowNull: false,
     },
     provider: {

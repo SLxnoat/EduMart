@@ -10,10 +10,13 @@ import {
   Alert,
   CircularProgress,
   IconButton,
-  InputAdornment
+  InputAdornment,
+  Stack,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import KeyIcon from '@mui/icons-material/Key';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
@@ -25,6 +28,7 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -68,105 +72,169 @@ const ResetPassword = () => {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ py: 8 }}>
-      <Card elevation={3} sx={{ borderRadius: 2 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'white',
-                p: 1.5,
-                borderRadius: '50%',
-                display: 'flex',
-                mb: 1
-              }}
-            >
-              <KeyIcon />
-            </Box>
-            <Typography variant="h5" component="h1" fontWeight="bold">
-              Set New Password
-            </Typography>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-              Enter your new password below.
-            </Typography>
-          </Box>
+    <Box
+      sx={{
+        minHeight: 'calc(100vh - 160px)',
+        py: { xs: 4, sm: 8 },
+        display: 'flex',
+        alignItems: 'center',
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.06), transparent 70%)',
+      }}
+    >
+      <Container maxWidth="sm">
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 4,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)',
+            bgcolor: '#ffffff',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header Accent Bar */}
+          <Box
+            sx={{
+              height: 6,
+              background: 'linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #f59e0b 100%)',
+            }}
+          />
 
-          {!token && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              No reset token detected in link. Please re-check your password reset link.
-            </Alert>
-          )}
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {success ? (
-            <Box sx={{ textAlign: 'center' }}>
-              <Alert severity="success" sx={{ mb: 3 }}>
-                Password reset successfully! Redirecting you to login...
-              </Alert>
-              <Button component={Link} to="/login" variant="contained" fullWidth>
-                Go to Sign In
-              </Button>
-            </Box>
-          ) : (
-            <Box component="form" onSubmit={handleSubmit} noValidate>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="newPassword"
-                label="New Password (min 8 characters)"
-                type={showPassword ? 'text' : 'password'}
-                id="newPassword"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
+          <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+            <Box sx={{ textAlign: 'center', mb: 3.5 }}>
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 52,
+                  height: 52,
+                  borderRadius: 3,
+                  bgcolor: 'rgba(37, 99, 235, 0.1)',
+                  color: 'primary.main',
+                  mb: 1.5,
                 }}
-              />
-
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="confirmPassword"
-                label="Confirm New Password"
-                type={showPassword ? 'text' : 'password'}
-                id="confirmPassword"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading || !token}
-                sx={{ mt: 3, mb: 2, py: 1.2 }}
               >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Reset Password'}
-              </Button>
+                <KeyIcon sx={{ fontSize: 30 }} />
+              </Box>
+              <Typography variant="h5" component="h1" fontWeight={800} color="text.primary">
+                Set New Password
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Choose a strong password with at least 8 characters to secure your account
+              </Typography>
             </Box>
-          )}
-        </CardContent>
-      </Card>
-    </Container>
+
+            {!token && (
+              <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
+                No reset token detected in the link. Please check your verification or reset email link.
+              </Alert>
+            )}
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            {success ? (
+              <Box sx={{ textAlign: 'center' }}>
+                <Alert severity="success" icon={<CheckCircleIcon fontSize="inherit" />} sx={{ mb: 3, borderRadius: 2 }}>
+                  Password reset successfully! Redirecting you to Sign In...
+                </Alert>
+                <Button component={Link} to="/login" variant="contained" fullWidth size="large" sx={{ py: 1.3, fontWeight: 700 }}>
+                  Go to Sign In
+                </Button>
+              </Box>
+            ) : (
+              <Box component="form" onSubmit={handleSubmit} noValidate>
+                <Stack spacing={2.5}>
+                  <TextField
+                    required
+                    fullWidth
+                    name="newPassword"
+                    label="New Password (min 8 characters)"
+                    type={showPassword ? 'text' : 'password'}
+                    id="newPassword"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle password visibility"
+                              onClick={() => setShowPassword(!showPassword)}
+                              edge="end"
+                            >
+                              {showPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+
+                  <TextField
+                    required
+                    fullWidth
+                    name="confirmPassword"
+                    label="Confirm New Password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    id="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    slotProps={{
+                      input: {
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <LockOutlinedIcon fontSize="small" color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              aria-label="toggle confirm password visibility"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              edge="end"
+                            >
+                              {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+                </Stack>
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  disabled={loading || !token}
+                  sx={{
+                    mt: 3.5,
+                    mb: 2,
+                    py: 1.4,
+                    fontSize: '0.98rem',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Update & Reset Password'}
+                </Button>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
   );
 };
 

@@ -54,6 +54,7 @@ const Cart = () => {
     removeFromCart,
     clearCart,
     toggleSaveForLater,
+    removeFromSavedForLater,
     applyCoupon,
     removeCoupon,
   } = useCart();
@@ -75,7 +76,7 @@ const Cart = () => {
     setCouponLoading(true);
     try {
       const data = await applyCoupon(couponInput.trim());
-      setCouponSuccess(`Applied coupon '${data.code}' (-$${parseFloat(data.discount_amount).toFixed(2)})`);
+      setCouponSuccess(`Applied coupon '${data.code}' (-LKR ${parseFloat(data.discount_amount).toFixed(2)})`);
       setCouponInput('');
     } catch (err) {
       setCouponError(err.response?.data?.message || err.message || 'Invalid promotional coupon code');
@@ -115,7 +116,7 @@ const Cart = () => {
 
   return (
     <Container maxWidth="lg" sx={{ my: 4 }}>
-      <Typography variant="h4" component="h1" fontWeight="bold" display="flex" alignItems="center" gutterBottom>
+      <Typography variant="h4" component="h1" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }} gutterBottom>
         <ShoppingCart sx={{ mr: 1, fontSize: 36 }} color="primary" /> Shopping Cart
         <Chip
           label={`${cartCount} item${cartCount === 1 ? '' : 's'}`}
@@ -127,7 +128,7 @@ const Cart = () => {
 
       <Grid container spacing={4}>
         {/* Main Cart Items List */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           {cartItems.length > 0 ? (
             <Paper sx={{ borderRadius: 2, overflow: 'hidden', mb: 4 }} elevation={2}>
               <TableContainer>
@@ -170,7 +171,7 @@ const Cart = () => {
                           </TableCell>
 
                           <TableCell align="center">
-                            ${itemPrice.toFixed(2)}
+                            LKR {itemPrice.toFixed(2)}
                           </TableCell>
 
                           <TableCell align="center">
@@ -197,7 +198,7 @@ const Cart = () => {
 
                           <TableCell align="right">
                             <Typography variant="subtitle2" fontWeight="bold">
-                              ${itemTotal}
+                              LKR {itemTotal}
                             </Typography>
                           </TableCell>
 
@@ -248,7 +249,7 @@ const Cart = () => {
           {/* Saved for Later Section */}
           {savedForLater.length > 0 && (
             <Paper sx={{ p: 3, borderRadius: 2 }} elevation={1}>
-              <Typography variant="h6" fontWeight="bold" display="flex" alignItems="center" gutterBottom>
+              <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }} gutterBottom>
                 <Bookmark sx={{ mr: 1 }} color="primary" /> Saved for Later ({savedForLater.length})
               </Typography>
               <Divider sx={{ mb: 2 }} />
@@ -263,7 +264,7 @@ const Cart = () => {
                             {saved.title}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            ${parseFloat(saved.price).toFixed(2)} • {saved.subject || 'Resource'}
+                            LKR {parseFloat(saved.price).toFixed(2)} • {saved.subject || 'Resource'}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
@@ -278,11 +279,8 @@ const Cart = () => {
                           <IconButton
                             size="small"
                             color="error"
-                            onClick={() =>
-                              setSavedForLater((prev) =>
-                                prev.filter((i) => i.product_id !== saved.product_id)
-                              )
-                            }
+                            aria-label="delete saved item"
+                            onClick={() => removeFromSavedForLater(saved.product_id)}
                           >
                             <Delete fontSize="small" />
                           </IconButton>
@@ -297,7 +295,7 @@ const Cart = () => {
         </Grid>
 
         {/* Order Summary & Coupon Panel */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Card variant="outlined" sx={{ borderRadius: 2, position: 'sticky', top: 90 }}>
             <CardContent>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
@@ -307,16 +305,16 @@ const Cart = () => {
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography color="text.secondary">Subtotal ({cartCount} items)</Typography>
-                <Typography fontWeight="medium">${subtotal.toFixed(2)}</Typography>
+                <Typography fontWeight="medium">LKR {subtotal.toFixed(2)}</Typography>
               </Box>
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography color="text.secondary" display="flex" alignItems="center">
+                <Typography color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalShipping fontSize="small" sx={{ mr: 0.5 }} />
                   Estimated Shipping
                 </Typography>
                 <Typography fontWeight="medium">
-                  {shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : 'FREE'}
+                  {shippingCost > 0 ? `LKR ${shippingCost.toFixed(2)}` : 'FREE'}
                 </Typography>
               </Box>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
@@ -325,17 +323,17 @@ const Cart = () => {
 
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography color="text.secondary">Estimated Tax (5%)</Typography>
-                <Typography fontWeight="medium">${taxAmount.toFixed(2)}</Typography>
+                <Typography fontWeight="medium">LKR {taxAmount.toFixed(2)}</Typography>
               </Box>
 
               {appliedCoupon && (
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography color="success.main" display="flex" alignItems="center">
+                  <Typography color="success.main" sx={{ display: 'flex', alignItems: 'center' }}>
                     <LocalOffer fontSize="small" sx={{ mr: 0.5 }} />
                     Promo ({appliedCoupon.code})
                   </Typography>
                   <Typography color="success.main" fontWeight="bold">
-                    -${discountAmount.toFixed(2)}
+                    -LKR {discountAmount.toFixed(2)}
                   </Typography>
                 </Box>
               )}
@@ -345,13 +343,13 @@ const Cart = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
                 <Typography variant="h6" fontWeight="bold">Total</Typography>
                 <Typography variant="h6" fontWeight="bold" color="primary">
-                  ${totalAmount.toFixed(2)} USD
+                  LKR {totalAmount.toFixed(2)}
                 </Typography>
               </Box>
 
               {/* Coupon Form */}
               <Box component="form" onSubmit={handleApplyCoupon} sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom display="flex" alignItems="center">
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
                   <LocalOffer sx={{ mr: 0.5, fontSize: 18 }} /> Apply Promotional Coupon
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>

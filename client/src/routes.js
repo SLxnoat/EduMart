@@ -16,6 +16,8 @@ import OrderList from './pages/orders/OrderList';
 import OrderDetail from './pages/orders/OrderDetail';
 import Profile from './pages/profile/Profile';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import NotificationList from './pages/notifications/NotificationList';
+import SellerDashboard from './pages/seller/SellerDashboard';
 import NotFound from './pages/NotFound';
 import { useAuth } from './context/AuthContext';
 
@@ -53,6 +55,8 @@ const routes = [
   { path: '/orders',          element: <Guard><OrderList /></Guard> },
   { path: '/orders/:id',      element: <Guard><OrderDetail /></Guard> },
   { path: '/profile',         element: <Guard><Profile /></Guard> },
+  { path: '/notifications',   element: <Guard><NotificationList /></Guard> },
+  { path: '/seller/dashboard', element: <Guard roles={['tutor', 'institute', 'admin']}><SellerDashboard /></Guard> },
   { path: '/admin',           element: <Guard roles={['admin']}><AdminDashboard /></Guard> },
   { path: '*',                element: <NotFound /> }
 ];

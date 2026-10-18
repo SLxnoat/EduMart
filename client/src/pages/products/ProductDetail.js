@@ -21,11 +21,9 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  LinearProgress,
+  TextField,
+  Avatar
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -42,13 +40,25 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import CloseIcon from '@mui/icons-material/Close';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import LockIcon from '@mui/icons-material/Lock';
+import WhatshotIcon from '@mui/icons-material/Whatshot';
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import { useSnackbar } from 'notistack';
 import productService from '../../services/productService';
+import reviewService from '../../services/reviewService';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
+  const { user } = useAuth();
+  const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,9 +69,17 @@ const ProductDetail = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewPageIndex, setPreviewPageIndex] = useState(1);
 
   // Related Products State
   const [relatedProducts, setRelatedProducts] = useState([]);
+
+  // Reviews & Ratings State
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ average: 0, count: 0, breakdown: {} });
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     const fetchProductAndRelated = async () => {
@@ -95,12 +113,72 @@ const ProductDetail = () => {
       }
     };
 
+    const fetchReviews = async () => {
+      setLoadingReviews(true);
+      try {
+        const revData = await reviewService.getProductReviews(id);
+        setReviews(revData.reviews || []);
+        if (revData.summary) {
+          setReviewSummary(revData.summary);
+        }
+      } catch (err) {
+        // Safe ignore
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
     if (id) {
       fetchProductAndRelated();
+      fetchReviews();
     }
   }, [id]);
 
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (!reviewForm.comment.trim()) {
+      enqueueSnackbar('Please enter a review comment', { variant: 'warning' });
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await reviewService.createReview(id, reviewForm);
+      enqueueSnackbar('Your review has been submitted successfully!', { variant: 'success' });
+      setReviewForm({ rating: 5, title: '', comment: '' });
+      const revData = await reviewService.getProductReviews(id);
+      setReviews(revData.reviews || []);
+      if (revData.summary) {
+        setReviewSummary(revData.summary);
+      }
+    } catch (err) {
+      enqueueSnackbar(err.response?.data?.message || 'Failed to submit review', { variant: 'error' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleVoteReview = async (reviewId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const res = await reviewService.voteReview(reviewId);
+      setReviews((prev) =>
+        prev.map((r) => (r.id === reviewId ? { ...r, helpful_votes: res.helpful_votes } : r))
+      );
+      enqueueSnackbar('Thank you for your feedback!', { variant: 'success' });
+    } catch (err) {
+      enqueueSnackbar('Could not record vote', { variant: 'error' });
+    }
+  };
+
   const handleOpenPreview = async () => {
+    setPreviewPageIndex(1);
     setPreviewOpen(true);
     if (!previewData) {
       setLoadingPreview(true);
@@ -121,28 +199,47 @@ const ProductDetail = () => {
     setQuantity((prev) => Math.max(1, Math.min(10, prev + delta)));
   };
 
-  const handleAddToCart = () => {
-    if (!product) return;
+  const handleAddToCart = async (customProduct = null) => {
+    const isEvent = customProduct && (customProduct.nativeEvent || customProduct.preventDefault);
+    const candidate = isEvent ? null : customProduct;
+    const item = candidate || product || previewData;
+    if (!item) return;
     try {
-      const raw = localStorage.getItem('cart');
-      const cart = raw ? JSON.parse(raw) : [];
-      const idx = cart.findIndex((i) => i.id === product.id);
-      if (idx > -1) {
-        cart[idx].quantity += quantity;
-      } else {
-        cart.push({
-          id: product.id,
-          title: product.title,
-          price: parseFloat(product.price),
-          format: product.format,
-          subject: product.subject,
-          grade_level: product.grade_level,
-          quantity
-        });
-      }
-      localStorage.setItem('cart', JSON.stringify(cart));
-      window.dispatchEvent(new Event('storage'));
-      enqueueSnackbar(`Added ${quantity} × "${product.title}" to cart!`, { variant: 'success' });
+      const itemToCart = {
+        id: item.id || item.productId || item.product_id,
+        product_id: item.id || item.productId || item.product_id,
+        title: item.title,
+        price: parseFloat(item.price !== undefined ? item.price : product?.price || 0),
+        format: item.format || product?.format || 'digital',
+        is_digital: item.is_digital !== undefined ? item.is_digital : (item.format !== 'physical'),
+        is_physical: item.is_physical !== undefined ? item.is_physical : (item.format === 'physical' || item.format === 'both'),
+        subject: item.subject || product?.subject || 'General Education',
+        grade_level: item.grade_level || product?.grade_level || 'All Grades',
+      };
+
+      try {
+        const raw = localStorage.getItem('cart');
+        const cart = raw ? JSON.parse(raw) : [];
+        const idx = cart.findIndex((i) => i.id === itemToCart.id);
+        if (idx > -1) {
+          cart[idx].quantity += quantity;
+        } else {
+          cart.push({
+            id: itemToCart.id,
+            title: itemToCart.title,
+            price: itemToCart.price,
+            format: itemToCart.format,
+            subject: itemToCart.subject,
+            grade_level: itemToCart.grade_level,
+            quantity
+          });
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
+      } catch (_) {}
+
+      addToCart(itemToCart, quantity);
+
+      enqueueSnackbar(`Added ${quantity} × "${itemToCart.title}" to cart!`, { variant: 'success' });
     } catch (err) {
       enqueueSnackbar('Could not add item to cart', { variant: 'error' });
     }
@@ -218,7 +315,7 @@ const ProductDetail = () => {
 
       <Grid container spacing={4}>
         {/* Left Column: Details & Overview */}
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper elevation={2} sx={{ p: 4, borderRadius: 2, mb: 3 }}>
             {/* Top Badges */}
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
@@ -281,15 +378,15 @@ const ProductDetail = () => {
                 <MenuBookIcon color="primary" sx={{ fontSize: 28 }} />
                 <Box>
                   <Typography variant="subtitle2" fontWeight="bold" color="primary.main">
-                    Curriculum Sample Preview Available
+                    Material Sample Preview Available
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Review table of contents, sample model solutions & syllabus coverage before purchasing.
+                    Inspect the interactive sample document specimen before purchasing.
                   </Typography>
                 </Box>
               </Box>
               <Button
-                variant="outlined"
+                variant="contained"
                 color="primary"
                 size="small"
                 startIcon={<VisibilityIcon />}
@@ -314,32 +411,100 @@ const ProductDetail = () => {
               Material Specifications
             </Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Subject</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.subject}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Grade / Standard</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.grade_level}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Delivery Format</Typography>
                 <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>{product.format}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Category</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.category?.name || 'General'}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Examination Year</Typography>
                 <Typography variant="body2" fontWeight="bold">{product.exam_year || 'National Curriculum'}</Typography>
               </Grid>
-              <Grid item xs={6} sm={4}>
+              <Grid size={{ xs: 6, sm: 4 }}>
                 <Typography variant="caption" color="text.secondary">Access</Typography>
                 <Typography variant="body2" fontWeight="bold">Lifetime Access</Typography>
               </Grid>
             </Grid>
           </Paper>
+
+          {/* Included Digital Resources & Downloads */}
+          {product.digitalAssets && product.digitalAssets.length > 0 && (
+            <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, border: '1px solid #e0e7ff', bgcolor: '#f8faff' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                <CloudDownloadIcon color="primary" />
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Included Study Resources & Files
+                </Typography>
+              </Box>
+              <Stack spacing={1.5}>
+                {product.digitalAssets.map((asset) => (
+                  <Paper
+                    key={asset.id}
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 2,
+                      bgcolor: '#ffffff'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      {asset.file_name?.toLowerCase().endsWith('.pdf') ? (
+                        <PictureAsPdfIcon color="error" sx={{ fontSize: 32 }} />
+                      ) : (
+                        <DescriptionIcon color="primary" sx={{ fontSize: 32 }} />
+                      )}
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {asset.file_name}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={asset.is_preview ? 'Sample Preview' : 'Full Study Resource'}
+                            color={asset.is_preview ? 'default' : 'primary'}
+                            sx={{ height: 20, fontSize: '0.7rem' }}
+                          />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {asset.file_size ? `${(asset.file_size / (1024 * 1024)).toFixed(2)} MB` : 'Digital Resource'} •{' '}
+                          {asset.is_preview
+                            ? 'Publicly accessible sample excerpt'
+                            : 'Immediate download upon order completion'}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {asset.is_preview && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<VisibilityIcon />}
+                        onClick={handleOpenPreview}
+                      >
+                        Preview Sample
+                      </Button>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            </Paper>
+          )}
 
           {/* Quality Guarantee Card */}
           <Paper elevation={1} sx={{ p: 3, borderRadius: 2, bgcolor: '#fbfcfd' }}>
@@ -367,7 +532,7 @@ const ProductDetail = () => {
         </Grid>
 
         {/* Right Column: Pricing & Purchase Card */}
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper
             elevation={3}
             sx={{
@@ -484,7 +649,7 @@ const ProductDetail = () => {
 
             <Divider sx={{ my: 3 }} />
 
-            <Typography variant="caption" color="text.secondary" display="block" textAlign="center">
+            <Typography variant="caption" color="text.secondary" display="block" align="center">
               Secure checkout guaranteed with Stripe & verified banking methods.
             </Typography>
           </Paper>
@@ -503,7 +668,7 @@ const ProductDetail = () => {
 
           <Grid container spacing={3}>
             {relatedProducts.map((rel) => (
-              <Grid item xs={12} sm={6} md={3} key={rel.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={rel.id}>
                 <Card
                   variant="outlined"
                   sx={{
@@ -556,87 +721,585 @@ const ProductDetail = () => {
         </Box>
       )}
 
+      {/* Student Reviews & Ratings Section */}
+      <Box sx={{ mt: 6, mb: 4 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom>
+          Student Reviews & Ratings
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Verified feedback from students and educators who studied this material.
+        </Typography>
+
+        <Grid container spacing={4}>
+          {/* Summary Column */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, textAlign: 'center' }}>
+              <Typography variant="h3" fontWeight="bold" color="primary">
+                {reviewSummary.average ? reviewSummary.average.toFixed(1) : Number(product.rating_average || 0).toFixed(1)}
+              </Typography>
+              <Rating
+                value={reviewSummary.average || Number(product.rating_average || 0)}
+                precision={0.1}
+                readOnly
+                sx={{ my: 1 }}
+              />
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Based on {reviewSummary.count || product.rating_count || 0} student review{(reviewSummary.count || product.rating_count) !== 1 ? 's' : ''}
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Rating Bars */}
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const count = reviewSummary.breakdown?.[stars] || 0;
+                const total = reviewSummary.count || 1;
+                const percentage = reviewSummary.count > 0 ? (count / total) * 100 : 0;
+
+                return (
+                  <Box key={stars} sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+                    <Typography variant="caption" sx={{ minWidth: 40, textAlign: 'right' }}>
+                      {stars} star
+                    </Typography>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={percentage}
+                        sx={{ height: 8, borderRadius: 4 }}
+                      />
+                    </Box>
+                    <Typography variant="caption" sx={{ minWidth: 25, textAlign: 'left', color: 'text.secondary' }}>
+                      {count}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Paper>
+          </Grid>
+
+          {/* Reviews List & Write Review Form Column */}
+          <Grid size={{ xs: 12, md: 8 }}>
+            {/* Write a Review Box */}
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 2, mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Share Your Academic Feedback
+              </Typography>
+              {user ? (
+                <Box component="form" onSubmit={handleSubmitReview} sx={{ mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Typography variant="body2" fontWeight="bold">Your Rating:</Typography>
+                    <Rating
+                      value={reviewForm.rating}
+                      onChange={(e, val) => setReviewForm({ ...reviewForm, rating: val || 5 })}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Review Headline (optional)"
+                    value={reviewForm.title}
+                    onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
+                    placeholder="e.g. Excellent past paper explanations"
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    required
+                    multiline
+                    rows={3}
+                    label="Your Detailed Review"
+                    value={reviewForm.comment}
+                    onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                    placeholder="How did this material assist your study preparation?"
+                    sx={{ mb: 2 }}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={submittingReview}
+                  >
+                    {submittingReview ? 'Submitting...' : 'Submit Review'}
+                  </Button>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Please log in to your student or educator account to submit a review.
+                  </Typography>
+                  <Button variant="outlined" size="small" component={Link} to="/login">
+                    Sign In
+                  </Button>
+                </Box>
+              )}
+            </Paper>
+
+            {/* List of Reviews */}
+            {loadingReviews ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress size={30} />
+              </Box>
+            ) : reviews.length === 0 ? (
+              <Alert severity="info">
+                No reviews yet for this material. Be the first to share your learning experience!
+              </Alert>
+            ) : (
+              <Stack spacing={2}>
+                {reviews.map((rev) => (
+                  <Paper key={rev.id} variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.85rem' }}>
+                          {rev.user?.first_name ? rev.user.first_name[0] : 'S'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {rev.user ? `${rev.user.first_name} ${rev.user.last_name}` : 'Student'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(rev.created_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                        {rev.is_verified_purchase && (
+                          <Chip
+                            icon={<CheckCircleIcon sx={{ fontSize: '0.9rem !important' }} />}
+                            label="Verified Purchase"
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.7rem' }}
+                          />
+                        )}
+                      </Box>
+                      <Rating value={Number(rev.rating)} size="small" readOnly />
+                    </Box>
+
+                    {rev.title && (
+                      <Typography variant="subtitle2" fontWeight="bold" sx={{ mt: 1, mb: 0.5 }}>
+                        {rev.title}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary" paragraph sx={{ mb: 1 }}>
+                      {rev.comment}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Button
+                        size="small"
+                        startIcon={<ThumbUpIcon fontSize="small" />}
+                        color="inherit"
+                        onClick={() => handleVoteReview(rev.id)}
+                        sx={{ fontSize: '0.75rem', textTransform: 'none' }}
+                      >
+                        Helpful ({rev.helpful_votes || 0})
+                      </Button>
+                    </Box>
+                  </Paper>
+                ))}
+              </Stack>
+            )}
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Digital Material Sample Preview Modal Dialog */}
       {/* Digital Material Sample Preview Modal Dialog */}
       <Dialog
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <MenuBookIcon color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Material Sample Preview
-            </Typography>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <MenuBookIcon color="primary" sx={{ fontSize: 26 }} />
+            <Box>
+              <Typography variant="h6" fontWeight="bold" lineHeight={1.2}>
+                Material Sample Preview
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {product?.title || previewData?.title}
+              </Typography>
+            </Box>
           </Box>
-          <IconButton onClick={() => setPreviewOpen(false)} size="small">
-            <CloseIcon />
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              color="primary"
+              startIcon={<OpenInNewIcon />}
+              href={productService.getPreviewImageUrl(product?.id || previewData?.id, Math.min(2, previewPageIndex))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View Full Image
+            </Button>
+            <IconButton onClick={() => setPreviewOpen(false)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        <DialogContent dividers>
+
+        <DialogContent sx={{ p: { xs: 1.5, sm: 2.5 }, bgcolor: '#f8fafc' }}>
           {loadingPreview ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
               <CircularProgress />
             </Box>
-          ) : previewData ? (
-            <Box>
-              <Alert severity="info" sx={{ mb: 2 }}>
-                🔒 This watermarked sample preview allows students to review syllabus coverage before purchasing.
-              </Alert>
-
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                {previewData.title}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                Subject: {previewData.subject} • Target: {previewData.exam_year || 'National Syllabus'} • Standard: {previewData.grade_level}
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                Table of Contents & Curriculum Structure:
-              </Typography>
-              <List dense>
-                {previewData.tableOfContents?.map((item, idx) => (
-                  <ListItem key={idx}>
-                    <ListItemIcon sx={{ minWidth: 28 }}>
-                      <CheckCircleIcon color="primary" fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary={item} primaryTypographyProps={{ fontSize: '0.9rem' }} />
-                  </ListItem>
-                ))}
-              </List>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                Sample Question & Model Derivation Excerpt:
-              </Typography>
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fcfcfc', fontFamily: 'monospace', fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
-                {previewData.sampleExcerpt}
-              </Paper>
-            </Box>
           ) : (
-            <Typography variant="body2" color="text.secondary">
-              Preview currently unavailable for this study item.
-            </Typography>
+            <Grid container spacing={2.5}>
+              {/* Left Column: Interactive Multi-Page Image Gallery */}
+              <Grid size={{ xs: 12, md: 8 }}>
+                {/* Header Controls */}
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, px: 0.5, flexWrap: 'wrap', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip
+                      size="small"
+                      color={previewPageIndex === 3 ? "warning" : "primary"}
+                      icon={previewPageIndex === 3 ? <LockIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                      label={previewPageIndex === 3 ? "Content Locked" : `Page ${previewPageIndex} of 52 (Sample Preview)`}
+                      sx={{ fontWeight: 'bold' }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      🔒 Official Watermarked Specimen
+                    </Typography>
+                  </Box>
+
+                  {/* Prev / Next Page Navigator */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<NavigateBeforeIcon />}
+                      disabled={previewPageIndex <= 1}
+                      onClick={() => setPreviewPageIndex((p) => Math.max(1, p - 1))}
+                      sx={{ minWidth: 70, py: 0.25 }}
+                    >
+                      Prev
+                    </Button>
+                    <Typography variant="caption" fontWeight="bold" sx={{ px: 1 }}>
+                      {previewPageIndex} / 3
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      endIcon={<NavigateNextIcon />}
+                      disabled={previewPageIndex >= 3}
+                      onClick={() => setPreviewPageIndex((p) => Math.min(3, p + 1))}
+                      sx={{ minWidth: 70, py: 0.25 }}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                </Box>
+
+                {/* Main Document Viewer: Image or Locked Teaser */}
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: { xs: '450px', sm: '550px', md: '580px' },
+                    borderRadius: 2,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    border: '1px solid #cbd5e1',
+                    bgcolor: '#475569',
+                    p: { xs: 1, sm: 2 },
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: previewPageIndex === 3 ? 'center' : 'flex-start',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {previewPageIndex <= 2 ? (
+                    <Box
+                      component="img"
+                      src={productService.getPreviewImageUrl(product?.id || previewData?.id, previewPageIndex)}
+                      alt={`Document Specimen Page ${previewPageIndex}`}
+                      sx={{
+                        width: '100%',
+                        maxWidth: '700px',
+                        height: 'auto',
+                        borderRadius: 1.5,
+                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+                        bgcolor: '#ffffff',
+                        display: 'block'
+                      }}
+                    />
+                  ) : (
+                    /* Locked Content Curiosity Teaser Card */
+                    <Paper
+                      elevation={4}
+                      sx={{
+                        p: { xs: 3, sm: 4 },
+                        maxWidth: 520,
+                        textAlign: 'center',
+                        borderRadius: 3,
+                        bgcolor: 'rgba(255, 255, 255, 0.98)',
+                        backdropFilter: 'blur(8px)',
+                        border: '2px dashed #f59e0b'
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 68,
+                          height: 68,
+                          borderRadius: '50%',
+                          bgcolor: '#fef3c7',
+                          color: '#d97706',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: '0 auto 16px'
+                        }}
+                      >
+                        <LockIcon sx={{ fontSize: 36 }} />
+                      </Box>
+
+                      <Typography variant="h5" fontWeight="800" gutterBottom color="#0f172a">
+                        50 More Pages Locked
+                      </Typography>
+
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, lineHeight: 1.6 }}>
+                        You're viewing a 2-page sample specimen. The complete study package includes all <strong>52 full pages</strong> with exhaustive theoretical derivations, 48 model examination questions, and official scoring rubrics.
+                      </Typography>
+
+                      <Stack spacing={1.2} sx={{ mb: 3, textAlign: 'left', bgcolor: '#f8fafc', p: 2, borderRadius: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircleIcon color="success" fontSize="small" />
+                          <Typography variant="caption" fontWeight="600">Complete unredacted material without watermarks</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircleIcon color="success" fontSize="small" />
+                          <Typography variant="caption" fontWeight="600">Instant PDF download immediately after checkout (&lt; 2s)</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircleIcon color="success" fontSize="small" />
+                          <Typography variant="caption" fontWeight="600">Unrestricted student printing &amp; tablet annotation rights</Typography>
+                        </Box>
+                      </Stack>
+
+                      <Button
+                        variant="contained"
+                        color="warning"
+                        size="large"
+                        fullWidth
+                        startIcon={<ShoppingCartIcon />}
+                        onClick={async () => {
+                          await handleAddToCart(product || previewData);
+                          setPreviewOpen(false);
+                        }}
+                        sx={{ py: 1.5, fontWeight: 'bold', fontSize: '1rem' }}
+                      >
+                        Unlock All 52 Pages Now • {formatPrice(product?.price || previewData?.price)}
+                      </Button>
+                    </Paper>
+                  )}
+                </Box>
+
+                {/* Page Thumbnail Selector Bar */}
+                <Box sx={{ display: 'flex', gap: 1.5, mt: 1.5, overflowX: 'auto', py: 0.5 }}>
+                  {[1, 2, 3].map((page) => (
+                    <Paper
+                      key={page}
+                      onClick={() => setPreviewPageIndex(page)}
+                      variant={previewPageIndex === page ? 'elevation' : 'outlined'}
+                      elevation={previewPageIndex === page ? 3 : 0}
+                      sx={{
+                        p: 1,
+                        cursor: 'pointer',
+                        borderRadius: 2,
+                        minWidth: 110,
+                        textAlign: 'center',
+                        bgcolor: previewPageIndex === page ? '#eff6ff' : '#ffffff',
+                        borderColor: previewPageIndex === page ? 'primary.main' : '#cbd5e1',
+                        borderWidth: previewPageIndex === page ? 2 : 1,
+                        borderStyle: 'solid',
+                        transition: 'all 0.2s',
+                        '&:hover': { borderColor: 'primary.main', transform: 'translateY(-2px)' }
+                      }}
+                    >
+                      {page <= 2 ? (
+                        <>
+                          <Box
+                            sx={{
+                              width: '100%',
+                              height: 50,
+                              bgcolor: '#f1f5f9',
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              mb: 0.5,
+                              color: 'primary.main'
+                            }}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </Box>
+                          <Typography variant="caption" fontWeight="bold" display="block">
+                            Page {page} (Sample)
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <Box
+                            sx={{
+                              width: '100%',
+                              height: 50,
+                              bgcolor: '#fef3c7',
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              mb: 0.5,
+                              color: '#d97706'
+                            }}
+                          >
+                            <LockIcon fontSize="small" />
+                          </Box>
+                          <Typography variant="caption" fontWeight="bold" color="warning.main" display="block">
+                            Pages 3-52 🔒
+                          </Typography>
+                        </>
+                      )}
+                    </Paper>
+                  ))}
+                </Box>
+              </Grid>
+
+              {/* Right Column: High-Conversion Marketing Sidebar */}
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 2,
+                    bgcolor: '#ffffff'
+                  }}
+                >
+                  {/* Urgency & Social Proof Alert */}
+                  <Alert
+                    severity="error"
+                    icon={<WhatshotIcon sx={{ color: '#ef4444' }} />}
+                    sx={{
+                      bgcolor: '#fff1f2',
+                      color: '#9f1239',
+                      fontWeight: 'bold',
+                      py: 0.5,
+                      px: 1.5,
+                      mb: 1.5,
+                      border: '1px solid #fecdd3',
+                      fontSize: '0.82rem'
+                    }}
+                  >
+                    🔥 High Demand: 18 students studying this unit this week
+                  </Alert>
+
+                  {/* Specification Chips */}
+                  <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1 }}>
+                    <Chip size="small" label={product?.subject || previewData?.subject} color="primary" sx={{ fontWeight: 'bold' }} />
+                    <Chip size="small" label={product?.grade_level || previewData?.grade_level} variant="outlined" />
+                    <Chip size="small" label="EXAM ALIGNED" color="success" variant="outlined" sx={{ fontWeight: 'bold' }} />
+                  </Box>
+
+                  {/* Title */}
+                  <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
+                    {product?.title || previewData?.title}
+                  </Typography>
+
+                  {/* Rating & Social Authority */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
+                    <Rating value={Number(product?.rating_average || 4.8)} precision={0.5} readOnly size="small" />
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                      ({product?.rating_count || 120}+ verified reviews)
+                    </Typography>
+                    <Chip size="small" label="🏆 Best Seller" sx={{ height: 20, fontSize: '0.68rem', bgcolor: '#fef3c7', color: '#92400e', fontWeight: 'bold' }} />
+                  </Box>
+
+                  <Divider sx={{ my: 1.5 }} />
+
+                  {/* Value / Strikethrough Price Anchoring */}
+                  <Box sx={{ mb: 2, bgcolor: '#f8fafc', p: 1.5, borderRadius: 2 }}>
+                    <Typography variant="caption" sx={{ textDecoration: 'line-through', color: 'text.secondary', display: 'block' }}>
+                      Regular Price: {formatPrice((parseFloat(product?.price || previewData?.price || 0) * 1.45))}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="h4" fontWeight="800" color="primary.main">
+                        {formatPrice(product?.price || previewData?.price)}
+                      </Typography>
+                      <Chip label="SAVE 31% TODAY" color="error" size="small" sx={{ fontWeight: 'bold' }} />
+                    </Box>
+                    <Typography variant="caption" color="success.main" fontWeight="600" display="block" sx={{ mt: 0.25 }}>
+                      ✓ Instant digital access unlocked immediately
+                    </Typography>
+                  </Box>
+
+                  {/* Author / Exam Year */}
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+                    Published by: <strong>{product?.seller ? `${product.seller.first_name} ${product.seller.last_name}` : 'Verified Senior Educator'}</strong>
+                  </Typography>
+                  {(product?.exam_year || previewData?.exam_year) && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5 }}>
+                      Target Examination: <strong>{product?.exam_year || previewData?.exam_year}</strong>
+                    </Typography>
+                  )}
+
+                  {/* EduMart Risk-Reversal Guarantees */}
+                  <Box sx={{ bgcolor: '#f0f9ff', p: 1.5, borderRadius: 1.5, mb: 'auto', border: '1px solid #e0f2fe' }}>
+                    <Typography variant="caption" display="block" color="#0369a1" fontWeight="bold" sx={{ mb: 0.75 }}>
+                      🛡️ EduMart Buyer Protection Guarantee:
+                    </Typography>
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
+                      • 100% Department of Examinations syllabus alignment
+                    </Typography>
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 0.5 }}>
+                      • Instant PDF download in high-resolution master quality
+                    </Typography>
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      • Secure 256-bit encrypted checkout with Stripe
+                    </Typography>
+                  </Box>
+
+                  {/* Action Buttons */}
+                  <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      fullWidth
+                      startIcon={<ShoppingCartIcon />}
+                      onClick={async () => {
+                        await handleAddToCart(product || previewData);
+                        setPreviewOpen(false);
+                      }}
+                      sx={{ py: 1.25, fontWeight: 'bold' }}
+                    >
+                      Add to Cart &amp; Unlock Material
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      component={Link}
+                      to="/cart"
+                      onClick={() => setPreviewOpen(false)}
+                      fullWidth
+                    >
+                      View Cart
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      fullWidth
+                      onClick={() => setPreviewOpen(false)}
+                    >
+                      Close
+                    </Button>
+                  </Box>
+                </Paper>
+              </Grid>
+            </Grid>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setPreviewOpen(false)}>Close</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<ShoppingCartIcon />}
-            onClick={() => {
-              handleAddToCart();
-              setPreviewOpen(false);
-            }}
-          >
-            Add to Cart
-          </Button>
-        </DialogActions>
       </Dialog>
     </Container>
   );

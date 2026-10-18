@@ -89,6 +89,18 @@ module.exports = (sequelize) => {
     if (models.Session) {
       User.hasMany(models.Session, { foreignKey: 'user_id', as: 'sessions' });
     }
+    if (models.Review) {
+      User.hasMany(models.Review, { foreignKey: 'user_id', as: 'reviews' });
+    }
+    if (models.Notification) {
+      User.hasMany(models.Notification, { foreignKey: 'user_id', as: 'notifications' });
+    }
+    if (models.AdminAction) {
+      User.hasMany(models.AdminAction, { foreignKey: 'admin_id', as: 'adminActions' });
+    }
+    if (models.SellerEarning) {
+      User.hasMany(models.SellerEarning, { foreignKey: 'seller_id', as: 'sellerEarnings' });
+    }
   };
 
   return User;

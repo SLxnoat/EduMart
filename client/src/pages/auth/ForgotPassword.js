@@ -9,9 +9,12 @@ import {
   Box,
   Alert,
   CircularProgress,
-  Link as MuiLink
+  Link as MuiLink,
+  InputAdornment,
 } from '@mui/material';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
@@ -49,87 +52,140 @@ const ForgotPassword = () => {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ py: 8 }}>
-      <Card elevation={3} sx={{ borderRadius: 2 }}>
-        <CardContent sx={{ p: 4 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'white',
-                p: 1.5,
-                borderRadius: '50%',
-                display: 'flex',
-                mb: 1
-              }}
-            >
-              <LockResetIcon />
-            </Box>
-            <Typography variant="h5" component="h1" fontWeight="bold">
-              Forgot Password
-            </Typography>
-            <Typography variant="body2" color="text.secondary" textAlign="center">
-              Enter your registered email and we'll send you a link to reset your password.
-            </Typography>
-          </Box>
+    <Box
+      sx={{
+        minHeight: 'calc(100vh - 160px)',
+        py: { xs: 4, sm: 8 },
+        display: 'flex',
+        alignItems: 'center',
+        background: 'radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.06), transparent 70%)',
+      }}
+    >
+      <Container maxWidth="sm">
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 4,
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)',
+            bgcolor: '#ffffff',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header Accent Bar */}
+          <Box
+            sx={{
+              height: 6,
+              background: 'linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #f59e0b 100%)',
+            }}
+          />
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          {success ? (
-            <Box sx={{ textAlign: 'center' }}>
-              <Alert severity="success" sx={{ mb: 3 }}>
-                If that email address is in our database, we have sent a password reset link to it. Please check your inbox.
-              </Alert>
-              <Button
-                component={Link}
-                to="/login"
-                variant="contained"
-                fullWidth
+          <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
+            <Box sx={{ textAlign: 'center', mb: 3.5 }}>
+              <Box
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 52,
+                  height: 52,
+                  borderRadius: 3,
+                  bgcolor: 'rgba(37, 99, 235, 0.1)',
+                  color: 'primary.main',
+                  mb: 1.5,
+                }}
               >
-                Back to Sign In
-              </Button>
-            </Box>
-          ) : (
-            <Box component="form" onSubmit={handleSubmit} noValidate>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="email"
-                label="Registered Email Address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading}
-                sx={{ mt: 3, mb: 2, py: 1.2 }}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Send Reset Link'}
-              </Button>
-
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <MuiLink component={Link} to="/login" variant="body2" underline="hover">
-                  Remember your password? Sign In
-                </MuiLink>
+                <LockResetIcon sx={{ fontSize: 30 }} />
               </Box>
+              <Typography variant="h5" component="h1" fontWeight={800} color="text.primary">
+                Forgot Password
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 400, mx: 'auto' }}>
+                Enter your registered email address and we will dispatch a secure link to recover your account.
+              </Typography>
             </Box>
-          )}
-        </CardContent>
-      </Card>
-    </Container>
+
+            {error && (
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            {success ? (
+              <Box sx={{ textAlign: 'center' }}>
+                <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+                  If that email address exists in our database, we have sent a secure password reset link to it. Please check your inbox.
+                </Alert>
+                <Button
+                  component={Link}
+                  to="/login"
+                  variant="contained"
+                  fullWidth
+                  size="large"
+                  startIcon={<ArrowBackIcon />}
+                  sx={{ py: 1.3, fontWeight: 700 }}
+                >
+                  Back to Sign In
+                </Button>
+              </Box>
+            ) : (
+              <Box component="form" onSubmit={handleSubmit} noValidate>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="email"
+                  label="Registered Email Address"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. yourname@domain.com"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <EmailOutlinedIcon fontSize="small" color="action" />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  disabled={loading}
+                  sx={{
+                    mt: 3,
+                    mb: 2,
+                    py: 1.4,
+                    fontSize: '0.98rem',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.3)',
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Send Reset Link'}
+                </Button>
+
+                <Box sx={{ textAlign: 'center', mt: 3, pt: 2, borderTop: '1px solid #f1f5f9' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Remember your password?{' '}
+                    <MuiLink component={Link} to="/login" variant="body2" fontWeight="bold" color="primary.main" underline="hover">
+                      Sign In
+                    </MuiLink>
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
   );
 };
 

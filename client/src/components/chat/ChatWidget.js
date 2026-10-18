@@ -7,12 +7,19 @@ import {
   IconButton,
   TextField,
   Avatar,
-  Tooltip
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button
 } from '@mui/material';
 import ChatIcon from '@mui/icons-material/Chat';
 import CloseIcon from '@mui/icons-material/Close';
 import SendIcon from '@mui/icons-material/Send';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import MessageItem from './MessageItem';
@@ -29,7 +36,9 @@ const ChatWidget = () => {
     text: user?.firstName
       ? `Hello ${user.firstName}! 👋 I'm EduMart's AI Assistant. How can I help you today with study materials, downloads, or orders?`
       : "Hello! 👋 I'm EduMart's AI Assistant. How can I help you today with study materials, downloads, or orders?",
-    quickReplies: ['Browse Materials', 'How to Download?', 'Track My Order', 'Refund Policy'],
+    quickReplies: ['Browse Materials', 'How to Download?', 'Track My Order', 'Open Support Ticket'],
+    products: [],
+    orderData: null,
     timestamp: new Date().toISOString()
   });
 
@@ -51,6 +60,15 @@ const ChatWidget = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [ticketForm, setTicketForm] = useState({
+    name: user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : '',
+    email: user?.email || '',
+    subject: '',
+    message: ''
+  });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+
   const [sessionId] = useState(() => {
     let sid = sessionStorage.getItem('edumart_chat_session');
     if (!sid) {
@@ -101,6 +119,8 @@ const ChatWidget = () => {
               sender: 'bot',
               text: rec.response_text,
               quickReplies: [],
+              products: [],
+              orderData: null,
               feedbackGiven:
                 rec.is_helpful === true
                   ? 'helpful'
@@ -133,9 +153,21 @@ const ChatWidget = () => {
     }
   }, [messages, isOpen]);
 
+  const handleClearChat = () => {
+    sessionStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([getWelcomeMessage()]);
+  };
+
   const handleSendMessage = async (textToSend) => {
-    const message = (textToSend || inputText).trim();
+    const rawMessage = textToSend || inputText;
+    const message = (rawMessage || '').trim();
     if (!message) return;
+
+    // Trigger ticket form if user asks for ticket
+    if (message.toLowerCase() === 'open support ticket' || message.toLowerCase() === 'open ticket') {
+      setTicketModalOpen(true);
+      return;
+    }
 
     const userMessage = {
       id: 'user-' + Date.now(),
@@ -149,9 +181,15 @@ const ChatWidget = () => {
     setIsTyping(true);
 
     try {
+      const historyContext = messages.slice(-4).map((m) => ({
+        sender: m.sender,
+        text: m.text
+      }));
+
       const response = await api.post('/chatbot/message', {
         message,
-        sessionId
+        sessionId,
+        history: historyContext
       });
 
       const { data } = response.data;
@@ -162,6 +200,8 @@ const ChatWidget = () => {
         sender: 'bot',
         text: data.reply,
         quickReplies: data.suggestedQuickReplies || [],
+        products: data.products || [],
+        orderData: data.orderData || null,
         feedbackGiven: null,
         ratingGiven: 0,
         timestamp: new Date().toISOString()
@@ -174,8 +214,10 @@ const ChatWidget = () => {
         {
           id: 'error-' + Date.now(),
           sender: 'bot',
-          text: "Sorry, I'm having trouble connecting right now. Please try again or visit our Help Center.",
-          quickReplies: ['Contact Support'],
+          text: "Sorry, I'm having trouble connecting right now. Please try again or open a support ticket.",
+          quickReplies: ['Open Support Ticket', 'How to Download?'],
+          products: [],
+          orderData: null,
           timestamp: new Date().toISOString()
         }
       ]);
@@ -206,8 +248,55 @@ const ChatWidget = () => {
     }
   };
 
+  const handleTicketSubmit = async (e) => {
+    e.preventDefault();
+    if (!ticketForm.email || !ticketForm.message) return;
+
+    setSubmittingTicket(true);
+    try {
+      const res = await api.post('/chatbot/ticket', {
+        name: ticketForm.name,
+        email: ticketForm.email,
+        subject: ticketForm.subject || 'Student Inquiry from Chat',
+        message: ticketForm.message,
+        sessionId
+      });
+
+      setTicketModalOpen(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: 'ticket-bot-' + Date.now(),
+          sender: 'bot',
+          text: `✅ **Support Ticket Created (${res.data.ticketId})**\n\nThank you! Your inquiry has been dispatched to our support desk via email. A student advisor will contact you at **${ticketForm.email}** within 2 hours.`,
+          quickReplies: ['Browse Materials', 'Track My Order'],
+          products: [],
+          orderData: null,
+          timestamp: new Date().toISOString()
+        }
+      ]);
+      setTicketForm({
+        name: user?.firstName || '',
+        email: user?.email || '',
+        subject: '',
+        message: ''
+      });
+    } catch (err) {
+      console.error('Failed to submit ticket:', err);
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
   return (
     <>
+      <style>{`
+        @keyframes bounceDot {
+          0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+          40% { transform: scale(1.0); opacity: 1; }
+        }
+      `}</style>
+
       {/* Floating Action Button */}
       <Box
         sx={{
@@ -240,8 +329,8 @@ const ChatWidget = () => {
             position: 'fixed',
             bottom: 92,
             right: 24,
-            width: { xs: 'calc(100vw - 48px)', sm: 380 },
-            height: 520,
+            width: { xs: 'calc(100vw - 48px)', sm: 400 },
+            height: 560,
             maxHeight: 'calc(100vh - 120px)',
             display: 'flex',
             flexDirection: 'column',
@@ -254,7 +343,7 @@ const ChatWidget = () => {
           {/* Chat Header */}
           <Box
             sx={{
-              p: 2,
+              p: 1.8,
               bgcolor: 'primary.main',
               color: 'white',
               display: 'flex',
@@ -263,12 +352,12 @@ const ChatWidget = () => {
               boxShadow: 1
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
               <Avatar sx={{ bgcolor: 'white', color: 'primary.main', width: 36, height: 36 }}>
                 <SmartToyIcon fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
                   EduMart Assistant
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -280,15 +369,28 @@ const ChatWidget = () => {
                       bgcolor: '#4caf50'
                     }}
                   />
-                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                    Online 24/7
+                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
+                    Gemini AI • Online 24/7
                   </Typography>
                 </Box>
               </Box>
             </Box>
-            <IconButton size="small" onClick={() => setIsOpen(false)} sx={{ color: 'white' }}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Tooltip title="Start New Conversation">
+                <IconButton size="small" onClick={handleClearChat} sx={{ color: 'white' }}>
+                  <RestartAltIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Submit Support Ticket">
+                <IconButton size="small" onClick={() => setTicketModalOpen(true)} sx={{ color: 'white' }}>
+                  <SupportAgentIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <IconButton size="small" onClick={() => setIsOpen(false)} sx={{ color: 'white' }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
 
           {/* Messages Stream */}
@@ -312,13 +414,25 @@ const ChatWidget = () => {
               />
             ))}
 
-            {/* Typing Indicator */}
+            {/* Animated 3-dot Typing Indicator */}
             {isTyping && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, alignSelf: 'flex-start' }}>
-                <Paper elevation={1} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'white' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    EduMart Assistant is typing...
-                  </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', alignSelf: 'flex-start', mt: 0.5 }}>
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 1.2,
+                    px: 1.8,
+                    borderRadius: 2.5,
+                    bgcolor: 'white',
+                    border: '1px solid #e5e7eb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.6
+                  }}
+                >
+                  <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', animation: 'bounceDot 1.4s infinite ease-in-out', animationDelay: '0s' }} />
+                  <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', animation: 'bounceDot 1.4s infinite ease-in-out', animationDelay: '0.2s' }} />
+                  <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', animation: 'bounceDot 1.4s infinite ease-in-out', animationDelay: '0.4s' }} />
                 </Paper>
               </Box>
             )}
@@ -354,6 +468,7 @@ const ChatWidget = () => {
                   handleSendMessage();
                 }
               }}
+              slotProps={{ htmlInput: { maxLength: 1000 } }}
             />
             <IconButton
               color="primary"
@@ -365,6 +480,67 @@ const ChatWidget = () => {
           </Box>
         </Paper>
       )}
+
+      {/* Support Ticket Modal */}
+      <Dialog
+        open={ticketModalOpen}
+        onClose={() => setTicketModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SupportAgentIcon color="primary" /> Submit Support Ticket
+        </DialogTitle>
+        <form onSubmit={handleTicketSubmit}>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Need direct help from our team? Fill out this quick inquiry and we will email you within 2 hours.
+            </Typography>
+            <TextField
+              label="Your Name"
+              size="small"
+              fullWidth
+              value={ticketForm.name}
+              onChange={(e) => setTicketForm({ ...ticketForm, name: e.target.value })}
+            />
+            <TextField
+              label="Your Email"
+              type="email"
+              size="small"
+              required
+              fullWidth
+              value={ticketForm.email}
+              onChange={(e) => setTicketForm({ ...ticketForm, email: e.target.value })}
+            />
+            <TextField
+              label="Subject"
+              size="small"
+              fullWidth
+              placeholder="e.g. Order inquiry, PDF download issue"
+              value={ticketForm.subject}
+              onChange={(e) => setTicketForm({ ...ticketForm, subject: e.target.value })}
+            />
+            <TextField
+              label="Message / Inquiry"
+              multiline
+              rows={3}
+              required
+              fullWidth
+              value={ticketForm.message}
+              onChange={(e) => setTicketForm({ ...ticketForm, message: e.target.value })}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2, pt: 1 }}>
+            <Button onClick={() => setTicketModalOpen(false)} color="inherit" disabled={submittingTicket}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" color="primary" disabled={submittingTicket || !ticketForm.email || !ticketForm.message}>
+              {submittingTicket ? 'Submitting...' : 'Send Ticket'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </>
   );
 };
