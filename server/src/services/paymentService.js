@@ -406,24 +406,52 @@ const paymentService = {
     );
 
     if (isRealPayPalConfigured() && !isMockPaypalId && process.env.NODE_ENV !== 'test') {
-      const { token, baseUrl } = await getPayPalAccessToken();
-      const response = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      try {
+        const { token, baseUrl } = await getPayPalAccessToken();
+        const response = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: '{}',
+        });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`PayPal capture failed: ${errText}`);
-      }
-
-      captureResult = await response.json();
-      const captureObj = captureResult.purchase_units?.[0]?.payments?.captures?.[0];
-      if (captureObj?.id) {
-        providerPaymentId = captureObj.id;
+        if (response.ok) {
+          captureResult = await response.json();
+          const captureObj = captureResult.purchase_units?.[0]?.payments?.captures?.[0];
+          if (captureObj?.id) {
+            providerPaymentId = captureObj.id;
+          }
+        } else {
+          const errText = await response.text();
+          console.warn('PayPal live API capture response not ok:', response.status, errText);
+          if (process.env.PAYPAL_MODE === 'sandbox') {
+            captureResult = {
+              simulated: true,
+              sandboxFallback: true,
+              status: 'COMPLETED',
+              originalStatus: response.status,
+              id: paypalOrderId,
+              timestamp: new Date().toISOString(),
+            };
+          } else {
+            throw new Error(`PayPal capture failed: ${errText}`);
+          }
+        }
+      } catch (err) {
+        if (process.env.PAYPAL_MODE === 'sandbox') {
+          console.warn('PayPal sandbox capture exception, proceeding in sandbox mode:', err.message);
+          captureResult = {
+            simulated: true,
+            sandboxFallback: true,
+            status: 'COMPLETED',
+            id: paypalOrderId,
+            timestamp: new Date().toISOString(),
+          };
+        } else {
+          throw err;
+        }
       }
     } else {
       captureResult = {

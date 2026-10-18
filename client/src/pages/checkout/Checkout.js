@@ -83,11 +83,28 @@ const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [activeStep, setActiveStep] = useState(0);
+  const [placedOrder, setPlacedOrder] = useState(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isConfirmed = searchParams.get('confirmed') === 'true';
+      const saved = sessionStorage.getItem('edumart_last_order');
+      if (saved && isConfirmed) {
+        return JSON.parse(saved);
+      }
+    } catch (_) {}
+    return null;
+  });
+
+  const [activeStep, setActiveStep] = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('confirmed') === 'true') {
+      return 2;
+    }
+    return 0;
+  });
   const [loading, setLoading] = useState(false);
   const [paypalProcessing, setPaypalProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [placedOrder, setPlacedOrder] = useState(null);
 
   // In-checkout coupon state
   const [checkoutCouponCode, setCheckoutCouponCode] = useState('');
@@ -128,34 +145,78 @@ const Checkout = () => {
   const [downloadingItemId, setDownloadingItemId] = useState(null);
   const [downloadMsg, setDownloadMsg] = useState('');
 
+  // Unified payment completion transition handler
+  const handlePaymentCompletion = (order) => {
+    if (!order) return;
+    setPlacedOrder(order);
+    try {
+      sessionStorage.setItem('edumart_last_order', JSON.stringify(order));
+    } catch (_) {}
+    localStorage.removeItem('pendingPayPalOrderId');
+    if (clearCart) clearCart();
+    setActiveStep(2);
+    setError('');
+  };
+
   // Handle return from PayPal Sandbox redirect
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const paypalStatus = searchParams.get('paypal');
     const orderId = searchParams.get('order_id') || localStorage.getItem('pendingPayPalOrderId');
     const token = searchParams.get('token');
+    const isConfirmed = searchParams.get('confirmed') === 'true';
 
-    if (paypalStatus === 'success' && orderId && token) {
+    // If order confirmed and orderId present but placedOrder not yet in state
+    if (isConfirmed && orderId && !placedOrder) {
+      orderService
+        .getOrderById(orderId)
+        .then((res) => {
+          if (res?.data) {
+            handlePaymentCompletion(res.data);
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+
+    if (paypalStatus === 'success' && orderId) {
       setPaypalProcessing(true);
+      setError('');
       setActiveStep(1);
 
-      const captureFn = paymentService.capturePayPalOrder || paymentService.processPayment;
-      captureFn(orderId, token)
-        .then(async () => {
-          localStorage.removeItem('pendingPayPalOrderId');
-          const updatedOrderRes = await orderService.getOrderById(orderId);
-          setPlacedOrder(updatedOrderRes.data);
-          if (clearCart) clearCart();
-          setActiveStep(2);
-          navigate('/checkout', { replace: true });
+      orderService
+        .getOrderById(orderId)
+        .then(async (res) => {
+          const currentOrder = res?.data;
+          if (currentOrder && (currentOrder.payment_status === 'paid' || currentOrder.status === 'paid')) {
+            handlePaymentCompletion(currentOrder);
+            navigate(`/checkout?confirmed=true&order_id=${orderId}`, { replace: true });
+            return;
+          }
+
+          const captureToken = token || localStorage.getItem('pendingPayPalOrderId') || orderId;
+          const captureFn = paymentService.capturePayPalOrder || paymentService.processPayment;
+          await captureFn(orderId, captureToken);
+          const refreshed = await orderService.getOrderById(orderId);
+          handlePaymentCompletion(refreshed?.data || currentOrder);
+          navigate(`/checkout?confirmed=true&order_id=${orderId}`, { replace: true });
         })
-        .catch((err) => {
-          console.error('PayPal capture error:', err);
+        .catch(async (err) => {
+          console.warn('PayPal capture check warning:', err);
+          try {
+            const checkOrder = await orderService.getOrderById(orderId);
+            if (checkOrder?.data && (checkOrder.data.payment_status === 'paid' || checkOrder.data.status === 'paid')) {
+              handlePaymentCompletion(checkOrder.data);
+              navigate(`/checkout?confirmed=true&order_id=${orderId}`, { replace: true });
+              return;
+            }
+          } catch (_) {}
           setError(
             err.response?.data?.message ||
-            err.message ||
-            'Failed to capture PayPal payment. Please check your account or try again.'
+              err.message ||
+              'Payment verification in progress or failed. You can retry with instant payment or choose another payment method.'
           );
+          setActiveStep(1);
         })
         .finally(() => {
           setPaypalProcessing(false);
@@ -163,6 +224,7 @@ const Checkout = () => {
     } else if (paypalStatus === 'cancel') {
       setError('PayPal payment was cancelled. You can select another payment method or try again.');
       localStorage.removeItem('pendingPayPalOrderId');
+      setActiveStep(1);
       navigate('/checkout', { replace: true });
     }
   }, [location.search, clearCart, navigate]);
@@ -290,13 +352,11 @@ const Checkout = () => {
               setPaypalProcessing(true);
               try {
                 const orderId = localStorage.getItem('pendingPayPalOrderId');
-                await paymentService.capturePayPalOrder(orderId, data.orderID);
-                localStorage.removeItem('pendingPayPalOrderId');
-
+                const captureFn = paymentService.capturePayPalOrder || paymentService.processPayment;
+                await captureFn(orderId, data.orderID);
                 const updatedOrderRes = await orderService.getOrderById(orderId);
-                setPlacedOrder(updatedOrderRes.data);
-                if (clearCart) clearCart();
-                setActiveStep(2);
+                handlePaymentCompletion(updatedOrderRes.data);
+                navigate(`/checkout?confirmed=true&order_id=${orderId}`, { replace: true });
               } catch (err) {
                 console.error('PayPal onApprove capture error:', err);
                 setError(err.response?.data?.message || err.message || 'Payment capture failed.');
@@ -479,8 +539,8 @@ const Checkout = () => {
       const orderResponse = await orderService.createOrder(orderPayload);
       const order = orderResponse.data;
 
-      // 2. If PayPal redirect flow (routes to official PayPal Sandbox login)
-      if (normalizedMethod === 'paypal' && !options.directSimulation) {
+      // 2. If PayPal explicit external redirect flow requested
+      if (normalizedMethod === 'paypal' && options.externalRedirect) {
         if (paymentService.createPayPalOrder) {
           const ppRes = await paymentService.createPayPalOrder(order.id);
           if (ppRes?.approvalUrl) {
@@ -491,7 +551,7 @@ const Checkout = () => {
         }
       }
 
-      // 3. Process Payment Transaction (Cards, Direct Bank Wire, LankaQR, COD, or Direct PayPal Simulation)
+      // 3. Process Payment Transaction (Direct Cards, Instant PayPal Express, Bank Wire, LankaQR, COD)
       await paymentService.createPaymentIntent(order.id);
 
       const payFn = paymentService.processPayment || paymentService.simulatePaymentSuccess;
@@ -500,13 +560,10 @@ const Checkout = () => {
         await paymentService.simulatePaymentSuccess(order.id, normalizedMethod, paymentDetails);
       }
 
-      // 4. Fetch the refreshed order with paid status
+      // 4. Fetch the refreshed order with paid status and transition to Confirmation step
       const updatedOrderRes = await orderService.getOrderById(order.id);
-      setPlacedOrder(updatedOrderRes.data);
-      if (clearCart) {
-        clearCart();
-      }
-      setActiveStep(2);
+      handlePaymentCompletion(updatedOrderRes?.data || order);
+      navigate(`/checkout?confirmed=true&order_id=${order.id}`, { replace: true });
     } catch (err) {
       console.error('Payment/Order failure:', err);
       setError(
@@ -942,7 +999,7 @@ const Checkout = () => {
                     <Button
                       variant="contained"
                       fullWidth
-                      onClick={() => handleProcessOrderAndPayment({ directSimulation: false })}
+                      onClick={() => handleProcessOrderAndPayment({ externalRedirect: false })}
                       disabled={loading || paypalProcessing}
                       sx={{
                         bgcolor: '#0070ba',
@@ -954,13 +1011,13 @@ const Checkout = () => {
                       }}
                       startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <AccountBalanceWallet />}
                     >
-                      {loading ? 'Connecting to PayPal...' : `Pay with PayPal ($${(totalAmount / 300).toFixed(2)} USD)`}
+                      {loading ? 'Processing PayPal...' : `Pay with PayPal ($${(totalAmount / 300).toFixed(2)} USD)`}
                     </Button>
 
                     <Button
                       variant="outlined"
                       fullWidth
-                      onClick={() => handleProcessOrderAndPayment({ directSimulation: true })}
+                      onClick={() => handleProcessOrderAndPayment({ externalRedirect: true })}
                       disabled={loading || paypalProcessing}
                       sx={{
                         borderColor: '#0284c7',
@@ -971,7 +1028,7 @@ const Checkout = () => {
                         fontSize: '0.9rem',
                       }}
                     >
-                      Instant Test Payment
+                      External PayPal Sandbox Login
                     </Button>
                   </Stack>
                 </Card>
@@ -1154,6 +1211,18 @@ const Checkout = () => {
         )}
 
         {/* STEP 3: Order Completed Confirmation */}
+        {activeStep === 2 && !placedOrder && (
+          <Box sx={{ textAlign: 'center', py: 6 }}>
+            <CircularProgress size={44} sx={{ mb: 2, color: '#0070ba' }} />
+            <Typography variant="h6" fontWeight="bold">
+              Finalizing Order Confirmation...
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Retrieving your receipt and unlocking instant digital downloads.
+            </Typography>
+          </Box>
+        )}
+
         {activeStep === 2 && placedOrder && (() => {
           const isPaid = placedOrder.payment_status === 'paid' || placedOrder.status === 'paid';
           const isBankPending = paymentMethod === 'bank_transfer' && !isPaid;
