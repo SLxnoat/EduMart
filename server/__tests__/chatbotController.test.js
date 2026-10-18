@@ -206,4 +206,64 @@ describe('AI Chatbot Controller', () => {
       expect(res.body.data.length).toBe(2);
     });
   });
+
+  describe('Validation, Rich Products, Support Ticket & Analytics', () => {
+    it('should reject messages exceeding maximum length of 1000 characters', async () => {
+      const longMessage = 'A'.repeat(1005);
+      const res = await request(app)
+        .post('/api/chatbot/message')
+        .send({ sessionId: 'long-msg-session', message: longMessage });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('1000 characters');
+    });
+
+    it('should return rich structured products array on product search query', async () => {
+      const res = await request(app)
+        .post('/api/chatbot/message')
+        .send({ sessionId: 'rich-prod-session', message: 'search Mathematics' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data).toHaveProperty('products');
+      expect(Array.isArray(res.body.data.products)).toBe(true);
+    });
+
+    it('should allow submitting an in-chat support ticket via POST /api/chatbot/ticket', async () => {
+      const res = await request(app)
+        .post('/api/chatbot/ticket')
+        .send({
+          name: 'Kasun',
+          email: 'kasun@edumart.lk',
+          subject: 'Need help with AL Physics download',
+          message: 'My download link is not opening on my phone.'
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body).toHaveProperty('ticketId');
+      expect(res.body.message).toContain('Support ticket #');
+    });
+
+    it('should reject support ticket when email format is invalid', async () => {
+      const res = await request(app)
+        .post('/api/chatbot/ticket')
+        .send({
+          email: 'not-an-email',
+          message: 'Help please'
+        });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toContain('valid email address');
+    });
+
+    it('should retrieve AI analytics summary via GET /api/chatbot/analytics', async () => {
+      const res = await request(app).get('/api/chatbot/analytics');
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('totalInteractions');
+      expect(res.body.data).toHaveProperty('helpfulnessPercentage');
+      expect(res.body.data).toHaveProperty('unresolvedQuestions');
+    });
+  });
 });

@@ -3,8 +3,11 @@ const router = express.Router();
 const {
   sendMessage,
   getHistory,
-  submitFeedback
+  submitFeedback,
+  submitTicket,
+  getChatbotAnalytics
 } = require('../controllers/chatbotController');
+const { chatbotRateLimiter } = require('../middleware/rateLimiter');
 
 // Optional auth: if token present, middleware attaches user, otherwise continues
 const optionalAuth = (req, res, next) => {
@@ -14,7 +17,7 @@ const optionalAuth = (req, res, next) => {
     try {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = { id: decoded.id };
+      req.user = { id: decoded.id, email: decoded.email };
     } catch (e) {
       // Ignore token failure for public chatbot usage
     }
@@ -22,8 +25,10 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
-router.post('/message', optionalAuth, sendMessage);
+router.post('/message', chatbotRateLimiter(), optionalAuth, sendMessage);
 router.get('/history', optionalAuth, getHistory);
 router.post('/feedback', optionalAuth, submitFeedback);
+router.post('/ticket', optionalAuth, submitTicket);
+router.get('/analytics', optionalAuth, getChatbotAnalytics);
 
 module.exports = router;

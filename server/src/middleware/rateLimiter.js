@@ -45,8 +45,9 @@ const createRateLimiter = (defaultMax = 5, namespace = 'default') => (options = 
 
 const authRateLimiter = createRateLimiter(5, 'auth');
 const apiRateLimiter = createRateLimiter(100, 'api');
+const chatbotRateLimiter = createRateLimiter(40, 'chatbot');
 
 const resetRateLimits = () => rateLimitMap.clear();
 
-module.exports = { authRateLimiter, apiRateLimiter, resetRateLimits };
+module.exports = { authRateLimiter, apiRateLimiter, chatbotRateLimiter, resetRateLimits };
 
