@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -81,9 +81,11 @@ const Checkout = () => {
     removeCoupon
   } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [paypalProcessing, setPaypalProcessing] = useState(false);
   const [error, setError] = useState('');
   const [placedOrder, setPlacedOrder] = useState(null);
 
@@ -125,6 +127,45 @@ const Checkout = () => {
   const [gatewayConfig, setGatewayConfig] = useState(null);
   const [downloadingItemId, setDownloadingItemId] = useState(null);
   const [downloadMsg, setDownloadMsg] = useState('');
+
+  // Handle return from PayPal Sandbox redirect
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const paypalStatus = searchParams.get('paypal');
+    const orderId = searchParams.get('order_id') || localStorage.getItem('pendingPayPalOrderId');
+    const token = searchParams.get('token');
+
+    if (paypalStatus === 'success' && orderId && token) {
+      setPaypalProcessing(true);
+      setActiveStep(1);
+
+      const captureFn = paymentService.capturePayPalOrder || paymentService.processPayment;
+      captureFn(orderId, token)
+        .then(async () => {
+          localStorage.removeItem('pendingPayPalOrderId');
+          const updatedOrderRes = await orderService.getOrderById(orderId);
+          setPlacedOrder(updatedOrderRes.data);
+          if (clearCart) clearCart();
+          setActiveStep(2);
+          navigate('/checkout', { replace: true });
+        })
+        .catch((err) => {
+          console.error('PayPal capture error:', err);
+          setError(
+            err.response?.data?.message ||
+            err.message ||
+            'Failed to capture PayPal payment. Please check your account or try again.'
+          );
+        })
+        .finally(() => {
+          setPaypalProcessing(false);
+        });
+    } else if (paypalStatus === 'cancel') {
+      setError('PayPal payment was cancelled. You can select another payment method or try again.');
+      localStorage.removeItem('pendingPayPalOrderId');
+      navigate('/checkout', { replace: true });
+    }
+  }, [location.search, clearCart, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -273,7 +314,7 @@ const Checkout = () => {
     }
   };
 
-  const handleProcessOrderAndPayment = async () => {
+  const handleProcessOrderAndPayment = async (options = {}) => {
     setError('');
     setLoading(true);
 
@@ -316,10 +357,21 @@ const Checkout = () => {
       const orderResponse = await orderService.createOrder(orderPayload);
       const order = orderResponse.data;
 
-      // 2. Initialize Payment Intent
+      // 2. If PayPal redirect flow (routes to official PayPal Sandbox login)
+      if (normalizedMethod === 'paypal' && !options.directSimulation) {
+        if (paymentService.createPayPalOrder) {
+          const ppRes = await paymentService.createPayPalOrder(order.id);
+          if (ppRes?.approvalUrl) {
+            localStorage.setItem('pendingPayPalOrderId', order.id);
+            window.location.href = ppRes.approvalUrl;
+            return;
+          }
+        }
+      }
+
+      // 3. Process Payment Transaction (Cards, Direct Bank Wire, LankaQR, COD, or Direct PayPal Simulation)
       await paymentService.createPaymentIntent(order.id);
 
-      // 3. Process Payment Transaction (Real Gateway with Sandbox Fallback)
       const payFn = paymentService.processPayment || paymentService.simulatePaymentSuccess;
       const paymentResult = await payFn(order.id, normalizedMethod, paymentDetails);
       if (!paymentResult && paymentService.simulatePaymentSuccess) {
@@ -361,6 +413,18 @@ const Checkout = () => {
             </Step>
           ))}
         </Stepper>
+
+        {paypalProcessing && (
+          <Box sx={{ p: 3, mb: 3, textAlign: 'center', bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #bae6fd' }}>
+            <CircularProgress size={40} sx={{ color: '#0070ba', mb: 1.5 }} />
+            <Typography variant="h6" fontWeight="bold" color="primary" gutterBottom>
+              Finalizing PayPal Sandbox Payment...
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Capturing authorization and generating your instant download invoice. Please do not refresh.
+            </Typography>
+          </Box>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
@@ -715,21 +779,80 @@ const Checkout = () => {
 
               {/* Sub-form: PayPal */}
               {paymentMethod === 'paypal' && (
-                <Card variant="outlined" sx={{ p: 2, mt: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom color="info.main">
-                    PayPal Account Details
-                  </Typography>
+                <Card variant="outlined" sx={{ p: 2.5, mt: 2, bgcolor: '#f0f9ff', borderRadius: 2, borderColor: '#0284c7' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <AccountBalanceWallet sx={{ color: '#0070ba', mr: 1, fontSize: 28 }} />
+                      <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#003087' }}>
+                        PayPal Express Checkout
+                      </Typography>
+                    </Box>
+                    <Chip
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      label="Sandbox Mode Active"
+                      sx={{ fontWeight: 'bold' }}
+                    />
+                  </Box>
+
+                  <Alert severity="info" sx={{ mb: 2, fontSize: '0.85rem' }}>
+                    <strong>PayPal Sandbox Account Info:</strong>
+                    <Box component="ul" sx={{ pl: 2.5, my: 0.5 }}>
+                      <li>Sandbox Buyer Email: <code>sb-toawx53417309@business.example.com</code></li>
+                      <li>Sandbox Password: <code>rZ3ATz#/</code></li>
+                      <li>Currency Auto-Conversion: LKR {totalAmount.toFixed(2)} ≈ <strong>${(totalAmount / 300).toFixed(2)} USD</strong> (1 USD = 300 LKR)</li>
+                    </Box>
+                    Click <strong>"Pay with PayPal (Sandbox Login)"</strong> to open the real PayPal Sandbox login interface, or choose <strong>"Instant Sandbox Approval"</strong> for one-click checkout.
+                  </Alert>
+
                   <TextField
                     fullWidth
-                    label="PayPal Account Email"
+                    size="small"
+                    label="PayPal Account / Buyer Email"
                     name="paypalEmail"
                     value={paypalDetails.paypalEmail}
                     onChange={handlePaypalChange}
-                    sx={{ my: 1 }}
+                    sx={{ mb: 2 }}
+                    helperText="Notification receipt will also be dispatched to this email upon order confirmation."
                   />
-                  <Typography variant="caption" color="text.secondary">
-                    You will be securely routed through PayPal sandbox one-touch authorization.
-                  </Typography>
+
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      onClick={() => handleProcessOrderAndPayment({ directSimulation: false })}
+                      disabled={loading || paypalProcessing}
+                      sx={{
+                        bgcolor: '#0070ba',
+                        '&:hover': { bgcolor: '#003087' },
+                        py: 1.2,
+                        fontWeight: 'bold',
+                        textTransform: 'none',
+                        fontSize: '0.95rem',
+                      }}
+                      startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <AccountBalanceWallet />}
+                    >
+                      {loading ? 'Connecting to PayPal...' : `Pay via PayPal ($${(totalAmount / 300).toFixed(2)} USD)`}
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      onClick={() => handleProcessOrderAndPayment({ directSimulation: true })}
+                      disabled={loading || paypalProcessing}
+                      sx={{
+                        borderColor: '#0284c7',
+                        color: '#0284c7',
+                        py: 1.2,
+                        fontWeight: 'bold',
+                        textTransform: 'none',
+                        fontSize: '0.95rem',
+                      }}
+                    >
+                      Instant Sandbox Approval (Direct)
+                    </Button>
+                  </Stack>
                 </Card>
               )}
 
@@ -839,13 +962,20 @@ const Checkout = () => {
                 </Button>
                 <Button
                   variant="contained"
-                  color="success"
+                  color={paymentMethod === 'paypal' ? 'primary' : 'success'}
                   size="large"
-                  onClick={handleProcessOrderAndPayment}
-                  disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Lock />}
+                  onClick={() => handleProcessOrderAndPayment()}
+                  disabled={loading || paypalProcessing}
+                  startIcon={(loading || paypalProcessing) ? <CircularProgress size={20} color="inherit" /> : <Lock />}
+                  sx={paymentMethod === 'paypal' ? { bgcolor: '#0070ba', '&:hover': { bgcolor: '#003087' } } : {}}
                 >
-                  {loading ? 'Authorizing Payment...' : `Pay LKR ${totalAmount.toFixed(2)} Now`}
+                  {loading
+                    ? (paymentMethod === 'paypal' ? 'Connecting to PayPal...' : 'Authorizing Payment...')
+                    : (paymentMethod === 'paypal'
+                        ? `Pay with PayPal ($${(totalAmount / 300).toFixed(2)} USD) Now`
+                        : `Pay LKR ${totalAmount.toFixed(2)} Now`
+                      )
+                  }
                 </Button>
               </Box>
             </Grid>

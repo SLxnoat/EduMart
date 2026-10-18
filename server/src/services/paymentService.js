@@ -322,8 +322,8 @@ const paymentService = {
             application_context: {
               brand_name: 'EduMart Marketplace',
               user_action: 'PAY_NOW',
-              return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/checkout`,
-              cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/checkout`,
+              return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/checkout?order_id=${order.id}&paypal=success`,
+              cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/checkout?order_id=${order.id}&paypal=cancel`,
             },
           }),
         });
