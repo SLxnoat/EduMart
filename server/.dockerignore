@@ -8,3 +8,7 @@ coverage
 *.db
 *.log
 npm-debug.log*
+__tests__
+jest.config.js
+jest.setup.js
+README.md
