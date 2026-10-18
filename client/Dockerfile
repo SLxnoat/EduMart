@@ -10,6 +10,10 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
+# Set build argument and environment variable for API URL (defaults to /api for nginx proxy)
+ARG REACT_APP_API_URL=/api
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+
 # Copy source code
 COPY . .
 

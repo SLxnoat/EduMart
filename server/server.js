@@ -63,6 +63,9 @@ app.use('/api/categories', (req, res, next) => {
   getCategories(req, res, next);
 });
 
+// Serve uploaded material files
+app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
+
 // Serve frontend static build in production
 if (process.env.NODE_ENV === 'production') {
   const clientBuildPath = path.resolve(__dirname, '../client/build');
