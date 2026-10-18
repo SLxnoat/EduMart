@@ -331,6 +331,87 @@ describe('Payment Controller', () => {
       expect(res.body.success).toBe(true);
       expect(res.body).toHaveProperty('paypalOrderId');
       expect(res.body).toHaveProperty('approvalUrl');
+      expect(res.body).toHaveProperty('currency');
+      expect(res.body).toHaveProperty('amount');
+    });
+
+    it('should capture a PayPal order via /api/payments/paypal/capture-order and mark order as paid', async () => {
+      const payPalOrder2 = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-PAYPAL-CAPTURE-1',
+        status: 'pending',
+        subtotal: 120.0,
+        total_amount: 120.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/paypal/capture-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: payPalOrder2.id,
+          paypalOrderId: 'PAYID-SANDBOX-TEST-123456',
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.paymentMethod).toBe('paypal');
+      expect(res.body.status).toBe('completed');
+
+      const updated = await Order.findByPk(payPalOrder2.id);
+      expect(updated.status).toBe('paid');
+      expect(updated.payment_status).toBe('paid');
+
+      const payment = await Payment.findOne({ where: { order_id: payPalOrder2.id } });
+      expect(payment).not.toBeNull();
+      expect(payment.payment_method).toBe('paypal');
+      expect(payment.status).toBe('completed');
+
+      // Test idempotency: capturing already paid order returns completed without error
+      const idempotencyRes = await request(app)
+        .post('/api/payments/paypal/capture-order')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: payPalOrder2.id,
+          paypalOrderId: 'PAYID-SANDBOX-TEST-123456',
+        });
+
+      expect(idempotencyRes.statusCode).toBe(200);
+      expect(idempotencyRes.body.success).toBe(true);
+      expect(idempotencyRes.body.alreadyPaid).toBe(true);
+    });
+
+    it('should process PayPal payment via /api/payments/process with sandbox fallback', async () => {
+      const payPalOrder3 = await Order.create({
+        user_id: testUser.id,
+        order_number: 'EDM-TEST-PAYPAL-PROCESS-1',
+        status: 'pending',
+        subtotal: 85.0,
+        total_amount: 85.0,
+        currency: 'LKR',
+        payment_status: 'pending',
+      });
+
+      const res = await request(app)
+        .post('/api/payments/process')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          orderId: payPalOrder3.id,
+          paymentMethod: 'paypal',
+          paymentDetails: {
+            paypalEmail: 'student.paypal@example.com',
+          },
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.paymentMethod).toBe('paypal');
+      expect(res.body.status).toBe('completed');
+
+      const updated = await Order.findByPk(payPalOrder3.id);
+      expect(updated.status).toBe('paid');
+      expect(updated.payment_status).toBe('paid');
     });
   });
 });

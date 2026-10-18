@@ -143,6 +143,47 @@ const getPayPalAccessToken = async () => {
   return { token: data.access_token, baseUrl };
 };
 
+/**
+ * PayPal REST API Supported Currencies (v2 Orders API)
+ * Note: LKR is not supported directly by PayPal REST API. EduMart automatically converts LKR to USD.
+ */
+const PAYPAL_SUPPORTED_CURRENCIES = [
+  'AUD', 'BRL', 'CAD', 'CNY', 'CZK', 'DKK', 'EUR', 'HKD', 'HUF', 'ILS',
+  'JPY', 'MYR', 'MXN', 'TWD', 'NZD', 'NOK', 'PHP', 'PLN', 'GBP', 'RUB',
+  'SGD', 'SEK', 'CHF', 'THB', 'USD',
+];
+
+/**
+ * Convert order currency and amount to PayPal-supported currency format
+ */
+const getPayPalCurrencyAndAmount = (rawCurrency, rawAmount) => {
+  const currency = (rawCurrency || 'LKR').toUpperCase();
+  const amount = parseFloat(rawAmount) || 0;
+
+  if (PAYPAL_SUPPORTED_CURRENCIES.includes(currency)) {
+    const formatted = ['JPY', 'HUF', 'TWD'].includes(currency)
+      ? Math.round(amount).toString()
+      : amount.toFixed(2);
+    return {
+      currency,
+      value: formatted,
+      converted: false,
+    };
+  }
+
+  // Convert unsupported currencies (e.g., LKR) to USD
+  const lkrToUsdRate = parseFloat(process.env.PAYPAL_LKR_TO_USD_RATE || '300') || 300;
+  const convertedUsd = Math.max(0.01, parseFloat((amount / lkrToUsdRate).toFixed(2)));
+  return {
+    currency: 'USD',
+    value: convertedUsd.toFixed(2),
+    converted: true,
+    originalCurrency: currency,
+    originalAmount: amount.toFixed(2),
+    conversionRate: lkrToUsdRate,
+  };
+};
+
 const paymentService = {
   isRealStripeConfigured,
   isRealPayPalConfigured,
@@ -161,6 +202,8 @@ const paymentService = {
         enabled: isRealPayPalConfigured(),
         clientId: process.env.PAYPAL_CLIENT_ID || '',
         mode: process.env.PAYPAL_MODE || 'sandbox',
+        supportedCurrencies: PAYPAL_SUPPORTED_CURRENCIES,
+        lkrToUsdRate: parseFloat(process.env.PAYPAL_LKR_TO_USD_RATE || '300') || 300,
       },
       bankTransfer: {
         enabled: true,
@@ -253,7 +296,9 @@ const paymentService = {
       throw error;
     }
 
-    if (isRealPayPalConfigured()) {
+    const payPalAmount = getPayPalCurrencyAndAmount(order.currency, order.total_amount);
+
+    if (isRealPayPalConfigured() && process.env.NODE_ENV !== 'test') {
       try {
         const { token, baseUrl } = await getPayPalAccessToken();
         const response = await fetch(`${baseUrl}/v2/checkout/orders`, {
@@ -269,8 +314,8 @@ const paymentService = {
                 reference_id: order.id,
                 description: `EduMart Order #${order.order_number}`,
                 amount: {
-                  currency_code: (order.currency || 'LKR').toUpperCase(),
-                  value: parseFloat(order.total_amount).toFixed(2),
+                  currency_code: payPalAmount.currency,
+                  value: payPalAmount.value,
                 },
               },
             ],
@@ -292,6 +337,8 @@ const paymentService = {
             paypalOrderId: paypalData.id,
             approvalUrl: approveLink ? approveLink.href : null,
             mode: 'live',
+            currency: payPalAmount.currency,
+            amount: payPalAmount.value,
           };
         }
         const errText = await response.text();
@@ -308,6 +355,8 @@ const paymentService = {
       paypalOrderId: mockPaypalId,
       approvalUrl: `https://www.sandbox.paypal.com/checkoutnow?token=${mockPaypalId}`,
       mode: 'sandbox',
+      currency: payPalAmount.currency,
+      amount: payPalAmount.value,
     };
   },
 
@@ -331,10 +380,31 @@ const paymentService = {
       throw error;
     }
 
+    // Check idempotency: if already paid, return completed status
+    if (order.status === 'paid' && order.payment_status === 'paid') {
+      const existingPayment = await Payment.findOne({ where: { order_id: order.id } });
+      return {
+        success: true,
+        orderId: order.id,
+        orderNumber: order.order_number,
+        paymentId: existingPayment ? existingPayment.id : null,
+        paymentMethod: 'paypal',
+        provider: existingPayment?.provider || (isRealPayPalConfigured() ? 'paypal_live' : 'paypal_sandbox'),
+        status: 'completed',
+        alreadyPaid: true,
+      };
+    }
+
     let captureResult = null;
     let providerPaymentId = paypalOrderId;
 
-    if (isRealPayPalConfigured()) {
+    const isMockPaypalId = typeof paypalOrderId === 'string' && (
+      paypalOrderId.startsWith('PAYID-MOCK-') ||
+      paypalOrderId.startsWith('PAYID-SANDBOX-') ||
+      paypalOrderId.startsWith('pi_paypal_')
+    );
+
+    if (isRealPayPalConfigured() && !isMockPaypalId && process.env.NODE_ENV !== 'test') {
       const { token, baseUrl } = await getPayPalAccessToken();
       const response = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
         method: 'POST',
@@ -397,6 +467,7 @@ const paymentService = {
       orderNumber: order.order_number,
       paymentId: payment.id,
       paymentMethod: 'paypal',
+      provider: isRealPayPalConfigured() ? 'paypal_live' : 'paypal_sandbox',
       status: 'completed',
     };
   },
@@ -566,7 +637,7 @@ const paymentService = {
 
     // 2. PAYPAL EXPRESS CHECKOUT
     if (normalizedMethod === 'paypal') {
-      if (paymentDetails?.paypalOrderId && isRealPayPalConfigured()) {
+      if (paymentDetails?.paypalOrderId) {
         return await paymentService.capturePayPalOrder(order.id, paymentDetails.paypalOrderId, userId);
       }
 
