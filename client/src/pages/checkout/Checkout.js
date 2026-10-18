@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -146,7 +146,7 @@ const Checkout = () => {
   const [downloadMsg, setDownloadMsg] = useState('');
 
   // Unified payment completion transition handler
-  const handlePaymentCompletion = (order) => {
+  const handlePaymentCompletion = useCallback((order) => {
     if (!order) return;
     setPlacedOrder(order);
     try {
@@ -156,7 +156,7 @@ const Checkout = () => {
     if (clearCart) clearCart();
     setActiveStep(2);
     setError('');
-  };
+  }, [clearCart]);
 
   // Handle return from PayPal Sandbox redirect
   useEffect(() => {
@@ -227,7 +227,7 @@ const Checkout = () => {
       setActiveStep(1);
       navigate('/checkout', { replace: true });
     }
-  }, [location.search, clearCart, navigate]);
+  }, [location.search, handlePaymentCompletion, placedOrder, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -407,7 +407,8 @@ const Checkout = () => {
     taxAmount,
     discountAmount,
     appliedCoupon,
-    clearCart,
+    handlePaymentCompletion,
+    navigate,
   ]);
 
   // Reset payment method from COD if cart contains digital items or no physical items

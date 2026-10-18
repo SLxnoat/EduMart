@@ -63,6 +63,18 @@ app.use('/api/categories', (req, res, next) => {
   getCategories(req, res, next);
 });
 
+// Serve frontend static build in production
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.resolve(__dirname, '../client/build');
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.resolve(clientBuildPath, 'index.html'));
+  });
+}
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
