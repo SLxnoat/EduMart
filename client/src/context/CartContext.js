@@ -103,10 +103,13 @@ export const CartProvider = ({ children }) => {
     }
   }, [cartItems]);
 
-  // Synchronize cart across components and windows via storage event
+  // Synchronize cart across components and windows via native storage event
   useEffect(() => {
     const handleStorage = (e) => {
-      if (!e.key || e.key === 'edumart_cart_items' || e.key === 'cart') {
+      // Do not process intra-window synthetic events that lack a key
+      if (!e.key) return;
+
+      if (e.key === 'edumart_cart_items') {
         try {
           const edumartLocal = localStorage.getItem('edumart_cart_items');
           if (edumartLocal) {
@@ -116,12 +119,16 @@ export const CartProvider = ({ children }) => {
               return;
             }
           }
+        } catch (_) {}
+      } else if (e.key === 'cart') {
+        try {
           const legacy = localStorage.getItem('cart');
           if (legacy) {
             const parsed = JSON.parse(legacy);
             if (Array.isArray(parsed)) {
               setCartItems(
                 parsed.map((item) => ({
+                  id: item.id || item.product_id,
                   product_id: item.id || item.product_id,
                   title: item.title,
                   price: parseFloat(item.price) || 0,
@@ -229,19 +236,21 @@ export const CartProvider = ({ children }) => {
 
     setCartItems((prevItems) => {
       const existingIdx = prevItems.findIndex(
-        (i) => (productId && i.product_id === productId) || i.title === title
+        (i) => (productId && (i.product_id === productId || i.id === productId)) || i.title === title
       );
+      let updated;
       if (existingIdx > -1) {
         const copy = [...prevItems];
         copy[existingIdx] = {
           ...copy[existingIdx],
           quantity: copy[existingIdx].quantity + qtyToAdd,
         };
-        return copy;
+        updated = copy;
       } else {
-        return [
+        updated = [
           ...prevItems,
           {
+            id: productId || `item-${Date.now()}`,
             product_id: productId || `item-${Date.now()}`,
             title,
             price,
@@ -253,12 +262,30 @@ export const CartProvider = ({ children }) => {
           },
         ];
       }
+
+      try {
+        localStorage.setItem('edumart_cart_items', JSON.stringify(updated));
+        const legacyCart = updated.map((item) => ({
+          id: item.product_id || item.id,
+          product_id: item.product_id || item.id,
+          title: item.title,
+          price: parseFloat(item.price) || 0,
+          format: item.is_physical ? (item.is_digital ? 'both' : 'physical') : 'digital',
+          subject: item.subject,
+          grade_level: item.grade_level,
+          quantity: item.quantity,
+        }));
+        localStorage.setItem('cart', JSON.stringify(legacyCart));
+      } catch (e) {}
+
+      return updated;
     });
 
     if (user) {
       try {
-        await cartService.addItem({
+        const res = await cartService.addItem({
           product_id: productId,
+          productId: productId,
           title,
           price,
           quantity: qtyToAdd,
@@ -267,6 +294,9 @@ export const CartProvider = ({ children }) => {
           subject: product.subject,
           grade_level: product.grade_level,
         });
+        if (res && res.data && Array.isArray(res.data.items)) {
+          setCartItems(res.data.items);
+        }
       } catch (err) {
         // Local state already updated
       }
@@ -276,17 +306,39 @@ export const CartProvider = ({ children }) => {
   const updateQuantity = async (productId, newQuantity) => {
     const qty = parseInt(newQuantity, 10);
     setCartItems((prevItems) => {
+      let updated;
       if (qty <= 0 || isNaN(qty)) {
-        return prevItems.filter((i) => i.product_id !== productId && i.title !== productId);
+        updated = prevItems.filter((i) => i.product_id !== productId && i.id !== productId && i.title !== productId);
+      } else {
+        updated = prevItems.map((i) =>
+          (i.product_id === productId || i.id === productId || i.title === productId) ? { ...i, quantity: qty } : i
+        );
       }
-      return prevItems.map((i) =>
-        i.product_id === productId || i.title === productId ? { ...i, quantity: qty } : i
-      );
+
+      try {
+        localStorage.setItem('edumart_cart_items', JSON.stringify(updated));
+        const legacyCart = updated.map((item) => ({
+          id: item.product_id || item.id,
+          product_id: item.product_id || item.id,
+          title: item.title,
+          price: parseFloat(item.price) || 0,
+          format: item.is_physical ? (item.is_digital ? 'both' : 'physical') : 'digital',
+          subject: item.subject,
+          grade_level: item.grade_level,
+          quantity: item.quantity,
+        }));
+        localStorage.setItem('cart', JSON.stringify(legacyCart));
+      } catch (e) {}
+
+      return updated;
     });
 
     if (user) {
       try {
-        await cartService.updateQuantity(productId, qty);
+        const res = await cartService.updateQuantity(productId, qty);
+        if (res && res.data && Array.isArray(res.data.items)) {
+          setCartItems(res.data.items);
+        }
       } catch (err) {
         // Fallback
       }
@@ -294,13 +346,33 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = async (productId) => {
-    setCartItems((prevItems) =>
-      prevItems.filter((i) => i.product_id !== productId && i.title !== productId)
-    );
+    setCartItems((prevItems) => {
+      const updated = prevItems.filter((i) => i.product_id !== productId && i.id !== productId && i.title !== productId);
+
+      try {
+        localStorage.setItem('edumart_cart_items', JSON.stringify(updated));
+        const legacyCart = updated.map((item) => ({
+          id: item.product_id || item.id,
+          product_id: item.product_id || item.id,
+          title: item.title,
+          price: parseFloat(item.price) || 0,
+          format: item.is_physical ? (item.is_digital ? 'both' : 'physical') : 'digital',
+          subject: item.subject,
+          grade_level: item.grade_level,
+          quantity: item.quantity,
+        }));
+        localStorage.setItem('cart', JSON.stringify(legacyCart));
+      } catch (e) {}
+
+      return updated;
+    });
 
     if (user) {
       try {
-        await cartService.removeItem(productId);
+        const res = await cartService.removeItem(productId);
+        if (res && res.data && Array.isArray(res.data.items)) {
+          setCartItems(res.data.items);
+        }
       } catch (err) {
         // Fallback
       }

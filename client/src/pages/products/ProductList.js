@@ -254,24 +254,26 @@ const ProductList = () => {
       if (addToCart) {
         addToCart(product, 1);
       }
-      const raw = localStorage.getItem('cart');
-      const cart = raw ? JSON.parse(raw) : [];
-      const idx = cart.findIndex((i) => i.id === product.id);
-      if (idx > -1) {
-        cart[idx].quantity += 1;
-      } else {
-        cart.push({
-          id: product.id,
-          title: product.title,
-          price: parseFloat(product.price),
-          format: product.format,
-          subject: product.subject,
-          grade_level: product.grade_level,
-          quantity: 1
-        });
-      }
-      localStorage.setItem('cart', JSON.stringify(cart));
-      window.dispatchEvent(new Event('storage'));
+      try {
+        const raw = localStorage.getItem('cart');
+        const cart = raw ? JSON.parse(raw) : [];
+        const idx = cart.findIndex((i) => i.id === product.id);
+        if (idx > -1) {
+          cart[idx].quantity += 1;
+        } else {
+          cart.push({
+            id: product.id,
+            title: product.title,
+            price: parseFloat(product.price),
+            format: product.format,
+            subject: product.subject,
+            grade_level: product.grade_level,
+            quantity: 1
+          });
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
+      } catch (_) {}
+
       enqueueSnackbar(`"${product.title}" added to cart!`, { variant: 'success' });
     } catch (err) {
       enqueueSnackbar('Could not add item to cart', { variant: 'error' });

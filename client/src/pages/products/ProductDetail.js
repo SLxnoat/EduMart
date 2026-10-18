@@ -203,24 +203,26 @@ const ProductDetail = () => {
     try {
       addToCart(product, quantity);
 
-      const raw = localStorage.getItem('cart');
-      const cart = raw ? JSON.parse(raw) : [];
-      const idx = cart.findIndex((i) => i.id === product.id);
-      if (idx > -1) {
-        cart[idx].quantity += quantity;
-      } else {
-        cart.push({
-          id: product.id,
-          title: product.title,
-          price: parseFloat(product.price),
-          format: product.format,
-          subject: product.subject,
-          grade_level: product.grade_level,
-          quantity
-        });
-      }
-      localStorage.setItem('cart', JSON.stringify(cart));
-      window.dispatchEvent(new Event('storage'));
+      try {
+        const raw = localStorage.getItem('cart');
+        const cart = raw ? JSON.parse(raw) : [];
+        const idx = cart.findIndex((i) => i.id === product.id);
+        if (idx > -1) {
+          cart[idx].quantity += quantity;
+        } else {
+          cart.push({
+            id: product.id,
+            title: product.title,
+            price: parseFloat(product.price),
+            format: product.format,
+            subject: product.subject,
+            grade_level: product.grade_level,
+            quantity
+          });
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
+      } catch (_) {}
+
       enqueueSnackbar(`Added ${quantity} × "${product.title}" to cart!`, { variant: 'success' });
     } catch (err) {
       enqueueSnackbar('Could not add item to cart', { variant: 'error' });
