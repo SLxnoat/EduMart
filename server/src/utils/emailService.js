@@ -1,6 +1,19 @@
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+require('dotenv').config();
+
 const tls = require('tls');
 const net = require('net');
 const https = require('https');
+const crypto = require('crypto');
+
+let nodemailer = null;
+try {
+  nodemailer = require('nodemailer');
+} catch (_) {
+  // Graceful fallback to native socket SMTP if nodemailer is unavailable
+}
 
 /**
  * Mask sensitive key or email for secure diagnostic display
@@ -10,6 +23,45 @@ const maskKey = (str) => {
   const trimmed = str.trim();
   if (trimmed.length <= 4) return '****';
   return `${trimmed.substring(0, 2)}****${trimmed.substring(trimmed.length - 2)}`;
+};
+
+/**
+ * Parse and normalize sender address into friendly name and clean email address.
+ * Safely handles formats such as:
+ * - "EduMart" <name@domain.com>
+ * - EduMart <name@domain.com>
+ * - EduMart name@domain.com
+ * - name@domain.com
+ */
+const parseSenderAddress = (senderStr, fallbackEmail) => {
+  const fallback = (fallbackEmail || 'support@edumart.lk').trim();
+  if (!senderStr || typeof senderStr !== 'string') {
+    return { name: 'EduMart', address: fallback, formatted: `"EduMart" <${fallback}>` };
+  }
+  const trimmed = senderStr.trim();
+
+  // Pattern: "Name" <email> or Name <email>
+  const bracketMatch = trimmed.match(/^(?:["']?([^"']*)["']?\s*)?<([^>]+@[^>]+)>$/);
+  if (bracketMatch) {
+    const name = (bracketMatch[1] || 'EduMart').trim();
+    const address = bracketMatch[2].trim();
+    return { name, address, formatted: `"${name}" <${address}>` };
+  }
+
+  // Pattern: Name email@domain.com
+  const spaceMatch = trimmed.match(/^(?:([^\s<]+(?:\s+[^\s<]+)*)\s+)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})$/);
+  if (spaceMatch && spaceMatch[1]) {
+    const name = spaceMatch[1].replace(/["']/g, '').trim() || 'EduMart';
+    const address = spaceMatch[2].trim();
+    return { name, address, formatted: `"${name}" <${address}>` };
+  }
+
+  // Raw email
+  if (trimmed.includes('@')) {
+    return { name: 'EduMart', address: trimmed, formatted: `"EduMart" <${trimmed}>` };
+  }
+
+  return { name: trimmed, address: fallback, formatted: `"${trimmed}" <${fallback}>` };
 };
 
 /**
@@ -32,7 +84,13 @@ const isSmtpConfigured = () => {
   const host = (process.env.SMTP_HOST || '').trim();
   const user = (process.env.SMTP_USER || '').trim();
   const pass = (process.env.SMTP_PASS || '').trim();
-  return Boolean(host && user && pass && !user.startsWith('your_'));
+  return Boolean(
+    host &&
+    user &&
+    pass &&
+    !user.startsWith('your_') &&
+    !pass.startsWith('your_')
+  );
 };
 
 /**
@@ -101,10 +159,55 @@ const sendEmailJsMail = ({ serviceId, templateId, publicKey, privateKey, templat
 };
 
 /**
- * Full-featured zero-dependency SMTP client using Node.js native tls/net modules.
- * Supports both Port 465 (Implicit TLS) and Port 587 (STARTTLS) with AUTH LOGIN.
+ * Send email via SMTP. Uses Nodemailer when available for industry-standard deliverability,
+ * MIME multipart/alternative (text + HTML), RFC-5322 compliance, and anti-spam header construction.
+ * Seamlessly falls back to native TLS/net sockets if Nodemailer is absent.
  */
-const sendSmtpMail = ({ host, port, secure, user, pass, from, to, subject, html }) => {
+const sendSmtpMail = async ({ host, port, secure, user, pass, from, to, subject, html, text }) => {
+  const parsedSender = parseSenderAddress(from, user);
+  const plainText = text || (html ? html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '');
+  const cleanPass = (pass || '').replace(/\s+/g, '');
+  const recipient = to.trim();
+
+  // Primary Path: Nodemailer
+  if (nodemailer) {
+    const isPort465 = port === 465 || secure === true;
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: isPort465,
+      auth: {
+        user: user.trim(),
+        pass: cleanPass
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+
+    const info = await transporter.sendMail({
+      from: parsedSender.formatted,
+      to: recipient,
+      replyTo: process.env.SMTP_REPLY_TO || parsedSender.address,
+      subject,
+      text: plainText,
+      html,
+      headers: {
+        'X-Mailer': 'EduMart Platform v1.0',
+        'X-Priority': '3',
+        'Auto-Submitted': 'auto-generated'
+      }
+    });
+
+    return {
+      sent: true,
+      provider: 'smtp',
+      messageId: info.messageId,
+      response: info.response
+    };
+  }
+
+  // Secondary Path: Zero-dependency native TLS/net socket client
   return new Promise((resolve, reject) => {
     const timeoutMs = 15000;
     let step = 0;
@@ -119,7 +222,7 @@ const sendSmtpMail = ({ host, port, secure, user, pass, from, to, subject, html 
         try {
           activeSocket.end();
         } catch (_) {
-          // ignore close errors
+          // ignore
         }
       }
       if (err) reject(err);
@@ -142,7 +245,7 @@ const sendSmtpMail = ({ host, port, secure, user, pass, from, to, subject, html 
         sendLine('EHLO edumart.local');
       } else if (step === 1 && code === 250) {
         if (!secure && port === 587 && fullText.toUpperCase().includes('STARTTLS')) {
-          step = 15; // STARTTLS upgrade step
+          step = 15;
           sendLine('STARTTLS');
         } else {
           step = 2;
@@ -173,27 +276,44 @@ const sendSmtpMail = ({ host, port, secure, user, pass, from, to, subject, html 
         sendLine(Buffer.from(user.trim()).toString('base64'));
       } else if (step === 3 && code === 334) {
         step = 4;
-        sendLine(Buffer.from(pass.replace(/\s+/g, '')).toString('base64'));
+        sendLine(Buffer.from(cleanPass).toString('base64'));
       } else if (step === 4 && code === 235) {
         step = 5;
-        sendLine(`MAIL FROM:<${from.trim()}>`);
+        sendLine(`MAIL FROM:<${parsedSender.address}>`);
       } else if (step === 5 && code === 250) {
         step = 6;
-        sendLine(`RCPT TO:<${to.trim()}>`);
+        sendLine(`RCPT TO:<${recipient}>`);
       } else if (step === 6 && code === 250) {
         step = 7;
         sendLine('DATA');
       } else if (step === 7 && code === 354) {
         step = 8;
+        const boundary = `----=_Part_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+        const messageId = `<${Date.now()}.${crypto.randomBytes(8).toString('hex')}@${host}>`;
+
         const message = [
-          `From: "EduMart" <${from.trim()}>`,
-          `To: <${to.trim()}>`,
+          `From: ${parsedSender.formatted}`,
+          `To: <${recipient}>`,
+          `Reply-To: <${parsedSender.address}>`,
           `Subject: ${subject}`,
           `Date: ${new Date().toUTCString()}`,
+          `Message-ID: ${messageId}`,
           'MIME-Version: 1.0',
+          `Content-Type: multipart/alternative; boundary="${boundary}"`,
+          '',
+          `--${boundary}`,
+          'Content-Type: text/plain; charset=UTF-8',
+          'Content-Transfer-Encoding: 8bit',
+          '',
+          plainText,
+          '',
+          `--${boundary}`,
           'Content-Type: text/html; charset=UTF-8',
+          'Content-Transfer-Encoding: 8bit',
           '',
           html,
+          '',
+          `--${boundary}--`,
           '.'
         ].join('\r\n');
         sendLine(message);
@@ -252,15 +372,15 @@ const getFrontendBaseUrl = () => {
 };
 
 /**
- * Dispatch an email through the resilient multi-provider pipeline:
+ * Dispatch an email through the multi-provider pipeline:
  * 1. EmailJS (if configured and not test mode)
- * 2. SMTP (if configured and not test mode)
- * 3. Fallback simulated delivery (in dev/test)
+ * 2. SMTP (Nodemailer / TLS Socket)
+ * 3. Fallback simulated delivery (in dev/test when no credentials provided)
  */
-const dispatchEmail = async ({ to, subject, html, templateId, templateParams = {}, metadata = {} }) => {
+const dispatchEmail = async ({ to, subject, html, text, templateId, templateParams = {}, metadata = {} }) => {
   const isTest = process.env.NODE_ENV === 'test';
 
-  // In automated test suite, fast-path simulated success
+  // In automated test suite, fast-path simulated success unless explicitly forced
   if (isTest && !process.env.FORCE_NETWORK_EMAIL) {
     return {
       sent: true,
@@ -283,7 +403,7 @@ const dispatchEmail = async ({ to, subject, html, templateId, templateParams = {
           to_name: templateParams.to_name || 'Valued User',
           user_name: templateParams.user_name || 'Valued User',
           subject: subject,
-          message: templateParams.message || '',
+          message: templateParams.message || text || '',
           html_content: html,
           reply_to: process.env.EMAILJS_REPLY_TO || 'support@edumart.lk',
           from_name: 'EduMart Platform',
@@ -303,10 +423,10 @@ const dispatchEmail = async ({ to, subject, html, templateId, templateParams = {
     const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
     const smtpUser = (process.env.SMTP_USER || '').trim();
     const smtpPass = (process.env.SMTP_PASS || '').trim();
-    const smtpFrom = (process.env.SMTP_FROM || smtpUser || 'noreply@edumart.com').trim();
+    const smtpFrom = (process.env.SMTP_FROM || smtpUser || 'support@edumart.lk').trim();
 
     try {
-      await sendSmtpMail({
+      const result = await sendSmtpMail({
         host: smtpHost,
         port: smtpPort,
         secure: smtpPort === 465,
@@ -315,19 +435,23 @@ const dispatchEmail = async ({ to, subject, html, templateId, templateParams = {
         from: smtpFrom,
         to,
         subject,
-        html
+        html,
+        text
       });
-      console.log(`[EMAIL-SERVICE] SMTP delivered successfully to ${to}`);
-      return { sent: true, provider: 'smtp', ...metadata };
+      console.log(`[EMAIL-SERVICE] SMTP delivered successfully to ${to} (Subject: "${subject}")`);
+      return { sent: true, provider: 'smtp', ...metadata, ...result };
     } catch (err) {
       console.error(`[EMAIL-SERVICE] SMTP dispatch attempt failed: ${err.message}`);
+      if (process.env.NODE_ENV === 'production') {
+        return { sent: false, provider: 'smtp', error: err.message, ...metadata };
+      }
     }
   }
 
-  // 3. Fallback simulated delivery for dev / sandbox
+  // 3. Fallback simulated delivery for sandbox/development without live credentials
   console.info(
     `[EMAIL-SERVICE] [Sandbox/Simulated] Outbound email to ${to} logged. ` +
-    `(No live EmailJS or SMTP credentials provided). Metadata:`,
+    `(No live EmailJS or SMTP credentials active). Metadata:`,
     metadata
   );
 
@@ -347,6 +471,20 @@ const sendVerificationEmail = async (email, firstName, verificationToken) => {
   const baseUrl = getFrontendBaseUrl();
   const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
   const userName = firstName || 'Learner';
+
+  const plainText = `Hi ${userName},
+
+Thank you for creating an account with EduMart!
+
+To verify your email address and activate your account, please visit the link below:
+${verificationUrl}
+
+If you did not register for an account on EduMart, you can safely disregard this message.
+
+Kind regards,
+The EduMart Platform Team
+Educational Resources Marketplace
+Support: support@edumart.lk`;
 
   const html = `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
@@ -381,6 +519,7 @@ const sendVerificationEmail = async (email, firstName, verificationToken) => {
     to: email,
     subject: 'Verify your EduMart Account',
     html,
+    text: plainText,
     templateId: process.env.EMAILJS_TEMPLATE_VERIFY_ID || process.env.EMAILJS_TEMPLATE_ID,
     templateParams: {
       to_name: userName,
@@ -401,6 +540,19 @@ const sendPasswordResetEmail = async (email, firstName, resetToken) => {
   const baseUrl = getFrontendBaseUrl();
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
   const userName = firstName || 'Learner';
+
+  const plainText = `Hi ${userName},
+
+We received a request to reset the password for your EduMart account.
+
+Click the link below within 1 hour to choose a new password:
+${resetUrl}
+
+If you did not request a password reset, you can safely ignore this email.
+
+Kind regards,
+The EduMart Platform Team
+support@edumart.lk`;
 
   const html = `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
@@ -432,6 +584,7 @@ const sendPasswordResetEmail = async (email, firstName, resetToken) => {
     to: email,
     subject: 'Reset your EduMart Password',
     html,
+    text: plainText,
     templateId: process.env.EMAILJS_TEMPLATE_RESET_ID || process.env.EMAILJS_TEMPLATE_ID,
     templateParams: {
       to_name: userName,
@@ -476,9 +629,24 @@ const sendOrderConfirmationEmail = async ({ email, firstName, order }) => {
 
   const itemsSummaryText = items.map((i) => `${i.product_title || 'Study Material'} x ${i.quantity || 1}`).join(', ');
 
+  const plainText = `Hi ${recipientName},
+
+Thank you for your order on EduMart!
+Order #${order.order_number} has been confirmed.
+
+Total Paid: ${order.currency || 'LKR'} ${parseFloat(order.total_amount || 0).toFixed(2)}
+Items: ${itemsSummaryText}
+
+View your order and access study materials:
+${orderUrl}
+
+Kind regards,
+The EduMart Platform Team
+support@edumart.lk`;
+
   const digitalAccessBanner = hasDigital ? `
     <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px; margin: 24px 0;">
-      <h3 style="color: #065f46; margin: 0 0 8px 0; font-size: 16px; display: flex; align-items: center;">
+      <h3 style="color: #065f46; margin: 0 0 8px 0; font-size: 16px;">
         ⚡ Instant Digital Study Materials Ready
       </h3>
       <p style="color: #047857; margin: 0 0 12px 0; font-size: 14px; line-height: 1.5;">
@@ -550,6 +718,7 @@ const sendOrderConfirmationEmail = async ({ email, firstName, order }) => {
     to: recipientEmail,
     subject: `Order Confirmed #${order.order_number} - EduMart`,
     html,
+    text: plainText,
     templateId: process.env.EMAILJS_TEMPLATE_ORDER_ID || process.env.EMAILJS_TEMPLATE_ID,
     templateParams: {
       to_name: recipientName,
@@ -574,6 +743,14 @@ const sendCustomEmail = async ({ to, toName, subject, message, templateId, extra
     return { sent: false, error: 'Recipient email not specified' };
   }
 
+  const plainText = `Hi ${toName || 'Learner'},
+
+${message}
+
+Kind regards,
+EduMart Marketplace Platform Ltd.
+support@edumart.lk`;
+
   const html = `
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
       <div style="text-align: center; margin-bottom: 24px; border-bottom: 2px solid #2563eb; padding-bottom: 16px;">
@@ -596,6 +773,7 @@ const sendCustomEmail = async ({ to, toName, subject, message, templateId, extra
     to,
     subject,
     html,
+    text: plainText,
     templateId: templateId || process.env.EMAILJS_TEMPLATE_ID,
     templateParams: {
       to_name: toName || 'Learner',
@@ -638,7 +816,8 @@ const getEmailStatus = () => {
       configured: smtpActive,
       host: process.env.SMTP_HOST || null,
       port: parseInt(process.env.SMTP_PORT || '465', 10),
-      userMasked: maskKey(process.env.SMTP_USER)
+      userMasked: maskKey(process.env.SMTP_USER),
+      engine: nodemailer ? 'nodemailer' : 'native-socket'
     }
   };
 };
@@ -652,5 +831,6 @@ module.exports = {
   sendSmtpMail,
   getEmailStatus,
   isEmailJsConfigured,
-  isSmtpConfigured
+  isSmtpConfigured,
+  parseSenderAddress
 };
