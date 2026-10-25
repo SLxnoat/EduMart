@@ -16,6 +16,15 @@ jest.mock('../context/AuthContext', () => ({
   AuthProvider: ({ children }) => <>{children}</>,
 }));
 
+jest.mock('../services/productService', () => ({
+  getAllProducts: jest.fn().mockResolvedValue({ products: [], total: 0 }),
+  getCategories: jest.fn().mockResolvedValue({ categories: [] }),
+}));
+
+jest.mock('../services/notificationService', () => ({
+  getNotifications: jest.fn().mockResolvedValue({ notifications: [], unreadCount: 0 }),
+}));
+
 describe('App Component & Kushmi Modules', () => {
   beforeEach(() => {
     sessionStorage.clear();
@@ -82,7 +91,7 @@ describe('App Component & Kushmi Modules', () => {
     expect(screen.queryByText('Secret Admin Area')).not.toBeInTheDocument();
   });
 
-  test('Profile displays unverified email warning banner and completion tips', () => {
+  test('Profile displays unverified email warning banner and completion tips', async () => {
     render(
       <SnackbarProvider>
         <MemoryRouter>
@@ -91,7 +100,7 @@ describe('App Component & Kushmi Modules', () => {
       </SnackbarProvider>
     );
 
-    expect(screen.getByText(/Resend Verification Email/i)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /resend/i })).toBeInTheDocument();
     expect(screen.getByText(/Verify your email \(\+20%\)/i)).toBeInTheDocument();
   });
 

@@ -79,6 +79,7 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
           password: 'SecurePass123!',
           rememberMe: false
         });
+        expect(submitBtn).not.toBeDisabled();
       });
     });
 
@@ -153,6 +154,7 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
             role: 'tutor'
           })
         );
+        expect(screen.getAllByText(/seller hub/i).length).toBeGreaterThan(0);
       });
     });
   });
@@ -212,6 +214,7 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
 
       await waitFor(() => {
         expect(mockResetPassword).toHaveBeenCalledWith('valid-reset-token-123', 'NewSuperPass123!');
+        expect(screen.getAllByText(/password reset/i).length).toBeGreaterThan(0);
       });
     });
   });
@@ -236,8 +239,9 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
       );
 
       await waitFor(() => {
-        expect(mockVerifyEmail).toHaveBeenCalledWith('valid-verify-token-456');
+        expect(mockVerifyEmail).toHaveBeenCalledWith('valid-verify-token-456', mockUser.email);
         expect(screen.getByText(/email verified!/i)).toBeInTheDocument();
+        expect(screen.getByText(/email verified successfully!/i)).toBeInTheDocument();
       });
     });
   });
@@ -314,6 +318,7 @@ describe('Kushmi Modules - Auth, Profile, Sessions, GDPR & Chatbot', () => {
 
       await waitFor(() => {
         expect(mockRevoke).toHaveBeenCalled();
+        expect(revokeBtn).not.toBeDisabled();
       });
     });
 

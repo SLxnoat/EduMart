@@ -67,18 +67,28 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchFeatured = async () => {
       try {
         const res = await productService.getAllProducts({ limit: 4 });
-        const list = res.products || res || [];
-        setFeaturedProducts(Array.isArray(list) ? list.slice(0, 4) : []);
+        const list = res?.products || res || [];
+        if (isMounted) {
+          setFeaturedProducts(Array.isArray(list) ? list.slice(0, 4) : []);
+        }
       } catch (err) {
-        console.error('Failed to load featured products:', err);
+        if (isMounted) {
+          console.error('Failed to load featured products:', err);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchFeatured();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSearch = (e) => {
