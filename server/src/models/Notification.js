@@ -61,7 +61,7 @@ module.exports = (sequelize) => {
     tableName: 'notifications',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at',
+    updatedAt: false,
   });
 
   Notification.associate = (models) => {

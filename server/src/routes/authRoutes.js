@@ -39,7 +39,29 @@ router.use(authRateLimiter({ windowMs: 60 * 1000, max: 5 }));
 // Public routes
 router.post('/register', validate(registerUserSchema), registerUser);
 router.post('/login', validate(loginUserSchema), loginUser);
-router.post('/verify-email', validate(verifyEmailSchema), verifyEmail);
+// Dedicated validation for email verification supporting both POST (body) and GET (query)
+const validateVerifyEmail = (req, res, next) => {
+  const data = {
+    token: req.body?.token || req.query?.token,
+    email: req.body?.email || req.query?.email
+  };
+  const { error } = verifyEmailSchema.validate(data, { abortEarly: false });
+  if (error) {
+    if (req.method === 'GET') {
+      const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+      return res.redirect(`${baseUrl}/verify-email?status=error&message=${encodeURIComponent('Invalid verification token')}`);
+    }
+    return res.status(400).json({
+      message: 'Validation failed',
+      errors: error.details.map((d) => d.message)
+    });
+  }
+  next();
+};
+
+router.route('/verify-email')
+  .post(validateVerifyEmail, verifyEmail)
+  .get(validateVerifyEmail, verifyEmail);
 router.post('/resend-verification', validate(resendVerificationSchema), resendVerificationEmail);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);

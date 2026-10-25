@@ -467,8 +467,10 @@ const dispatchEmail = async ({ to, subject, html, text, templateId, templatePara
 /**
  * Send account verification email to the user's email address
  */
-const sendVerificationEmail = async (email, firstName, verificationToken) => {
-  const baseUrl = getFrontendBaseUrl();
+const sendVerificationEmail = async (email, firstName, verificationToken, options = {}) => {
+  const reqOrigin = options?.origin || (options?.headers && (options.headers.origin || options.headers.referer));
+  const cleanOrigin = reqOrigin ? reqOrigin.replace(/\/$/, '') : null;
+  const baseUrl = cleanOrigin || getFrontendBaseUrl();
   const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
   const userName = firstName || 'Learner';
 
@@ -476,8 +478,11 @@ const sendVerificationEmail = async (email, firstName, verificationToken) => {
 
 Thank you for creating an account with EduMart!
 
-To verify your email address and activate your account, please visit the link below:
+To verify your email address and activate your account, please click or visit the link below:
 ${verificationUrl}
+
+Or enter this Verification Code / Token directly on the EduMart verification page:
+${verificationToken}
 
 If you did not register for an account on EduMart, you can safely disregard this message.
 
@@ -499,11 +504,24 @@ Support: support@edumart.lk`;
       <p style="color: #374151; line-height: 1.6; font-size: 15px;">
         Thank you for creating an EduMart account! To complete your registration and activate full access to your account, please verify your email address by clicking the button below:
       </p>
-      <div style="margin: 32px 0; text-align: center;">
+      <div style="margin: 28px 0; text-align: center;">
         <a href="${verificationUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; display: inline-block;">
           Verify My Email Address
         </a>
       </div>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 24px 0; text-align: center;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+          Your Verification Code / Token:
+        </p>
+        <div style="background-color: #ffffff; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 13px; color: #1e40af; word-break: break-all; font-weight: bold; user-select: all;">
+          ${verificationToken}
+        </div>
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">
+          If viewing on a mobile phone, you can copy this code and paste it on the EduMart verification page on your computer.
+        </p>
+      </div>
+
       <p style="color: #6b7280; font-size: 13px; line-height: 1.5;">
         If the button above doesn't work, copy and paste this link into your browser:<br/>
         <a href="${verificationUrl}" style="color: #2563eb; word-break: break-all;">${verificationUrl}</a>
@@ -533,9 +551,6 @@ Support: support@edumart.lk`;
   });
 };
 
-/**
- * Send password reset email to the user's email address
- */
 const sendPasswordResetEmail = async (email, firstName, resetToken) => {
   const baseUrl = getFrontendBaseUrl();
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;

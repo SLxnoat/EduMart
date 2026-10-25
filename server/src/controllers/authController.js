@@ -81,7 +81,7 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
-    const emailResult = await sendVerificationEmail(normalizedEmail, user.first_name, verificationToken);
+    const emailResult = await sendVerificationEmail(normalizedEmail, user.first_name, verificationToken, req);
 
     const token = generateToken(user.id);
     await recordSession(user.id, token, req);
@@ -159,25 +159,78 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/verify-email
 // @access  Public
 const verifyEmail = asyncHandler(async (req, res) => {
-  const { token } = req.body;
+  const token = (req.body?.token || req.query?.token || '').trim();
+  const email = (req.body?.email || req.query?.email || '').trim().toLowerCase();
+  const baseUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 
-  const user = await User.findOne({ where: { verification_token: token } });
-
-  if (!user) {
-    res.status(400);
-    throw new Error('Invalid or expired verification token');
+  let user = null;
+  if (token) {
+    user = await User.findOne({ where: { verification_token: token } });
   }
 
-  user.is_verified = true;
-  user.verification_token = null;
-  await user.save();
+  // Token matched directly in database
+  if (user) {
+    user.is_verified = true;
+    user.verification_token = null;
+    await user.save();
 
-  res.status(200).json({ message: 'Email verified successfully' });
+    if (req.method === 'GET') {
+      return res.redirect(`${baseUrl}/verify-email?token=${encodeURIComponent(token)}&status=success`);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      isVerified: true
+    });
+  }
+
+  // Idempotent verification check:
+  // 1. If requester is logged in via Bearer token, check if they are already verified
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(req.headers.authorization.split(' ')[1], process.env.JWT_SECRET);
+      const authUser = await User.findByPk(decoded.id);
+      if (authUser && authUser.is_verified) {
+        if (req.method === 'GET') {
+          return res.redirect(`${baseUrl}/verify-email?status=success&already=true`);
+        }
+        return res.status(200).json({
+          success: true,
+          message: 'Your email address is already verified!',
+          alreadyVerified: true,
+          isVerified: true
+        });
+      }
+    } catch (err) {
+      // Ignored
+    }
+  }
+
+  // 2. If email was provided and that user is already verified
+  if (email) {
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser && existingUser.is_verified) {
+      if (req.method === 'GET') {
+        return res.redirect(`${baseUrl}/verify-email?status=success&already=true`);
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Your email address is already verified!',
+        alreadyVerified: true,
+        isVerified: true
+      });
+    }
+  }
+
+  if (req.method === 'GET') {
+    return res.redirect(`${baseUrl}/verify-email?status=error&message=${encodeURIComponent('Invalid or expired verification token')}`);
+  }
+
+  res.status(400);
+  throw new Error('Invalid or expired verification token');
 });
 
-// @desc    Resend verification email token
-// @route   POST /api/auth/resend-verification
-// @access  Public
 const resendVerificationEmail = asyncHandler(async (req, res) => {
   const email = (req.body.email || req.user?.email || '').trim().toLowerCase();
 
@@ -203,7 +256,7 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   user.verification_token = verificationToken;
   await user.save();
 
-  const emailResult = await sendVerificationEmail(email, user.first_name, verificationToken);
+  const emailResult = await sendVerificationEmail(email, user.first_name, verificationToken, req);
 
   res.status(200).json({
     emailSent: emailResult.sent,

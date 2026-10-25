@@ -20,7 +20,8 @@ const loginUserSchema = Joi.object({
 
 // Validation for email verification
 const verifyEmailSchema = Joi.object({
-  token: Joi.string().min(16).max(255).required()
+  token: Joi.string().min(16).max(255).required(),
+  email: Joi.string().trim().email().optional()
 });
 
 // Validation for resending verification email
@@ -62,4 +63,4 @@ module.exports = {
   resetPasswordSchema,
   changePasswordSchema,
   updateUserProfileSchema
-};
+};

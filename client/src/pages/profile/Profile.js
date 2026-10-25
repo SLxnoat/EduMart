@@ -44,6 +44,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
   const {
@@ -255,15 +256,26 @@ const Profile = () => {
           severity="warning"
           sx={{ mb: 3, alignItems: 'center' }}
           action={
-            <Button
-              color="inherit"
-              size="small"
-              variant="outlined"
-              disabled={resendingEmail}
-              onClick={handleResendVerification}
-            >
-              {resendingEmail ? 'Sending...' : 'Resend Verification Email'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Button
+                color="primary"
+                size="small"
+                variant="contained"
+                component={Link}
+                to="/verify-email"
+              >
+                Verify Email
+              </Button>
+              <Button
+                color="inherit"
+                size="small"
+                variant="outlined"
+                disabled={resendingEmail}
+                onClick={handleResendVerification}
+              >
+                {resendingEmail ? 'Sending...' : 'Resend'}
+              </Button>
+            </Box>
           }
         >
           Your email address ({user.email}) is not verified yet. Please check your email inbox and click the verification link we sent you.
