@@ -22,6 +22,7 @@ import { useSnackbar } from 'notistack';
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const emailParam = searchParams.get('email');
   const urlStatus = searchParams.get('status');
   const urlVerified = searchParams.get('verified');
   const urlAlready = searchParams.get('already');
@@ -79,7 +80,7 @@ const VerifyEmail = () => {
 
       const performAutoVerification = async () => {
         try {
-          await verifyEmail(token, user?.email);
+          await verifyEmail(token, emailParam || user?.email);
           setStatus('success');
           enqueueSnackbar('Email verified successfully!', { variant: 'success' });
         } catch (err) {

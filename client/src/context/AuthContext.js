@@ -37,9 +37,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Load user from localStorage or sessionStorage on init
+  // Load user from localStorage or sessionStorage on init and sync fresh profile
   useEffect(() => {
     const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+    const storedToken = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -47,6 +48,16 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('user');
         sessionStorage.removeItem('user');
       }
+    }
+    if (storedToken) {
+      authService.getProfile()
+        .then((fresh) => {
+          if (fresh) {
+            setUser(fresh);
+            updateStoredUser(fresh);
+          }
+        })
+        .catch(() => {});
     }
     setLoading(false);
   }, []);
@@ -119,7 +130,13 @@ export const AuthProvider = ({ children }) => {
 
   // Resend verification email
   const resendVerification = async (email) => {
-    return await authService.resendVerification(email);
+    const res = await authService.resendVerification(email);
+    if (res?.alreadyVerified) {
+      const updated = { ...(user || {}), isVerified: true, is_verified: true };
+      setUser(updated);
+      updateStoredUser(updated);
+    }
+    return res;
   };
 
   // Forgot password

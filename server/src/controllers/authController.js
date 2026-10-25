@@ -96,6 +96,7 @@ const registerUser = asyncHandler(async (req, res) => {
       institution: user.institution,
       role: user.role,
       isVerified: user.is_verified,
+      is_verified: user.is_verified,
       profileCompletion: calculateProfileCompletion(user),
       createdAt: user.created_at || user.createdAt,
       token,
@@ -248,8 +249,12 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
   }
 
   if (user.is_verified) {
-    res.status(400);
-    throw new Error('Email is already verified');
+    return res.status(200).json({
+      success: true,
+      alreadyVerified: true,
+      isVerified: true,
+      message: 'Your email address is already verified! Your account is active.'
+    });
   }
 
   const verificationToken = crypto.randomBytes(32).toString('hex');

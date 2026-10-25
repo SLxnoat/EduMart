@@ -100,12 +100,24 @@ const Profile = () => {
     }
   }, [user]);
 
+  // Always sync latest account & verification status on mount
+  useEffect(() => {
+    if (refreshProfile) {
+      refreshProfile();
+    }
+  }, []);
+
   const handleResendVerification = async () => {
     if (!resendVerification) return;
     try {
       setResendingEmail(true);
       const res = await resendVerification(user?.email);
-      enqueueSnackbar(res.message || 'Verification email sent! Please check your inbox.', { variant: 'success' });
+      if (res?.alreadyVerified) {
+        enqueueSnackbar('Your email is already verified! Your account is active.', { variant: 'success' });
+        if (refreshProfile) await refreshProfile();
+      } else {
+        enqueueSnackbar(res.message || 'Verification email sent! Please check your inbox.', { variant: 'success' });
+      }
     } catch (err) {
       const msg = err.response?.data?.message || 'Failed to resend verification email.';
       enqueueSnackbar(msg, { variant: 'error' });

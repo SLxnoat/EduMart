@@ -471,7 +471,7 @@ const sendVerificationEmail = async (email, firstName, verificationToken, option
   const reqOrigin = options?.origin || (options?.headers && (options.headers.origin || options.headers.referer));
   const cleanOrigin = reqOrigin ? reqOrigin.replace(/\/$/, '') : null;
   const baseUrl = cleanOrigin || getFrontendBaseUrl();
-  const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
+  const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
   const userName = firstName || 'Learner';
 
   const plainText = `Hi ${userName},
